@@ -1,0 +1,1219 @@
+from youtube import util, yt_data_extract
+from youtube import yt_app
+import settings
+
+import os
+import json
+import html
+import gevent
+import urllib
+import math
+
+import flask
+from flask import request
+
+# mine
+import sqlite3
+import contextlib
+from io import BytesIO
+
+playlists_directory = os.path.join(settings.data_dir, "playlists")
+thumbnails_directory = os.path.join(settings.data_dir, "playlist_thumbnails")
+
+def video_ids_in_playlist(name, column=None):
+    
+    if use_sqlite3_db_as_storage(): return video_ids_in_playlist_sqlite_db(name, column) # mine
+    
+    try:
+        with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+            videos = file.read()
+            import sys
+        ## mine # gives error if History playlist is empty, to bypass error just delete History playlist
+        return set(json.loads(video)['id'] for video in videos.splitlines())
+    except FileNotFoundError:
+        return set()
+
+def add_to_playlist(name, video_info_list):
+    
+    if use_sqlite3_db_as_storage(): return add_to_playlist_sqlite_db(name, video_info_list) # mine
+    
+    if not os.path.exists(playlists_directory):
+        os.makedirs(playlists_directory)
+    ids = video_ids_in_playlist(name)
+    missing_thumbnails = []
+    
+    ################################################################## mine
+    if name in ["related_hidden_channels", "search_hidden_channels"]:
+        from youtube import channel
+        
+        def video_authors_id_in_playlist(name):
+            try:
+                with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+                    videos = file.read()
+                    import sys
+                ## mine # gives error if History playlist is empty, to bypass error just delete History playlist
+                return set(json.loads(video)['author_id'] for video in videos.splitlines())                
+            except FileNotFoundError:
+                return set()
+        
+        authors_id = video_authors_id_in_playlist(name)
+        
+        with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
+            for info in video_info_list:
+                
+                # replace id with author_id becouse need avatar for channel not for video
+                tmp = json.loads(info)
+                author_id = tmp['author_id']
+                tmp['id'] = tmp['author_id']
+
+                # if video is deleted from youtube than extracted values will be null and will break the playlist
+                if author_id == None:
+                    continue             
+                
+                # get channel metadata that includes avatar url
+                tasks = (gevent.spawn(channel.get_metadata, author_id),)
+                gevent.joinall(tasks)
+                util.check_gevent_exceptions(*tasks)
+                tmp.update(tasks[0].value)
+                
+                if author_id not in authors_id:
+                    info = json.dumps(tmp)
+                    file.write(info + "\n")
+                    
+                url = tmp['avatar']
+                save_location = os.path.join(os.path.join(thumbnails_directory, name), author_id + ".jpg")
+                try:
+                    thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + author_id)
+                except urllib.error.HTTPError as e:
+                    print("Failed to download thumbnail for " + author_id + ": " + str(e))
+                    continue
+                try:
+                    f = open(save_location, 'wb')
+                except FileNotFoundError:
+                    os.makedirs(os.path.join(thumbnails_directory, name), exist_ok = True)
+                    f = open(save_location, 'wb')
+                f.write(thumbnail)
+                f.close()
+                
+        return
+    
+    ## mine
+    # if video exist in history playlist, move it to start, so it will look as recent video
+    if name == "History":
+        for info in video_info_list:
+            id = json.loads(info)['id']
+            
+            # if video is deleted from youtube than extracted values will be null and will break the playlist
+            if id == None:
+                continue  
+
+            if id in ids:
+                with open(os.path.join(playlists_directory, name + ".txt"), "r+") as f:
+                    d = f.readlines()[:]
+                    f.seek(0)
+                    f.truncate()                    
+                    d.append(d.pop(d.index(info + "\n") ))
+                    for gg in d:
+                       f.write(gg)
+            break
+
+    ################################################################## mine
+
+    with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
+        for info in video_info_list:
+            id = json.loads(info)['id']
+            
+            # mine
+            # if video is deleted from youtube than extracted values will be null and will break the playlist
+            if id == None:
+                continue            
+                        
+            if id not in ids:
+                file.write(info + "\n")
+                missing_thumbnails.append(id)
+    gevent.spawn(util.download_thumbnails, os.path.join(thumbnails_directory, name), missing_thumbnails)
+
+
+def add_extra_info_to_videos(videos, playlist_name):
+    '''Adds extra information necessary for rendering the video item HTML
+
+    Downloads missing thumbnails'''
+    
+    if use_sqlite3_db_as_storage(): return add_extra_info_to_videos_sqlite_db(videos, playlist_name) # mine
+
+    try:
+        thumbnails = set(os.listdir(os.path.join(thumbnails_directory,
+                                                 playlist_name)))
+    except FileNotFoundError:
+        thumbnails = set()
+    missing_thumbnails = []
+
+    for video in videos:
+        video['type'] = 'video'
+        util.add_extra_html_info(video)
+        if video['id'] + '.jpg' in thumbnails:
+            video['thumbnail'] = (
+                '/https://youtube.com/data/playlist_thumbnails/'
+                + playlist_name
+                + '/' + video['id'] + '.jpg')
+        else:
+            video['thumbnail'] = util.get_thumbnail_url(video['id'])
+            missing_thumbnails.append(video['id'])
+                
+    gevent.spawn(util.download_thumbnails,
+                 os.path.join(thumbnails_directory, playlist_name),
+                 missing_thumbnails)
+
+
+def read_playlist(name):
+    '''Returns a list of videos for the given playlist name'''
+    
+    if use_sqlite3_db_as_storage(): return read_playlist_sqlite_db(name) # mine
+    
+    playlist_path = os.path.join(playlists_directory, name + '.txt')
+    
+    # mine
+    # need to create empty file if it not exist
+    if not os.path.isfile(playlist_path):
+        if not os.path.exists(playlists_directory):
+            os.makedirs(playlists_directory)
+        with open(playlist_path, 'a') as file: pass
+    
+    with open(playlist_path, 'r', encoding='utf-8') as f:
+        data = f.read()
+
+    videos = []
+    videos_json = data.splitlines()
+    for video_json in videos_json:
+        try:
+            info = json.loads(video_json)
+            videos.append(info)
+        except json.decoder.JSONDecodeError:
+            if not video_json.strip() == '':
+                print('Corrupt playlist video entry: ' + video_json)
+    return videos
+
+
+def get_local_playlist_videos(name, offset=0, amount=50):
+    
+    if use_sqlite3_db_as_storage(): return get_local_playlist_videos_sqlite_db(name, offset, amount) # mine
+    
+    videos = read_playlist(name)
+    
+    ## mine
+    # reverse list, last added will be recent
+    # if name == "History":
+        # videos = videos[::-1]
+    if settings.sort_playlist: videos = videos[::-1]
+    
+    add_extra_info_to_videos(videos, name)
+    return videos[offset:offset+amount], len(videos)
+
+
+def get_playlist_names():
+
+    if use_sqlite3_db_as_storage(): return get_playlist_names_sqlite_db() # mine
+    
+    try:
+        items = os.listdir(playlists_directory)
+    except FileNotFoundError:
+        return []
+
+    tmp = []    
+    for item in items:
+        name, ext = os.path.splitext(item)
+        ## mine
+        if ext == '.txt' and (name not in ["History", "0youtube_playlist_list"]):
+            # yield name
+            tmp.append(name)
+    return tmp
+    
+def remove_from_playlist(name, video_info_list):
+    
+    if use_sqlite3_db_as_storage(): return remove_from_playlist_sqlite_db(name, video_info_list) # mine
+    
+    ids = [json.loads(video)['id'] for video in video_info_list]
+    with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+        videos = file.read()
+    videos_in = videos.splitlines()
+    videos_out = []
+    for video in videos_in:
+        if json.loads(video)['id'] not in ids:
+            videos_out.append(video)
+    with open(os.path.join(playlists_directory, name + ".txt"), 'w', encoding='utf-8') as file:
+        file.write("\n".join(videos_out) + "\n")
+
+    try:
+        thumbnails = set(os.listdir(os.path.join(thumbnails_directory, name)))
+    except FileNotFoundError:
+        pass
+    else:
+        to_delete = thumbnails & set(id + ".jpg" for id in ids)
+        for file in to_delete:
+            os.remove(os.path.join(thumbnails_directory, name, file))
+
+    # mine
+    # remove empty/blank lines from file becouse they cause errors
+    with open(os.path.join(playlists_directory, name + ".txt")) as reader, open(os.path.join(playlists_directory, name + ".txt"), 'r+') as writer:
+        for line in reader:
+            if line.strip(): writer.write(line)
+        writer.truncate()
+
+    return len(videos_out)
+
+
+@yt_app.route('/playlists', methods=['GET'])
+@yt_app.route('/playlists/<playlist_name>', methods=['GET'])
+def get_local_playlist_page(playlist_name=None):
+    # mine
+    if playlist_name == "hidden_videos_channels":
+        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]]
+        return flask.render_template('local_playlists_list.html', playlists=playlists)    
+
+    if playlist_name is None:
+        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name not in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]] + [("hidden_videos_channels", util.URL_ORIGIN + '/playlists/' + "hidden_videos_channels")] + youtube_playlists_from_local(action='get') # mine
+        return flask.render_template('local_playlists_list.html', playlists=playlists)
+    else:
+        page = int(request.args.get('page', 1))
+        offset = 50*(page - 1)
+        videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=50)
+        return flask.render_template('local_playlist.html',
+            header_playlist_names = get_playlist_names(),
+            playlist_name = playlist_name,
+            videos = videos,
+            num_pages = math.ceil(num_videos/50),
+            parameters_dictionary = request.args,
+            display_as_grid = settings.display_as_grid, #mine
+        )
+
+
+@yt_app.route('/playlists/<playlist_name>', methods=['POST'])
+def path_edit_playlist(playlist_name):
+    '''Called when making changes to the playlist from that playlist's page'''    
+    if request.values['action'] == 'remove':
+        videos_to_remove = request.values.getlist('video_info_list')
+        number_of_videos_remaining = remove_from_playlist(playlist_name, videos_to_remove)
+        redirect_page_number = min(int(request.values.get('page', 1)), math.ceil(number_of_videos_remaining/50))
+        return flask.redirect(util.URL_ORIGIN + request.path + '?page=' + str(redirect_page_number))
+    elif request.values['action'] == 'remove_playlist':
+        
+        # mine
+        if use_sqlite3_db_as_storage(): remove_playlist_sqlite_db('playlists', playlist_name)
+        else:
+            try:
+                os.remove(os.path.join(playlists_directory, playlist_name + ".txt"))
+            except OSError:
+                pass
+                
+        return flask.redirect(util.URL_ORIGIN + '/playlists')
+    elif request.values['action'] == 'export':
+        
+        # mine
+        if request.values.get('export_youtube_playlist', None) == 'true': 
+            videos = [json.loads(v) for v in get_all_videos_from_playlist(request.values['playlist_id'])]
+        else: videos = read_playlist(playlist_name)
+            
+        fmt = request.values['export_format']
+        if fmt in ('ids', 'urls'):
+            prefix = ''
+            if fmt == 'urls':
+                prefix = 'https://www.youtube.com/watch?v=' if playlist_name not in ["related_hidden_channels", "search_hidden_channels"] else 'https://www.youtube.com/channel/' # mine
+            id_list = '\n'.join(prefix + v['id'] for v in videos)
+            id_list += '\n'
+            resp = flask.Response(id_list, mimetype='text/plain')
+            # cd = 'attachment; filename="%s.txt"' % playlist_name
+            cd = 'attachment; ' + 'filename*=' + "UTF-8''%s.txt" % urllib.parse.quote(playlist_name) # mine
+            resp.headers['Content-Disposition'] = cd
+            return resp
+        elif fmt == 'json':
+            json_data = json.dumps({'videos': videos}, indent=2,
+                                   sort_keys=True)
+            resp = flask.Response(json_data, mimetype='text/json')
+            # cd = 'attachment; filename="%s.json"' % playlist_name
+            cd = 'attachment; ' + 'filename*=' + "UTF-8''%s.json" % urllib.parse.quote(playlist_name) # mine
+            resp.headers['Content-Disposition'] = cd
+            return resp
+        elif fmt == 'key_value_dict':
+            tmp = []
+            for item in videos:
+                video_info = {}
+                kz = []
+                if playlist_name not in ['related_hidden_channels', 'search_hidden_channels']: kz = ['id', 'title', 'author', 'author_id', 'duration']
+                else: kz = ['id', 'title', 'author', 'author_id', 'duration', 'approx_subscriber_count', 'short_description', 'channel_name', 'avatar']
+                for key in kz:
+                    try: video_info[key] = item[key]
+                    except KeyError: video_info[key] = None
+                tmp.append(json.dumps(video_info))
+            id_list = '\n'.join(f"{v}" for v in tmp)
+            id_list += '\n'
+            resp = flask.Response(id_list, mimetype='text/plain')
+            # cd = 'attachment; filename="%s.txt"' % playlist_name
+            cd = 'attachment; ' + 'filename*=' + "UTF-8''%s.txt" % urllib.parse.quote(playlist_name)
+            resp.headers['Content-Disposition'] = cd
+            return resp            
+        else:
+            flask.abort(400)
+    ## mine        
+    elif request.values['action'] == 'import':
+        import_videos_to_playlist(playlist_name, request)
+        return flask.redirect(util.URL_ORIGIN + '/playlists/'+ playlist_name, 303)
+    else:
+        flask.abort(400)
+
+
+@yt_app.route('/edit_playlist', methods=['POST'])
+def edit_playlist():
+    '''Called when adding videos to a playlist from elsewhere'''
+    
+    #mine
+    if request.values['playlist_name'] == 'History' and settings.disable_history:
+        flask.abort(400)
+        return
+    
+    #mine
+    if request.values.get('bookmark_playlist', None) == 'true':
+        if request.values['playlist_name'] == '' or request.values['playlist_url'] == '':
+            print('Incorrect playlist data provided')
+            return '', 204
+        data = {'playlist_name': request.values['playlist_name'], 'playlist_url': request.values['playlist_url']}
+        if request.values['action'] == 'add':
+            youtube_playlists_from_local(action='add', data=data)      
+            return '', 204
+        elif request.values['action'] == 'remove':
+            youtube_playlists_from_local(action='remove', data=data)
+            return '', 204
+        else:
+            flask.abort(400)
+    
+    #mine
+    if request.values['action'] == 'add':
+        if request.values.get('import_playlist', None) == 'true': 
+            items = get_all_videos_from_playlist(request.values['playlist_id'])
+            items = items[::-1]  # items must be reversed   
+            add_to_playlist(request.values['playlist_name'], items)
+        else:
+            add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))        
+        return '', 204
+    else:
+        flask.abort(400)
+
+@yt_app.route('/data/playlist_thumbnails/<playlist_name>/<thumbnail>')
+def serve_thumbnail(playlist_name, thumbnail):
+    # .. is necessary because flask always uses the application directory at ./youtube, not the working directory
+    return flask.send_from_directory(os.path.join('..', thumbnails_directory, playlist_name), thumbnail)
+
+
+def import_videos_to_playlist(playlist_name, request):
+    
+    # check if the post request has the file part
+    if 'videos_file' not in request.files:
+        #flash('No file part')
+        return flask.redirect(util.URL_ORIGIN + request.full_path)
+    file = request.files['videos_file']
+    # if user does not select file, browser also
+    # submit an empty part without filename
+    if file.filename == '':
+        #flash('No selected file')
+        return flask.redirect(util.URL_ORIGIN + request.full_path)
+
+    mime_type = file.mimetype
+
+    if mime_type == 'text/plain':
+        list_video_ids = []
+        list_video_url = [line.decode('utf-8').rstrip() for line in file]
+
+        if use_sqlite3_db_as_storage(): ids = video_ids_in_playlist_sqlite_db(playlist_name, 'id') # mine
+        else: ids = video_ids_in_playlist(playlist_name)
+        
+        import urllib.parse as urlparse
+        import re
+        
+        for url in list_video_url:
+            try:
+                query = urlparse.urlparse(url.strip())
+                if 'youtube' in query.hostname:
+                    if query.path == '/watch':
+                        video_id = urlparse.parse_qs(query.query)['v'][0]
+                    elif query.path.startswith(('/embed/', '/v/', '/channel/')): # mine
+                        video_id = query.path.split('/')[2]
+                elif 'youtu.be' in query.hostname:
+                    video_id = query.path[1:]
+                else:
+                    video_id = None
+                
+                if not video_id or len(video_id) < 11:
+                    print(f"Incorect videoid from url: {url.strip()}")
+                    continue
+                
+                if video_id not in ids:
+                    list_video_ids.append(video_id)
+            except Exception as e:
+                if re.match(r"^[A-Za-z0-9_\-]{11}$", url) or re.match(r"^UC[A-Za-z0-9_\-]{22}$", url):
+                    video_id = url
+                    if video_id not in ids: list_video_ids.append(video_id)                    
+                else:
+                    print(f"Error on importing url videos from text file: {e}")
+        
+        # import_slow(playlist_name, request, list_video_ids) # mine
+        import_faster_with_ip_ban1(playlist_name, request, list_video_ids) # mine
+        
+    return
+
+
+############################################################# mine
+
+def use_sqlite3_db_as_storage():
+    try: use_sqlite3_db_as_storage_value = settings.use_sqlite3_db_as_storage
+    except AttributeError as e: use_sqlite3_db_as_storage_value = False
+    return use_sqlite3_db_as_storage_value
+    
+
+def db_connect1_sqlite_db(func):
+    def _db_connect(*args, **kwargs):
+        if not os.path.exists(settings.data_dir):
+            os.makedirs(settings.data_dir)
+        
+        database_path1 = os.path.join(settings.data_dir, "thumbnails.sqlite")        
+        connection = sqlite3.connect(database_path1, check_same_thread=False)
+
+        try:
+            cursor = connection.cursor()
+            cursor.row_factory = sqlite3.Row
+            cursor.execute('''PRAGMA foreign_keys = 1''')
+            # Create tables if they don't exist
+            cursor.execute('''CREATE TABLE IF NOT EXISTS thumbnails (
+                                  id integer UNIQUE,
+                                  PICTURE BLOB
+                              )''')                              
+            cursor.execute('''CREATE TABLE IF NOT EXISTS db_info (
+                                  version integer DEFAULT 1
+                              )''')
+            
+            result = func(cursor, *args, **kwargs)
+            
+            connection.commit()
+            connection.close()
+        except:
+            connection.rollback()
+            connection.close()
+            raise
+
+        # https://stackoverflow.com/questions/19522505/using-sqlite3-in-python-with-with-keyword
+        return result #contextlib.closing(connection)
+        
+    return _db_connect
+
+def db_connect_sqlite_db(func):
+    def _db_connect(*args, **kwargs):
+        if not os.path.exists(settings.data_dir):
+            os.makedirs(settings.data_dir)
+        
+        database_path = os.path.join(settings.data_dir, "playlists.sqlite")
+        connection = sqlite3.connect(database_path, check_same_thread=False)
+
+        try:
+            cursor = connection.cursor()
+            cursor.row_factory = sqlite3.Row
+            cursor.execute('''PRAGMA foreign_keys = 1''')
+            # Create tables if they don't exist
+            cursor.execute('''CREATE TABLE IF NOT EXISTS playlists (
+                                  id integer PRIMARY KEY,
+                                  playlist_name text UNIQUE NOT NULL,
+                                  playlist_url text
+                              )''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS playlists_youtube (
+                                  id integer PRIMARY KEY,
+                                  playlist_name text NOT NULL,
+                                  playlist_url text
+                              )''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS playlist_videos (
+                                  video_id integer PRIMARY KEY AUTOINCREMENT,
+                                  sql_playlist_id integer NOT NULL REFERENCES playlists(id) ON UPDATE CASCADE ON DELETE CASCADE,
+                                  id text NOT NULL,
+                                  title text,
+                                  author text,
+                                  author_id text NOT NULL,                           
+                                  duration text,
+                                  approx_subscriber_count text,
+                                  short_description text, 
+                                  channel_name text,
+                                  avatar text,
+                                  unique (sql_playlist_id, id)
+                              )''')                             
+            cursor.execute('''CREATE TABLE IF NOT EXISTS db_info (
+                                  version integer DEFAULT 1
+                              )''')
+            
+            result = func(cursor, *args, **kwargs)
+            
+            connection.commit()
+            connection.close()
+        except:
+            connection.rollback()
+            connection.close()
+            raise
+
+        # https://stackoverflow.com/questions/19522505/using-sqlite3-in-python-with-with-keyword
+        return result #contextlib.closing(connection)
+        
+    return _db_connect
+
+@db_connect_sqlite_db
+def add_playlist_sqlite_db(cursor, table, name, url):
+    cursor.execute(f'''INSERT OR IGNORE INTO {table} (
+                              playlist_name,
+                              playlist_url
+                          )
+                          VALUES (?, ?)''', [name, url])    
+
+@db_connect_sqlite_db
+def remove_playlist_sqlite_db(cursor, table, name):
+    cursor.execute(f'''DELETE FROM {table} 
+                            WHERE playlist_name=?''', [name])    
+
+@db_connect_sqlite_db
+def get_playlist_column_sqlite_db(cursor, table, name, column):
+    row = cursor.execute(f'''SELECT {column}
+                                   FROM {table}
+                                   WHERE playlist_name=?
+                               ''', [name]).fetchone()
+    if row:
+        return dict(row)[column]
+    return 0
+
+@db_connect_sqlite_db
+def get_playlists_sqlite_db(cursor, table, column):
+    rows = cursor.execute(f'''SELECT {column}
+                              FROM {table}
+                              ORDER BY playlist_name;
+                               ''',).fetchall()
+    
+    rows = [dict(row) for row in rows]
+    if column == '*': return rows
+    elif column.count(",") > 0:
+        # column_list = [c.strip() for c in column.split(',')]
+        return rows
+    elif column.count(",") == 0: return [row[column] for row in rows]
+
+@db_connect_sqlite_db
+def get_videos_column_sqlite_db(cursor, name, column):
+    sql_playlist_id = get_playlist_column_sqlite_db('playlists', name, 'id')
+    rows = cursor.execute(f'''SELECT {column}
+                             FROM playlist_videos
+                             WHERE sql_playlist_id=?
+                             ORDER BY video_id;
+                             ''', [sql_playlist_id]).fetchall()
+    
+    rows = [dict(row) for row in rows]
+    if column == '*': return rows
+    elif column.count(",") > 0: return rows
+    elif column.count(",") == 0: return [row[column] for row in rows]  
+
+@db_connect_sqlite_db
+def insert_videos_sqlite_db(cursor, name, video_info_list):
+    rows = []
+    for video_item in video_info_list:
+        rows.append(( name,
+            video_item['id'],
+            video_item['title'],
+            video_item['author'],
+            video_item['author_id'],
+            video_item['duration'],
+            video_item.get('approx_subscriber_count', None),
+            video_item.get('short_description', None),
+            video_item.get('channel_name', None),
+            video_item.get('avatar', None),
+        ))
+
+    add_playlist_sqlite_db('playlists', name, None)
+    cursor.executemany('''INSERT OR IGNORE INTO playlist_videos (
+                              sql_playlist_id,
+                              id,
+                              title,
+                              author,
+                              author_id,
+                              duration,
+                              approx_subscriber_count,
+                              short_description, 
+                              channel_name,
+                              avatar        
+                          )
+                          VALUES ((SELECT id FROM playlists WHERE playlist_name=?), ?, ?, ?, ?, ?, ?, ?, ?, ?)''', rows)
+
+@db_connect_sqlite_db
+def remove_videos_sqlite_db(cursor, name, video_ids):
+    sql_playlist_id = get_playlist_column_sqlite_db('playlists', name, 'id')
+    for video_id in video_ids:
+        cursor.execute("""DELETE FROM playlist_videos WHERE sql_playlist_id=? and id=?""", [sql_playlist_id, video_id])
+    # cursor.execute("""DELETE FROM playlist_videos WHERE sql_playlist_id=? and id IN (?)""", [sql_playlist_id, ', '.join(video_ids)])
+
+@db_connect1_sqlite_db
+def add_image_sqlite_db(cursor, data_id, image):
+    cursor.execute(f'''INSERT OR IGNORE INTO thumbnails (
+                              id,
+                              PICTURE
+                          )
+                          VALUES (?, ?)''', [data_id, image])   
+
+@db_connect1_sqlite_db
+def get_image_sqlite_db(cursor, data_id, column='PICTURE'):
+    blop = cursor.execute(f'''SELECT {column}
+                        FROM thumbnails
+                        WHERE id=?;''', [data_id]).fetchall()
+    if blop == []: return []
+    if column == "*": return [dict(b) for b in blop]
+    elif column.count(",") > 0: return [dict(b) for b in blop]
+    elif column.count(",") == 0: return [dict(b)[column] for b in blop][0]
+
+@db_connect1_sqlite_db
+def get_images_sqlite_db(cursor, column):
+    blop = cursor.execute(f'''SELECT {column}
+                        FROM thumbnails
+                        WHERE id IS NOT NULL;''',).fetchall()
+    if column == "*": return [dict(b) for b in blop]
+    elif column.count(",") > 0: return [dict(b) for b in blop]
+    elif column.count(",") == 0: return [dict(b)[column] for b in blop]
+
+@db_connect1_sqlite_db
+def remove_images_sqlite_db(cursor, data_ids):
+    for data_id in data_ids:
+        cursor.execute("""DELETE FROM thumbnails WHERE id=?""", [data_id])
+
+def vacuum_database():
+    for i in ["playlists.sqlite", 'thumbnails.sqlite', 'subscriptions.sqlite']:
+        conn = sqlite3.connect(i)
+        conn.execute("VACUUM")
+        conn.close()    
+
+
+def video_ids_in_playlist_sqlite_db(name, column):
+    return get_videos_column_sqlite_db(name, column)
+
+
+def add_to_playlist_sqlite_db(name, video_info_list):
+    if not os.path.exists(playlists_directory):
+        os.makedirs(playlists_directory)
+    ids = video_ids_in_playlist_sqlite_db(name, 'id')
+    missing_thumbnails = []
+    
+    video_info_list = [json.loads(info) for info in video_info_list]
+    
+    if name in ["related_hidden_channels", 'search_hidden_channels']:
+        from youtube import channel
+        
+        video_info_list_ = []
+        authors_id = video_ids_in_playlist_sqlite_db(name, 'author_id')
+        for video_item in video_info_list:
+            # replace id with author_id becouse need avatar for channel not for video
+            tmp = video_item
+            author_id = tmp['author_id']
+            tmp['id'] = tmp['author_id']
+
+            # if video is deleted from youtube than extracted values will be null and will break the playlist
+            if author_id == None: continue             
+            
+            # get channel metadata that includes avatar url
+            tasks = (gevent.spawn(channel.get_metadata, author_id),)
+            gevent.joinall(tasks)
+            util.check_gevent_exceptions(*tasks)
+            tmp.update(tasks[0].value)
+            
+            if author_id not in authors_id:
+                video_info_list_.append(video_item)         
+                
+            download_thumbnail_sqlite_db(author_id, tmp['avatar'])
+
+        insert_videos_sqlite_db(name, video_info_list_)
+        return
+
+    if name == "History":
+        ids = video_ids_in_playlist_sqlite_db(name, 'id')
+        history_ids = [v['id'] for v in video_info_list if (v['id'] in ids) and v['id'] != None]
+        remove_videos_sqlite_db(name, history_ids)
+    
+    ids = video_ids_in_playlist_sqlite_db(name, 'id')
+    video_info_list = [v for v in video_info_list if (v['id'] not in ids) and v['id'] != None ]
+    for video_item in video_info_list: missing_thumbnails.append(video_item['id'])
+    if video_info_list == []: return
+    else: insert_videos_sqlite_db(name, video_info_list)
+
+    gevent.spawn(download_thumbnails_sqlite_db, missing_thumbnails)
+
+
+def add_extra_info_to_videos_sqlite_db(videos, playlist_name):
+    '''Adds extra information necessary for rendering the video item HTML
+    Downloads missing thumbnails'''    
+        
+    thumbnails = get_images_sqlite_db('id')
+    missing_thumbnails = []
+       
+    for video in videos:
+        video['type'] = 'video'
+        util.add_extra_html_info(video)
+        
+        if video['id'] not in thumbnails and playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
+            gevent.spawn(download_thumbnail_sqlite_db, video['id'], video['avatar'])          
+        elif video['id'] not in thumbnails:
+            missing_thumbnails.append(video['id'])        
+        
+        video['thumbnail'] = ('/https://youtube.com/data/playlist_thumbnails/' + video['id'])
+                
+    tasks = (gevent.spawn(download_thumbnails_sqlite_db, missing_thumbnails),) 
+    gevent.joinall(tasks)
+    util.check_gevent_exceptions(*tasks)
+
+
+def read_playlist_sqlite_db(name):
+    '''Returns a list of videos for the given playlist name'''
+    videos = video_ids_in_playlist_sqlite_db(name, 'id, title, author, author_id, duration, approx_subscriber_count, short_description, channel_name, avatar')
+    return videos
+
+
+def get_local_playlist_videos_sqlite_db(name, offset=0, amount=50):
+    videos = read_playlist_sqlite_db(name)
+    if settings.sort_playlist: videos = videos[::-1]
+    add_extra_info_to_videos_sqlite_db(videos, name)
+    return videos[offset:offset+amount], len(videos)
+
+
+def get_playlist_names_sqlite_db():
+    items = get_playlists_sqlite_db('playlists', 'playlist_name')
+    tmp = []
+    for item in items:
+        if item not in ["History"]:
+            # yield item
+            tmp.append(item)
+    return tmp
+
+def remove_from_playlist_sqlite_db(name, video_info_list):
+    video_info_list = [json.loads(video) for video in video_info_list]
+    ids = video_ids_in_playlist_sqlite_db(name, 'id')
+    video_ids = [v['id'] for v in video_info_list if (v['id'] in ids) and v['id'] != None]            
+    remove_videos_sqlite_db(name, video_ids)
+    remove_images_sqlite_db(video_ids)
+    return len(ids) - len(video_ids)
+
+
+def youtube_playlists_from_local_sqlite_db(playlist_name='0youtube_playlist_list', action='get', data={}):
+
+    playlist_list = []
+    playlist_list_formated = []
+    
+    playlist_list = get_playlists_sqlite_db('playlists_youtube', '*')
+    for playlist in playlist_list:
+        playlist_list_formated.append(('(*) ' + playlist['playlist_name'], '/' + playlist['playlist_url']))
+
+    if action == 'get': return playlist_list_formated
+    elif action == 'add' and data != {}:
+        add_playlist_sqlite_db('playlists_youtube', data['playlist_name'], data['playlist_url'])
+    elif action == 'remove' and data != {}:
+        try: playlist_list.remove(data)
+        except ValueError: pass
+        remove_playlist_sqlite_db('playlists_youtube', data['playlist_name'])   
+
+
+def download_thumbnail_sqlite_db(video_id, url=None):
+    if not url:
+        url = "https://i.ytimg.com/vi/" + video_id + "/mqdefault.jpg"
+    try:
+        thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + video_id)
+    except urllib.error.HTTPError as e:
+        print("Failed to download thumbnail for " + video_id + ": " + str(e))
+        return False
+    
+    add_image_sqlite_db(video_id, thumbnail)
+    return True
+
+
+def download_thumbnails_sqlite_db(ids, url=None):
+    if not isinstance(ids, (list, tuple)):
+        ids = list(ids)
+    # only do 5 at a time
+    # do the n where n is divisible by 5
+    i = -1
+    for i in range(0, int(len(ids)/5) - 1 ):
+        gevent.joinall([gevent.spawn(download_thumbnail_sqlite_db, ids[j]) for j in range(i*5, i*5 + 5)])
+    # do the remainders (< 5)
+    gevent.joinall([gevent.spawn(download_thumbnail_sqlite_db, ids[j]) for j in range(i*5 + 5, len(ids))])
+
+
+def import_slow(playlist_name, request, list_video_ids):
+    from youtube import channel
+    # from youtube.watch import extract_info
+    from time import sleep
+    
+    for video_id in list_video_ids:
+        use_invidious = bool(int(request.args.get('use_invidious', '1')))
+        if playlist_name in ['related_hidden_channels', 'search_hidden_channels']:
+            tasks = (gevent.spawn(channel.get_metadata, video_id),)
+        else:    
+            tasks = (gevent.spawn(extract_info_mini2, video_id, use_invidious, playlist_id=None, index=None),)
+        gevent.joinall(tasks)
+        util.check_gevent_exceptions(tasks[0])
+        info = tasks[0].value
+        
+        if playlist_name in ['related_hidden_channels', 'search_hidden_channels']:
+            info['id'] = video_id
+            info['author_id'] = video_id
+            info['error'] = None
+            info['duration'] = 0
+            info['title'] = None
+            info['author'] = info['channel_name']
+            
+        if not info['error']:
+            video_info = {
+                'duration':  util.seconds_to_timestamp(info['duration'] or 0),
+                'id':        info['id'],
+                'title':     info['title'],
+                'author':    info['author'],
+                'author_id': info['author_id'],
+            }
+
+            print(f"Add video '{video_id}' to playlist '{playlist_name}' with success.")
+            add_to_playlist(playlist_name, [json.dumps(video_info)])
+        
+        sleep(1)    
+
+
+def import_faster_with_ip_ban1(playlist_name, request, list_video_ids):
+
+    # if there are too many items to import google can ban ip
+    # so import elements by chunks of 50 items with delay 10 minutes
+
+    from youtube import channel
+    from time import sleep
+    
+    def chunks(xs, n):
+        n = max(1, n)
+        return (xs[i:i+n] for i in range(0, len(xs), n))
+    
+    list_video_ids_chunks = list(chunks(list_video_ids, 5)) # 5 elements per chunk
+    
+    for list_chunk in list_video_ids_chunks:
+        
+        tasks = []
+        for video_id in list_chunk:
+            use_invidious = bool(int(request.args.get('use_invidious', '1')))
+            if playlist_name in ['related_hidden_channels', 'search_hidden_channels']:
+                tasks.append(gevent.spawn(channel.get_metadata, video_id))
+            else:    
+                tasks.append(gevent.spawn(extract_info_mini2, video_id, use_invidious, playlist_id=None, index=None),)        
+        
+        # only do 5 at a time
+        # do the n where n is divisible by 5
+        i = -1
+        for i in range(0, int(len(tasks)/5) - 1 ):
+            gevent.joinall([tasks[j] for j in range(i*5, i*5 + 5)])
+        # do the remainders (< 5)
+        gevent.joinall([tasks[j] for j in range(i*5 + 5, len(tasks))])
+        try: util.check_gevent_exceptions(tasks[0])
+        except: pass
+        
+        tmp = []
+        for i, video_id in enumerate(list_chunk):
+            if tasks[i].value == None: continue
+            info = tasks[i].value    
+            if playlist_name in ['related_hidden_channels', 'search_hidden_channels']:
+                info['id'] = video_id
+                info['author_id'] = video_id
+                info['error'] = None
+                info['duration'] = 0
+                info['title'] = None
+                info['author'] = info['channel_name']
+                
+            if not info['error']:
+                video_info = {
+                    'duration':  util.seconds_to_timestamp(info['duration'] or 0),
+                    'id':        info['id'],
+                    'title':     info['title'],
+                    'author':    info['author'],
+                    'author_id': info['author_id'],
+                }
+
+                print(f"Add video '{video_id}' to playlist '{playlist_name}' with success.")
+                tmp.append(json.dumps(video_info))
+        add_to_playlist(playlist_name, tmp)
+        
+        sleep(2)
+
+
+# i use methods from not innertube github fork and remove some lines to minimize amount of requests
+def extract_info_mini2(video_id, use_invidious, playlist_id=None, index=None):
+    
+    def fetch_watch_page_info(video_id, playlist_id, index):
+        # bpctr=9999999999 will bypass are-you-sure dialogs for controversial
+        # videos
+        url = 'https://m.youtube.com/embed/' + video_id + '?bpctr=9999999999'
+        if playlist_id:
+            url += '&list=' + playlist_id
+        if index:
+            url += '&index=' + index
+
+        headers = (
+            ('Accept', '*/*'),
+            ('Accept-Language', 'en-US,en;q=0.5'),
+            ('X-YouTube-Client-Name', '2'),
+            ('X-YouTube-Client-Version', '2.20180830'),
+        ) + util.mobile_ua
+
+        watch_page = util.fetch_url(url, headers=headers,
+                                    debug_name='watch')
+        watch_page = watch_page.decode('utf-8')
+        return yt_data_extract.extract_watch_info_from_html(watch_page)
+    
+    tasks = (gevent.spawn(fetch_watch_page_info, video_id, playlist_id, index),)
+    gevent.joinall(tasks)
+    util.check_gevent_exceptions(*tasks)
+    info = tasks[0].value
+    return info
+
+
+def get_all_videos_from_playlist(playlist_id):
+    if not playlist_id: return []
+        
+    from youtube.playlist import (playlist_first_page, get_videos)
+
+    first_page_json = playlist_first_page(playlist_id)
+    info = yt_data_extract.extract_playlist_info(first_page_json)
+    # some playlist does not give items for first page
+    if len(info.get('items', [])) == 0: 
+        info = yt_data_extract.extract_playlist_info(get_videos(playlist_id, 1))    
+    
+    if info['error']:
+        print('Error on extracting items.')
+        return []
+    
+    items = info['items']
+    video_count = yt_data_extract.deep_get(info, 'metadata', 'video_count')
+    if video_count is None: return []
+    num_pages = math.ceil(video_count/100)
+    # print(video_count, num_pages)
+    
+    tasks = []
+    for p in range(2, num_pages+1):
+        tasks.append(gevent.spawn(get_videos, playlist_id, p))
+    tasks = tuple(tasks)
+    gevent.joinall(tasks)
+    util.check_gevent_exceptions(*tasks)
+    for t in tasks:
+        info = yt_data_extract.extract_playlist_info(t.value)
+        if info['error']:
+            print('Error on extracting items.')
+            return []        
+        items.extend(info['items'])
+
+    tmp = []
+    for item in items:
+        video_info = {}
+        for key in ('id', 'title', 'author', 'author_id', 'duration'):
+            try: video_info[key] = item[key]
+            except KeyError: video_info[key] = None
+
+        tmp.append(json.dumps(video_info))
+
+    return tmp
+
+
+def youtube_playlists_from_local(playlist_name='0youtube_playlist_list', action='get', data={}):
+    
+    if use_sqlite3_db_as_storage(): return youtube_playlists_from_local_sqlite_db(playlist_name, action, data) # mine
+    
+    if not os.path.exists(playlists_directory): 
+        os.makedirs(playlists_directory)
+        
+    playlist_list = []
+    playlist_list_formated = []
+    
+    try:
+        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'r', encoding='utf-8') as file: yt_playlists = file.read()
+        for yt_playlist in yt_playlists.splitlines():
+            if yt_playlist.strip():
+                playlist = json.loads(yt_playlist)
+                playlist_list.append(playlist)
+                playlist_list_formated.append(('(*) ' + playlist['playlist_name'], '/' + playlist['playlist_url']))  
+    except FileNotFoundError:
+        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'a') as file: pass
+        return []
+
+    if action == 'get': return playlist_list_formated
+    elif action == 'add' and data != {}:
+        if data not in playlist_list:
+            with open(os.path.join(playlists_directory, playlist_name + ".txt"), "a", encoding='utf-8') as file: 
+                file.write(json.dumps(data) + "\n")
+    elif action == 'remove' and data != {}:
+        try: playlist_list.remove(data)
+        except ValueError: pass
+        
+        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'w', encoding='utf-8') as file:
+            for i in playlist_list: file.write(json.dumps(i) + "\n")
+
+        with open(os.path.join(playlists_directory, playlist_name + ".txt")) as reader, open(os.path.join(playlists_directory, playlist_name + ".txt"), 'r+') as writer:
+            for line in reader:
+                if line.strip(): writer.write(line)
+            writer.truncate()
+
+
+@yt_app.route('/data/playlist_thumbnails/<thumbnail>')
+def serve_thumbnail_sqlite_db(thumbnail):
+    # .. is necessary because flask always uses the application directory at ./youtube, not the working directory
+    bytes_io = get_image_sqlite_db(thumbnail)
+    if bytes_io != []:
+        bytes_io = BytesIO(bytes_io)
+    else:
+        bytes_io = BytesIO(b'')
+    # return flask.send_file(bytes_io, mimetype='image/jpeg')
+    return flask.Response(bytes_io, mimetype='image/jpeg')
+
+@yt_app.route('/playlists/History', methods=['GET'])
+def get_local_history_page():
+    ##return flask.render_template('error.html')
+    
+    page = int(request.args.get('page', 1))
+    offset = 50*(page - 1)
+    videos, num_videos = get_local_playlist_videos("History", offset=offset, amount=50)
+    return flask.render_template('local_playlist.html',
+        header_playlist_names = get_playlist_names(),
+        playlist_name = "History",
+        videos = videos,
+        num_pages = math.ceil(num_videos/50),
+        parameters_dictionary = request.args,
+        display_as_grid = settings.display_as_grid,
+        disable_history = settings.disable_history,
+    )
+
+
+@yt_app.route('/playlists/search_hidden_channels', methods=['GET'])
+@yt_app.route('/playlists/related_hidden_channels', methods=['GET'])
+def get_local_related_hidden_channels_page():
+    ##return flask.render_template('error.html')
+
+    playlist_name = request.path.replace('/playlists/', '')
+    page = int(request.args.get('page', 1))
+    offset = 50*(page - 1)
+    videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=50)
+    return flask.render_template('local_playlist_related_hidden_channels.html',
+        header_playlist_names = get_playlist_names(),
+        playlist_name = playlist_name,
+        videos = videos,
+        num_pages = math.ceil(num_videos/50),
+        parameters_dictionary = request.args,
+        display_as_grid = False,
+    )
+
+
+@yt_app.route('/playlists1/<playlist_name>', methods=['GET'])
+def get_local_playlist_page1(playlist_name=None):
+        videos, num_videos = get_local_playlist_videos(playlist_name, offset=0, amount=1000)
+        response = yt_app.response_class(
+            response=json.dumps(videos),
+            mimetype='application/json'
+        )
+        return response
+    
+    # for the request    
+    # response1 = urllib.request.urlopen('http://127.0.0.1:8080/https://www.youtube.com/playlists1/123')
+    # data1 = json.load(response1)
+    # print(data1)
+
+def get_watch_page_local_playlist(playlist_local, video_id):
+    playlist_local_url = 'http://127.0.0.1:8080/https://www.youtube.com/playlists/' + playlist_local
+    data1, _ = get_local_playlist_videos(playlist_local, offset=0, amount=1000)
+    local_playlist = {}
+    local_playlist['title'] = playlist_local
+    local_playlist['author'] = ""
+    local_playlist['author_id'] = ""
+    local_playlist['author_url'] = playlist_local_url
+    local_playlist['id'] = playlist_local
+    local_playlist['url'] = playlist_local_url
+    local_playlist['video_count'] = len(data1)
+    local_playlist['current_index'] = 1
+    local_playlist['items'] = data1[:]
+    
+    for item_index, item in enumerate(local_playlist['items']):
+        item['url'] += '&playlists1=' + playlist_local
+        if video_id == item['id']: local_playlist['current_index'] = item_index    
+
+    return local_playlist
+
+
+def export_thumbnails_to_jpg():
+    """Save blops from 'playlists.sqlite' to jpg"""
+    
+    ## bad way to join data from 2 databases
+    
+    # connection = sqlite3.connect('playlists.sqlite')
+    # cursor = connection.cursor()
+    # cursor.row_factory = sqlite3.Row
+    # blop = cursor.execute(f'''select p.playlist_name, v.id  from playlists as p inner join playlist_videos as v on p.id = v.sql_playlist_id;''',).fetchall()
+    ### blop = cursor.execute(f'''Select p.playlist_name, v.id from playlists p, playlist_videos v where p.id = v.sql_playlist_id;''',).fetchall()
+    # results1 = [dict(b) for b in blop]
+    # connection.commit()
+    # connection.close()
+
+    # connection = sqlite3.connect('thumbnails.sqlite')
+    # cursor = connection.cursor()
+    # cursor.row_factory = sqlite3.Row
+    # blop = cursor.execute(f'''SELECT * FROM thumbnails WHERE id IS NOT NULL;''',).fetchall()
+    # results2 = [dict(b) for b in blop]
+    # connection.commit()
+    # connection.close()
+
+    # tmp = []
+    # for i in results2:
+        # for j in results1:
+            # if i['id'] == j['id']:
+                # j['PICTURE'] = i['PICTURE']
+                # tmp.append(j)
+    # results = tmp[:]
+    
+    
+    database_path1 = os.path.join(settings.data_dir, "playlists.sqlite") 
+    connection = sqlite3.connect(database_path1)
+    cursor = connection.cursor()
+    cursor.row_factory = sqlite3.Row    
+    cursor.execute(f"ATTACH DATABASE '{os.path.join(settings.data_dir, 'thumbnails.sqlite')}' AS db2;")
+    blop = cursor.execute(f'''select playlists.playlist_name, playlist_videos.id, db2.thumbnails.PICTURE
+                            from db2.thumbnails
+                            join playlists
+                                on playlist_videos.sql_playlist_id = playlists.id
+                            join playlist_videos
+                                on db2.thumbnails.id = playlist_videos.id''',).fetchall()
+    results = [dict(b) for b in blop]
+    
+    blop = cursor.execute(f'''SELECT * 
+                                FROM db2.thumbnails 
+                                WHERE NOT EXISTS 
+                                    (SELECT * 
+                                     FROM playlist_videos 
+                                     WHERE playlist_videos.id = db2.thumbnails.id)''',).fetchall()
+    subscription_thumbnails = [dict(b) for b in blop]
+    for b in subscription_thumbnails: b.update({'playlist_name': 'subscription_thumbnails'})
+
+    cursor.execute("DETACH DATABASE db2;")
+    connection.commit()
+    connection.close()
+    
+    results = results + subscription_thumbnails
+    
+    if not os.path.exists(os.path.join(settings.data_dir, 'export')):
+        os.makedirs(os.path.join(settings.data_dir, 'export'))
+    
+    count = 1
+    for i in results:
+        folder_path = os.path.join(settings.data_dir, 'export', i['playlist_name'])
+        file_path = os.path.join(folder_path, i['id'] + '.jpg')
+                
+        try:
+            os.makedirs(folder_path, exist_ok=True)
+        except FileExistsError:
+            # directory already exists
+            pass
+            # continue
+        
+        if not os.path.isfile(file_path):
+            with open(file_path, "wb") as f:
+                picture = BytesIO(i['PICTURE'])
+                f.write(picture.getbuffer())
+
+#############################################################
+

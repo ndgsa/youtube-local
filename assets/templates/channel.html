@@ -1,0 +1,222 @@
+{% if current_tab == 'search' %}
+    {% set page_title = search_box_value + ' - Page ' + page_number|string %}
+{% else %}
+    {% set page_title = channel_name|string + ' - Channel' %}
+{% endif %}
+
+{% extends "base.html" %}
+{% import "common_elements.html" as common_elements %}
+{% block style %}
+    main{
+        padding-left: 0px;
+        padding-right: 0px;
+    }
+    .channel-metadata{
+        display: flex;
+        align-items: center;
+    }
+        .avatar{
+            height:200px;
+            width:200px;
+        }
+        .summary{
+            margin-left: 5px;
+            /* Prevent uninterupted words in description overflowing the page: https://daverupert.com/2017/09/breaking-the-grid/ */
+            min-width: 0px;
+        }
+            .short-description{
+                line-height: 1em;
+                max-height: 6em;
+                overflow: hidden;
+            }
+
+    .channel-tabs{
+        display: flex;
+        flex-wrap: wrap;
+        justify-content:start;
+
+        background-color: var(--interface-color);
+        padding: 3px;
+        padding-left: 6px;
+    }
+    #links-metadata{
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: start;
+        padding-bottom: 8px;
+        padding-left: 6px;
+        margin-bottom: 10px;
+    }
+        #links-metadata > *{
+            margin-top: 8px;
+            margin-left: 10px;
+        }
+        #number-of-results{
+            font-weight:bold;
+        }
+    .content{
+    }
+    .search-content{
+        max-width: 800px;
+        margin-left: 10px;
+    }
+        .item-grid{
+            padding-left: 20px;
+        }
+        .item-list{
+            max-width:800px;
+            margin: auto;
+        }
+        .page-button-row{
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .next-previous-button-row{
+            margin-left: auto;
+            margin-right: auto;
+        }
+    .tab{
+        padding: 5px 0px;
+        width: 200px;
+    }
+    .channel-info{
+    }
+    .channel-info ul{
+        padding-left: 40px;
+    }
+    .channel-info h3{
+        margin-left: 40px;
+    }
+    .channel-info .description{
+        white-space: pre-wrap;
+        min-width: 0;
+        margin-left: 40px;
+    }
+    .medium-item img{
+        max-width: 168px;
+    }
+
+    @media (max-width:500px){
+        .channel-metadata{
+            flex-direction: column;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+    }
+{% endblock style %}
+
+{% block main %}
+    <div class="channel-metadata">
+        <img class="avatar" src="{{ avatar }}" width="200px" height="200px">
+        <div class="summary">
+            <h2 class="title">{{ channel_name }}</h2>
+            <p class="short-description">{{ short_description }}</p>
+            <form method="POST" action="/youtube.com/subscriptions" class="subscribe-unsubscribe">
+                <input type="submit" value="{{ 'Unsubscribe' if subscribed else 'Subscribe' }}">
+                <input type="hidden" name="channel_id" value="{{ channel_id }}">
+                <input type="hidden" name="channel_name" value="{{ channel_name }}">
+                <input type="hidden" name="action" value="{{ 'unsubscribe' if subscribed else 'subscribe' }}">
+            </form>
+        </div>
+    </div>
+    <nav class="channel-tabs">
+        {% for tab_name in ('Videos', 'Shorts', 'Streams', 'Playlists', 'About') %}
+            {% if tab_name.lower() == current_tab %}
+                <a class="tab page-button">{{ tab_name }}</a>
+            {% else %}
+                <a class="tab page-button" href="{{ channel_url + '/' + tab_name.lower() }}">{{ tab_name }}</a>
+            {% endif %}
+        {% endfor %}
+
+        <form class="channel-search" action="{{ channel_url + '/search' }}">
+            <input type="search" name="query" class="search-box" value="{{ search_box_value }}">
+            <button type="submit" value="Search" class="search-button">Search</button>
+        </form>
+    </nav>
+    {% if current_tab == 'about' %}
+        <div class="channel-info">
+            <ul>
+                {% for (before_text, stat, after_text) in [
+                    ('Joined ', date_joined, ''),
+                    ('', approx_view_count, ' views'),
+                    ('', approx_subscriber_count, ' subscribers'),
+                    ('', approx_video_count, ' videos'),
+                    ('Country: ', country, ''),
+                    ('Canonical Url: ', canonical_url, ''),
+                ] %}
+                    {% if stat %}
+                        <li>{{ before_text + stat|string + after_text }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            <hr>
+            <h3>Description</h3>
+            <div class="description">{{ common_elements.text_runs(description) }}</div>
+            <hr>
+            <ul>
+                {% for text, url in links%}
+                    {% if url %}
+                        <li><a href="{{ url }}">{{ text }}</a></li>
+                    {% else %}
+                        <li>{{ text }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+    {% else %}
+        <div class="content {{ current_tab + '-content'}}">
+            <div id="links-metadata">
+                {% if current_tab in ('videos', 'shorts', 'streams') %}
+                    {% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'), ('4', 'newest - no shorts'),] %}
+                    <div id="number-of-results">{{ number_of_videos }} videos</div>
+                {% elif current_tab == 'playlists' %}
+                    {% set sorts = [('2', 'oldest'), ('3', 'newest'), ('4', 'last video added')] %}
+                    {% if items %}
+                        <h2 class="page-number">Page {{ page_number }}</h2>
+                    {% else %}
+                        <h2 class="page-number">No items</h2>
+                    {% endif %}
+                {% elif current_tab == 'search' %}
+                    {% if items %}
+                        <h2 class="page-number">Page {{ page_number }}</h2>
+                    {% else %}
+                        <h2 class="page-number">No results</h2>
+                    {% endif %}
+                {% else %}
+                    {% set sorts = [] %}
+                {% endif %}
+
+                {% for sort_number, sort_name in sorts %}
+                    {% if sort_number == current_sort.__str__() %}
+                        <a class="sort-button">{{ 'Sorted by ' + sort_name }}</a>
+                    {% else %}
+                        <a class="sort-button" href="{{ channel_url + '/' + current_tab + '?sort=' + sort_number }}">{{ 'Sort by ' + sort_name }}</a>
+                    {% endif %}
+                {% endfor %}
+				
+				{% if current_tab in ('videos', 'shorts', 'streams') %}
+					{% set z_current_page = parameters_dictionary.get('page', 1)|int %}
+					{% set curr_sort_page = '3' if settings.include_shorts_in_channel else '4' %}
+					{% set z_sort_page = parameters_dictionary.get('sort', curr_sort_page)|int %}				
+					<a class="sort-button" href="{{ channel_url + '/' + current_tab + '?sort=' + z_sort_page|string + '&page=' + z_current_page|string + '&sort1=2' }}">{{ 'Sort current page by views'}}</a>
+				{% endif %}
+            </div>
+
+            <nav class="{{ 'item-list' if current_tab == 'search' else 'item-grid' }}">
+                {% for item_info in items %}
+                    {{ common_elements.item(item_info, include_author=false) }}
+                {% endfor %}
+            </nav>
+
+            {% if current_tab in ('videos', 'shorts', 'streams') %}
+                <nav class="page-button-row">
+                    {{ common_elements.page_buttons(number_of_pages, channel_url + '/' + current_tab, parameters_dictionary, include_ends=(current_sort.__str__() in '34')) }}
+                </nav>
+            {% elif current_tab == 'playlists' or current_tab == 'search' %}
+                <nav class="next-previous-button-row">
+                    {{ common_elements.next_previous_buttons(is_last_page, channel_url + '/' + current_tab, parameters_dictionary) }}
+                </nav>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock main %}

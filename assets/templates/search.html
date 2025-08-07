@@ -1,0 +1,104 @@
+{% set search_box_value = query %}
+{% set page_title = query + ' - Search' %}
+{% extends "base.html" %}
+{% import "common_elements.html" as common_elements %}
+{% block style %}
+    main > * {
+        max-width: 800px;
+        margin: auto;
+    }
+        #result-info{
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+            #number-of-results{
+                font-weight:bold;
+            }
+        .item-list{
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+            .badge{
+                background-color:#cccccc;
+            }
+{% endblock style %}
+
+{% block main %}
+            <div id="result-info">
+                <div id="number-of-results">Approximately {{ '{:,}'.format(estimated_results) }} results ({{ '{:,}'.format(estimated_pages) }} pages)</div>
+{% if corrections['type'] == 'showing_results_for' %}
+                <div>Showing results for <a>{{ common_elements.text_runs(corrections['corrected_query_text']) }}</a></div>
+                <div>Search instead for <a href="{{ corrections['original_query_url'] }}">{{ corrections['original_query_text'] }}</a></div>
+{% elif corrections['type'] == 'did_you_mean' %}
+                <div>Did you mean <a href="{{ corrections['corrected_query_url'] }}">{{ common_elements.text_runs(corrections['corrected_query_text']) }}</a></div>
+{% endif %}
+            </div>
+            <nav class="page-button-row">
+                {{ common_elements.page_buttons(estimated_pages, '/https://www.youtube.com/results', parameters_dictionary) }}
+            </nav>			
+            <div class="item-list">
+                {% for info in results %}
+                    {{ common_elements.item(info, description=true, related=true) }}
+                {% endfor %}
+            </div>
+            <nav class="page-button-row">
+                {{ common_elements.page_buttons(estimated_pages, '/https://www.youtube.com/results', parameters_dictionary) }}
+            </nav>
+
+	<script type="text/javascript">		
+			function add_related_to_hidden(e, related_type) {
+				if (related_type === 'channel') {
+					<!-- get previous element -->
+					yt_id = JSON.parse(e.previousElementSibling.value).author_id;
+					<!-- check if id  -->
+					if (/^(UC[A-Za-z0-9_\-]{22})$/.test(yt_id)) {
+						
+						<!-- add to search_hidden_channels playlist values of related item box -->
+						var XHR = new XMLHttpRequest();
+						var FD = new FormData();
+						FD.set('action', 'add');
+						FD.set('playlist_name', 'search_hidden_channels');
+						FD.set('video_info_list', e.previousElementSibling.value);	
+						if(FD.getAll('video_info_list').length === 0){return;}					
+						XHR.open('POST', playlistAddForm.getAttribute('action'));
+						XHR.onload = function () {
+							if (XHR.status == 204) {
+								<!-- remove parent element -->
+								e.parentNode.parentNode.parentNode.parentNode.removeChild(e.parentNode.parentNode.parentNode)
+								console.log("Added to search_hidden_channels playlist");
+							}				
+						};
+						XHR.send(FD);	
+					}
+				}
+								
+				if (related_type === 'video') {
+					<!-- get previous element -->
+					yt_id = JSON.parse(e.previousElementSibling.value).id;
+					<!-- check if id  -->
+					if (/^([A-Za-z0-9_\-]{11})$/.test(yt_id)) {
+						
+						<!-- add to search_hidden_videos playlist values of related item box -->
+						var XHR = new XMLHttpRequest();
+						var FD = new FormData();
+						FD.set('action', 'add');
+						FD.set('playlist_name', 'search_hidden_videos');
+						FD.set('video_info_list', e.previousElementSibling.value);	
+						if(FD.getAll('video_info_list').length === 0){return;}					
+						XHR.open('POST', playlistAddForm.getAttribute('action'));
+						XHR.onload = function () {
+							if (XHR.status == 204) {
+								<!-- remove parent element -->
+								e.parentNode.parentNode.removeChild(e.parentNode);
+								console.log("Added to search_hidden_videos playlist");
+							}				
+						};
+						XHR.send(FD);	
+					}
+				}								
+			}
+	</script>
+			
+{% endblock main %}

@@ -1,0 +1,24 @@
+{% set page_title = title %}
+{% extends "base.html" %}
+{% block style %}
+    ul {
+        background-color: var(--interface-color);
+        padding: 20px;
+        width: 400px;
+        max-width: 100%;
+        margin: auto;
+        margin-top: 20px;
+    }
+        li {
+            margin-bottom: 10px;
+        }
+{% endblock style %}
+{% block main %}
+    <ul>
+		<li><a href="/youtube.com/playlists/History">Local History</a></li>
+        <li><a href="/youtube.com/playlists">Local playlists</a></li>
+        <li><a href="/youtube.com/subscriptions">Subscriptions</a></li>
+        <li><a href="/youtube.com/subscription_manager">Subscription Manager</a></li>
+        <li><a href="/youtube.com/settings">Settings</a></li>
+    </ul>
+{% endblock main %}

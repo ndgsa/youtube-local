@@ -1,0 +1,1 @@
+node "E:\Program Files\node_youtube-po-token-generator-main\examples\one-shot-mine.js" 1> "E:\Program Files\youtube-local\assets\data\po_token_cache.txt"

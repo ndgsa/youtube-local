@@ -1,0 +1,148 @@
+{% macro text_runs(runs) %}
+    {%- if runs[0] is mapping -%}
+        {%- for text_run in runs -%}
+            {%- if text_run.get("bold", false) -%}
+                <b>{{ text_run["text"] }}</b>
+            {%- elif text_run.get('italics', false) -%}
+                <i>{{ text_run["text"] }}</i>
+            {%- else -%}
+                {{ text_run["text"] }}
+            {%- endif -%}
+        {%- endfor -%}
+    {%- elif runs -%}
+        {{ runs }}
+    {%- endif -%}
+{% endmacro %}
+
+{% macro item(info, description=false, horizontal=true, include_author=true, include_badges=true, lazy_load=false, related=false) %}
+    <div class="item-box {{ info['type'] + '-item-box' }} {{'horizontal-item-box' if horizontal else 'vertical-item-box'}} {{'has-description' if description else 'no-description'}}">
+        {% if info['error'] %}
+            {{ info['error'] }}
+        {% else %}
+            <div class="item {{ info['type'] + '-item' }}">
+                <a class="thumbnail-box" href="{{ info['url'] }}" title="{{ info['title'] }}">
+                    {% if lazy_load %}
+                        <img class="thumbnail-img lazy" data-src="{{ info['thumbnail'] }}">
+                    {% else %}
+                        <img class="thumbnail-img" src="{{ info['thumbnail'] }}">
+                    {% endif %}
+                    {% if info['type'] != 'channel' %}
+                        <div class="thumbnail-info">
+                            <span>{{ (info['video_count']|commatize + ' videos') if info['type'] == 'playlist' else info['duration'] }}</span>
+                        </div>
+                    {% endif %}
+                </a>
+                <div class="item-metadata">
+                    <div class="title"><a class="title" href="{{ info['url'] }}" title="{{ info['title'] }}">{{ info['title'] }}</a></div>
+
+                    {% if include_author %}
+                        {% if info.get('author_url') %}
+                            <address title="{{ info['author'] }}"  style="display:inline-block;">By <a href="{{ info['author_url'] }}">{{ info['author'] }}</a></address>
+                        {% else %}
+                            <address title="{{ info['author'] }}"><b>{{ info['author'] }}</b></address>
+                        {% endif %}
+
+
+						{% if related %}
+							{% if info['type'] == 'video' %}
+								<input class="item-checkbox" type="checkbox" name="video_info_list" value="{{ info['video_info'] }}" form="playlist-edit" hidden>
+								<button id='button-block-related-channel' style="color:rgb(209, 210, 210);font-size:15px;background-color:inherit;display:inline-block;border-color:grey;" onClick="add_related_to_hidden(this, 'channel');">x</button> 
+							{% endif %}
+						{% endif %}		
+
+			
+                    {% endif %}
+                    <ul class="stats {{'horizontal-stats' if horizontal else 'vertical-stats'}}">
+                        {% if info['type'] == 'channel' %}
+                            <li><span>{{ info['approx_subscriber_count'] }} subscribers</span></li>
+                            <li><span>{{ info['video_count']|commatize }} videos</span></li>
+                        {% else %}
+                            {% if info.get('approx_view_count') and info.get('approx_view_count') != '0' %}
+                                <li><span class="views">{{ info['approx_view_count'] }} views</span></li>
+                            {% endif %}
+                            {% if info.get('time_published') %}
+                                <li><time>{{ info['time_published'] }}</time></li>
+                            {% endif %}
+                        {% endif %}
+                    </ul>
+
+                    {% if description %}
+                        <span class="description">{{ text_runs(info.get('description', '')) }}</span>
+                    {% endif %}
+                    {% if include_badges %}
+                        <span class="badges">{{ info['badges']|join(' | ') }}</span>
+                    {% endif %}				
+                </div>
+            </div>
+            {% if info['type'] == 'video' %}
+                <input class="item-checkbox" type="checkbox" name="video_info_list" value="{{ info['video_info'] }}" form="playlist-edit">
+				{% if related %}
+					<button id='button-delete-related-video' style="color:grey;font-size:22px;background-color:inherit;margin:auto;border-color:grey;" onClick="add_related_to_hidden(this, 'video');">x</button> 
+				{% endif %}					
+            {% endif %}
+        {% endif %}
+    </div>
+
+{% endmacro %}
+
+{% macro page_buttons(estimated_pages, url, parameters_dictionary, include_ends=false) %}
+    {% set current_page = parameters_dictionary.get('page', 1)|int %}
+    {% set parameters_dictionary = parameters_dictionary.to_dict() %}
+    {% if current_page is le(5) %}
+        {% set page_start = 1 %}
+        {% set page_end = [9, estimated_pages]|min %}
+    {% else %}
+        {% set page_start = current_page - 4 %}
+        {% set page_end = [current_page + 4, estimated_pages]|min %}
+    {% endif %}
+
+    {% if include_ends and page_start is gt(1) %}
+        {% set _ = parameters_dictionary.__setitem__('page', 1) %}
+        <a class="page-button first-page-button" href="{{ url + '?' + parameters_dictionary|urlencode }}">{{ 1 }}</a>
+    {% endif %}
+
+    {% for page in range(page_start, page_end+1) %}
+        {% if page == current_page %}
+            <div class="page-button">{{ page }}</div>
+        {% else %}
+            {# https://stackoverflow.com/questions/36886650/how-to-add-a-new-entry-into-a-dictionary-object-while-using-jinja2 #}
+            {% set _ = parameters_dictionary.__setitem__('page', page) %}
+            <a class="page-button" href="{{ url + '?' + parameters_dictionary|urlencode }}">{{ page }}</a>
+        {% endif %}
+    {% endfor %}
+
+    {% if include_ends and page_end is lt(estimated_pages) %}
+        {% set _ = parameters_dictionary.__setitem__('page', estimated_pages) %}
+        <a class="page-button last-page-button" href="{{ url + '?' + parameters_dictionary|urlencode }}">{{ estimated_pages }}</a>
+    {% endif %}
+
+{% endmacro %}
+
+{% macro next_previous_buttons(is_last_page, url, parameters_dictionary) %}
+    {% set current_page = parameters_dictionary.get('page', 1)|int %}
+    {% set parameters_dictionary = parameters_dictionary.to_dict() %}
+
+    {% if current_page != 1 %}
+            {% set _ = parameters_dictionary.__setitem__('page', current_page - 1) %}
+            <a class="page-button previous-page" href="{{ url + '?' + parameters_dictionary|urlencode }}">Previous page</a>
+    {% endif %}
+
+    {% if not is_last_page %}
+            {% set _ = parameters_dictionary.__setitem__('page', current_page + 1) %}
+            <a class="page-button next-page" href="{{ url + '?' + parameters_dictionary|urlencode }}">Next page</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro next_previous_ctoken_buttons(prev_ctoken, next_ctoken, url, parameters_dictionary) %}
+    {% set parameters_dictionary = parameters_dictionary.to_dict() %}
+
+    {% if prev_ctoken %}
+            {% set _ = parameters_dictionary.__setitem__('ctoken', prev_ctoken) %}
+            <a class="page-button previous-page" href="{{ url + '?' + parameters_dictionary|urlencode }}">Previous page</a>
+    {% endif %}
+
+    {% if next_ctoken %}
+            {% set _ = parameters_dictionary.__setitem__('ctoken', next_ctoken) %}
+            <a class="page-button next-page" href="{{ url + '?' + parameters_dictionary|urlencode }}">Next page</a>
+    {% endif %}
+{% endmacro %}

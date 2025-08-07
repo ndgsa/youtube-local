@@ -1,0 +1,130 @@
+{% set page_title = playlist_name + ' - Local playlist' %}
+{% extends "base.html" %}
+{% import "common_elements.html" as common_elements %}
+{% block style %}
+    main > *{
+        width: 800px;
+        max-width: 100%;
+        margin: auto;
+    }
+
+    .playlist-metadata{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+
+
+        margin: 15px auto;
+        padding: 7px;
+        background-color: var(--interface-color);
+    }
+        .playlist-title{
+        }
+        #export-options{
+            justify-self: end;
+        }
+
+    #video-remove-container{
+        display: flex;
+        justify-content: space-between;
+        margin: 0px auto 15px auto;
+    }
+        #playlist-remove-button{
+            white-space: nowrap;
+        }
+
+    #results{
+        display: grid;
+        grid-auto-rows: 0fr;
+        grid-row-gap: 10px;
+    }
+	
+	
+	{% if display_as_grid %}
+        .item-grid{
+			width: auto;
+            padding-left: 50px;
+			width: 90%;
+        }
+		.item-box {
+			width: 370px !important;
+			margin-bottom: 15px;
+			padding-left: 10px;		
+		}
+
+        .page-button-row{
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .next-previous-button-row{
+            margin-left: auto;
+            margin-right: auto;
+        }		
+	{% endif %}	
+	
+{% endblock style %}
+
+{% block main %}
+    <div class="playlist-metadata">
+        <h2 class="playlist-title">{{ playlist_name }}</h2>	
+        <div id="export-options">	
+            <form id="playlist-export" method="post">
+                <select id="export-type" name="export_format">
+                    <option value="json">JSON</option>
+                    <option value="ids">Video id list (txt)</option>
+                    <option value="urls">Video url list (txt)</option>
+					<option value="key_value_dict">Video dict (txt)</option>
+                </select>
+                <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
+            </form>
+			
+        </div>
+		<div>
+			<form class="subscriptions-import-export-form" enctype="multipart/form-data" method="POST">
+				<input type="file" id="subscriptions-import" accept="text/plain" name="videos_file" required>
+				<button type="submit" id="playlist-import-button" name="action" value="import">Import</button>
+			</form>
+		</div>
+    </div>
+    <form id="playlist-remove" action="/youtube.com/edit_playlist" method="post" target="_self"></form>
+    <div id="video-remove-container">
+	
+		{% if playlist_name != 'History' %}
+			<button type="submit" name="action" value="remove_playlist" form="playlist-remove" formaction="" onclick="return confirm('You are about to permanently delete {{ playlist_name }}\n\nOnce a playlist is permanently deleted, it cannot be recovered.');">Remove playlist</button>
+		{% else %}
+		
+			<form method="POST" class="settings-form" action="/youtube.com/settings">
+				{% if disable_history %}
+					<input type="checkbox" id="setting_disable_history" name="disable_history" checked="" hidden>
+					<input type="submit" value="Enable History">
+				{% else %}
+					<input type="checkbox" id="setting_disable_history" name="disable_history" hidden>
+					<input type="submit" value="Disable History">			
+				{% endif %}
+			</form>
+			
+		{% endif %}
+
+        <input type="hidden" name="playlist_page" value="{{ playlist_name }}" form="playlist-edit">
+        <button type="submit" id="playlist-remove-button" name="action" value="remove" form="playlist-edit" formaction="">Remove from playlist</button>
+
+    </div>
+
+	{% if display_as_grid %}
+		<div class="{{ 'item-grid' }}">
+			{% for video_info in videos %}
+				{{ common_elements.item(video_info) }}
+			{% endfor %}
+		</div>
+	{% else %}
+		<div id="results">
+			{% for video_info in videos %}
+				{{ common_elements.item(video_info) }}
+			{% endfor %}
+		</div>
+	{% endif %}	
+		<nav class="page-button-row">
+			{{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlists/' + playlist_name, parameters_dictionary) }}
+		</nav>	
+{% endblock main %}

@@ -1,0 +1,19 @@
+{% set page_title = 'Error' %}
+
+{% if not slim %}
+    {% extends "base.html" %}
+{% endif %}
+
+{% block main %}
+    {% if traceback %}
+        <div id="error-box">
+            <h1>500 Uncaught exception:</h1>
+            <div class="code-box"><code>{{ traceback }}</code></div>
+            <p>Please report this issue at <a href="https://github.com/user234683/youtube-local/issues" target="_blank">https://github.com/user234683/youtube-local/issues</a></p>
+            <p>Remember to include the traceback in your issue and redact any information in it you do not want to share</p>
+        </div>
+    {% else %}
+        <div id="error-message">{{ error_message }}</div>
+    {% endif %}
+{% endblock %}
+

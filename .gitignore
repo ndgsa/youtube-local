@@ -1,0 +1,5 @@
+__pycache__/
+*$py.class
+assets/data/
+settings.txt
+*venv*

@@ -1,0 +1,250 @@
+
+header{
+	background-color: #121112;
+}
+
+#home-link {
+    color: var(--text-color);
+    background-color: #181818;
+    /* border: 1px solid var(--text-color); */
+    border-radius: 3px;
+    padding: 5px 5px;	
+}
+
+#home-link:hover {
+	background-color: #222222;
+}
+
+input:hover
+{
+   background-color:white
+}
+
+body{
+    --interface-color: #181818;
+    --text-color: #cccccc;
+    --background-color: #121112;
+    --video-background-color: #242424;
+    --link-color-rgb: 209, 210, 210;
+    --visited-link-color-rgb: 209, 210, 210;
+	--interface-border-color: #181818;
+}
+
+summary{
+  border-style: solid;	
+  border-radius: 5px;
+  border-width: 1px;
+  border-color: #181818;
+  border-bottom-width: 2px;
+  
+}
+
+.playlist {
+  border-style: solid !important;
+  border-width: 2px !important;
+  border-color: #181818 !important;
+  margin-bottom: 10px !important;
+  border-radius: 5px;
+}
+
+.playlist-header {
+  background-color: #212121 !important;
+  border-bottom-style: solid !important;
+  border-bottom-width: 1px !important;
+  border-bottom-color: #181818 !important;
+  border-radius: 5px;
+}
+
+details.more-info{
+	/* border-radius: 5px; */
+}
+
+div.music-list{
+	/* border-radius: 5px; */
+}
+
+.video-info .title {
+	font-size: 22px;
+	padding: 10px 0px 10px 0px;
+}
+
+.video-info > .description {
+	border-radius: 5px;
+}
+
+.video-info > .checkbox {
+	height: 25px !important;
+}
+
+.comment-links .sort-button {
+  background-color: unset;
+}
+
+.comment{
+  background-color: #121112 !important;
+}
+
+.comment .permalink{
+	color: #8a8a8a;
+	font-size: 13px;
+}
+
+.comment .author-name .author{
+	font-size: 14px;
+	padding: 0px 0px 20px 0px;
+	font-weight: bold;
+}
+
+.comment span.text{
+	padding: 7px 0px 0px 0px;
+}
+
+.comment span.likes{
+	font-size: 12px;
+	padding: 7px 0px 0px 0px;
+}
+
+a:link, a:visited {
+    color: rgb(var(--link-color-rgb));
+	text-decoration-line: unset;
+}
+
+a:not([href]){
+    color: var(--text-color);
+}
+
+.setting-item{
+    background-color: #444444;
+}
+
+.muted{
+    background-color: #111111;
+    color: gray;
+}
+
+.muted a:link {
+    color: #10547f;
+}
+
+.button, input, select, button[type=submit]{
+    color: var(--text-color);
+    background-color: #181818;
+    border: 0px solid var(--text-color);
+    border-radius: 3px;
+    padding: 2px 3px;
+}
+
+.button:hover, input:hover, select:hover, button[type=submit]:hover{
+    background-color: #222222;
+}
+
+input[type="checkbox"]{
+    -webkit-filter: invert(85%) hue-rotate(18deg) brightness(1.7);
+            filter: invert(85%) hue-rotate(18deg) brightness(1.7);
+}
+
+input[type="checkbox"]:checked{
+    -webkit-filter: none;
+            filter: none;
+}
+
+div.page-button {
+	background-color: #181818;
+	text-decoration-line: unset;
+	color: black;
+}
+
+
+/* base.html */
+.dropdown_home_content {
+	display: none;
+	position: absolute;
+	/* background-color: lightgrey; */
+	min-width: 160px;
+	z-index:1;
+}
+.dropdown_home_content a {
+	color: black;
+	padding: 5px 10px;
+	display: block;
+}
+.dropdown_home_content a:hover {background-color: white;}
+.dropdown_home:hover .dropdown_home_content {display: block;}
+
+/* channel.html */
+.search-box {
+	height: 100%;	
+}
+.item-checkbox {
+  height: 25px;
+}
+
+/* local_playlist.html */
+.item-checkbox {
+  height: 20px;
+}
+
+/* playlist.html */
+/* #playlist-browser-import-button{ */
+	/* left: 70%; */
+	/* position: absolute; */
+	/* font-size: 18px; */
+/* } */
+
+/* watch.html */
+.plyr {
+	border-radius: 5px;
+}
+.plyr__control--overlaid {
+  display: none !important;
+  opacity: .9;
+}
+
+
+.playlist-metadata{
+	/* width: fit-content; */
+	/* display:grid !important; */
+	/* background-color: var(--interface-color); */
+}
+
+
+div.item.video-item, div.item.playlist-item{
+	border-radius: 5px 5px 5px 5px;
+}
+
+img.thumbnail-img, a.thumbnail-box{
+	border-radius: 5px 0 0 5px;
+}
+
+
+div.subscriptions-sidebar{
+	border-radius: 5px 5px 5px 5px;
+}
+
+div.playlist-metadata{
+	border-radius: 5px 5px 5px 5px;
+}
+
+/* settings.html */
+.settings-form {
+	margin-left: 23% !important;
+	border-radius: 5px;
+}
+.setting-item {
+	margin-bottom: 1px !important;
+	padding: 10px !important;	
+	/* border-radius: 5px; */
+}
+
+/* subscriptions.html */
+.video-section {
+  padding-left: 3% !important;
+}
+
+/* watch.html */
+.plyr--full-ui input[type="range"] {
+	color:var(--plyr-range-fill-background,var(--plyr-color-main,var(--plyr-color-main,#474d52))) !important;
+}
+.plyr__controls__item {
+	color: #cccccc !important;
+}

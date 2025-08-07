@@ -1,0 +1,45 @@
+{% set page_title = 'Local playlists' %}
+{% extends "base.html" %}
+
+{% block style %}
+main{
+    display: flex;
+    justify-content: center;
+}
+    ul{
+        background-color: var(--interface-color);
+        margin-top: 20px;
+        padding: 20px;
+        width: 400px;
+        max-width: 100%;
+        align-self: start;
+    }
+        li{
+            margin-bottom: 10px;
+        }
+
+#playlist-list-scroll {
+  height: 450px;
+  width: 450px;
+  overflow: auto;
+}
+		
+{% endblock style %}
+
+{% block main %}
+	
+    <ul>
+	<div id="playlist-list-scroll">
+        {% for playlist_name, playlist_url in playlists %}
+            <li><a href="{{ playlist_url }}">{{ playlist_name }}</a></li>
+        {% endfor %}
+		</div>
+    </ul>
+	
+{% endblock main %}
+
+
+
+
+
+

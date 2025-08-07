@@ -1,0 +1,8 @@
+assets\data\
+assets\static\modules\plyr - orig.rar
+fork1\youtube\__pycache__\
+fork1\youtube\yt_data_extract\__pycache__\
+innertube-client1\youtube\__pycache__\
+innertube-client1\youtube\yt_data_extract\__pycache__\
+
+

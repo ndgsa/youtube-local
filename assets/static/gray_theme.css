@@ -1,0 +1,49 @@
+body{
+    --interface-color: #dadada;
+    --text-color: #222222;
+    --background-color: #bcbcbc;
+    --video-background-color: #dadada;
+    --link-color-rgb: 0, 0, 238;
+    --visited-link-color-rgb: 85, 26, 139;
+}
+
+.comment .permalink{
+    color: #000000;
+}
+
+.setting-item{
+    background-color: #eeeeee;
+}
+
+.muted{
+    background-color: #888888;
+}
+
+
+#home-link {
+    color: var(--text-color);
+    background-color: #bcbcbc;
+    /* border: 1px solid var(--text-color); */
+    border-radius: 3px;
+    padding: 5px 5px;	
+}
+
+#home-link:hover {
+	background-color: #eeeeee;
+}
+
+/* base.html */
+.dropdown_home_content {
+	display: none;
+	position: absolute;
+	/* background-color: lightgrey; */
+	min-width: 160px;
+	z-index:1;
+}
+.dropdown_home_content a {
+	color: black;
+	padding: 5px 10px;
+	display: block;
+}
+.dropdown_home_content a:hover {background-color: white;}
+.dropdown_home:hover .dropdown_home_content {display: block;}
