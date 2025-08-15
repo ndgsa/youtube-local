@@ -609,10 +609,11 @@ def sort_video_items(data, sort_key='approx_view_count', order=1):
             view_count_multiplier = {'S': 1, 'K': 1000, 'M': 1000000, 'B': 1000000000}
             if string[-1].isalpha() and not string[:-1].isalpha(): multiplier = int(string[:-1]) * view_count_multiplier[string[-1]]
             elif not string.isalpha(): multiplier = int(string) * view_count_multiplier['S']
-            else: multiplier = None
+            else: multiplier = 0 # if string is None
             return multiplier
         elif sort_key == 'time_published':
             date_count_multiplier = {'minute': 0.01, 'hour': 1, 'day': 24, 'week': 168, 'month': 730, 'year': 8766}
+            if string == None: return date_count_multiplier['minute'] # if string is None
             for k,v in date_count_multiplier.items():
                 if k in string:
                     multiplier = float(string.replace(' ' + k + ' ago', '').replace(' ' + k + 's ago', '')) * v
