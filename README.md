@@ -5,7 +5,7 @@
 my fork with my local changes <br/>
 
 * fork1 -> https://github.com/alive4ever/youtube-local/releases/tag/v2.8.12-playground01-pre <br/>
-* innertube-client1 -> https://github.com/alive4ever/youtube-local/releases/tag/v2.8.12-playground13_feature-innertube-client-fix <br/>
+* innertube-client1 -> https://github.com/alive4ever/youtube-local/releases/tag/v2.8.12-playground14_feature-my-local-changes <br/>
 
 Add my changes to alive4ever [fork](https://github.com/alive4ever/youtube-local). <br/>
 
