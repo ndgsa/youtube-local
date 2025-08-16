@@ -28,7 +28,7 @@ IF EXIST %python_exec_path% (
 
 cd /d %youtube_local_server_path%
 
-%py_exe_loc% %youtube_local_server_path%server.py
+%py_exe_loc% "%youtube_local_server_path%server.py"
 echo Press any key to quit...
 PAUSE > nul
 
