@@ -97,7 +97,7 @@ For security reasons, enabling this is not recommended.''',
         'max': 100,
         'min': -1,
         'comment': '''Sets a default volume.
-        Defaults to -1, which means no default value is forced and the browser will set the volume.''',
+Defaults to -1, which means no default value is forced and the browser will set the volume.''',
         'category': 'playback',
     }),
 
@@ -341,6 +341,22 @@ Archive: https://archive.ph/OZQbN''',
         'category': 'network',
         }),
 
+    ('use_httpx', {
+        'label': 'Use httpx library',
+        'type': bool,
+        'default': False,
+        'comment': 'Use httpx for web requests',
+        'category': 'network',
+        }),
+
+    ('googlevideo_use_post', {
+        'label': 'Use post to get video from gvs',
+        'type': bool,
+        'default': False,
+        'comment': 'Use post with specific body payload to access video from gvs',
+        'category': 'network',
+        }),
+
     ('proxy_images', {
         'label': 'Route images',
         'type': bool,
@@ -423,7 +439,7 @@ Archive: https://archive.ph/OZQbN''',
         'comment': '''Allow playback of age restricted videos.
 If set to True, the system will try reloading the video player when encountering age restricted content.''',
         'category': 'playback',
-    }),                            
+    }),
 
     ('debugging_save_responses', {
         'type': bool,
