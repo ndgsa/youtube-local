@@ -26,7 +26,9 @@ My changes: <br/>
 - Settings: Display youtube playlist videos as grid. <br/>
 - Settings: Store images, playlist data in database (use sqlite3 database). If disabled will use files. <br/>
 - Load templates, static, data folders from ./assets/ (assets/templates/ assets/static/ assets/data/). Comfortable if use multiple forks with common templates, data, static. <br/>
-
+- Export thumbnails and playlists from sqlite to txt and vice versa to "assets/data/export" folder. Before this operation make a backup of your assets/data/ folder. <br/>
+    - Export from txt to sqlite3 access - http://127.0.0.1:8080/youtube.com/export_from_txt_to_sqlite3 <br/>
+    - Export from sqlite3 to txt access - http://127.0.0.1:8080/youtube.com/export_from_sqlite3_to_txt <br/>
 
 There can be bugs bugs bugs. <br/>
 

@@ -20,6 +20,9 @@ from io import BytesIO
 playlists_directory = os.path.join(settings.data_dir, "playlists")
 thumbnails_directory = os.path.join(settings.data_dir, "playlist_thumbnails")
 
+thumbnails_sqlite_database_path = os.path.join(settings.data_dir, "thumbnails.sqlite")
+playlists_sqlite_database_path = os.path.join(settings.data_dir, "playlists.sqlite")
+
 def video_ids_in_playlist(name, column=None):
     
     if use_sqlite3_db_as_storage(): return video_ids_in_playlist_sqlite_db(name, column) # mine
@@ -472,9 +475,8 @@ def db_connect1_sqlite_db(func):
     def _db_connect(*args, **kwargs):
         if not os.path.exists(settings.data_dir):
             os.makedirs(settings.data_dir)
-        
-        database_path1 = os.path.join(settings.data_dir, "thumbnails.sqlite")        
-        connection = sqlite3.connect(database_path1, check_same_thread=False)
+
+        connection = sqlite3.connect(thumbnails_sqlite_database_path, check_same_thread=False)
 
         try:
             cursor = connection.cursor()
@@ -508,8 +510,7 @@ def db_connect_sqlite_db(func):
         if not os.path.exists(settings.data_dir):
             os.makedirs(settings.data_dir)
         
-        database_path = os.path.join(settings.data_dir, "playlists.sqlite")
-        connection = sqlite3.connect(database_path, check_same_thread=False)
+        connection = sqlite3.connect(playlists_sqlite_database_path, check_same_thread=False)
 
         try:
             cursor = connection.cursor()
@@ -1136,8 +1137,68 @@ def get_watch_page_local_playlist(playlist_local, video_id):
     return local_playlist
 
 
-def export_thumbnails_to_jpg():
-    """Save blops from 'playlists.sqlite' to jpg"""
+@yt_app.route('/export_from_txt_to_sqlite3', methods=['GET'])
+def export_from_txt_to_sqlite3():
+    export_from_txt_to_sqlite3_e()
+    return get_local_playlist_page()
+
+@yt_app.route('/export_from_sqlite3_to_txt', methods=['GET'])
+def export_from_sqlite3_to_txt():
+    export_from_sqlite3_to_txt_e()
+    return get_local_playlist_page()
+
+def export_from_txt_to_sqlite3_e():
+    
+    from pathlib import Path
+    
+    if not os.path.exists(os.path.join(settings.data_dir, 'export')):
+        os.makedirs(os.path.join(settings.data_dir, 'export'))
+    
+    # change global variable so database path will create sqlite file in export folder
+    global thumbnails_sqlite_database_path
+    global playlists_sqlite_database_path
+    thumbnails_sqlite_database_path = os.path.join(settings.data_dir, "export", "thumbnails.sqlite")
+    playlists_sqlite_database_path = os.path.join(settings.data_dir, "export", "playlists.sqlite")
+    
+    # read txt files and add to sqlite
+    if Path(playlists_directory).is_dir():
+        playlist_names = Path(playlists_directory)
+        for playlist_name in playlist_names.iterdir():
+            if playlist_name.is_file() and playlist_name.suffix == '.txt': 
+                videos = playlist_name.read_text()
+                video_info_list = [json.loads(video) for video in videos.splitlines()]
+
+                if playlist_name.stem == '0youtube_playlist_list':
+                    playlists_youtube = get_playlists_sqlite_db('playlists_youtube', '*') # need before change global variable
+                    for yt in video_info_list:
+                        founded = False
+                        for z in playlists_youtube:
+                            if z['playlist_url'] == yt['playlist_url']: 
+                                founded = True
+                                break
+                        if not founded: add_playlist_sqlite_db('playlists_youtube', yt['playlist_name'], yt['playlist_url'])
+                    
+                    continue
+
+                insert_videos_sqlite_db(playlist_name.stem, video_info_list)
+    
+    # read thumbnails and add to sqlite
+    thumbnails_ids = get_images_sqlite_db('id')
+    if Path(thumbnails_directory).is_dir():
+        thumbnail_folder_names = Path(thumbnails_directory)
+        for playlist_path in thumbnail_folder_names.iterdir():
+            if playlist_path.is_dir():            
+                for image_path in playlist_path.iterdir():
+                    if image_path.suffix.lower() in [".jpeg", ".jpg"]:
+                        if image_path.stem not in thumbnails_ids:
+                            add_image_sqlite_db(image_path.stem, image_path.read_bytes())
+    
+    # restore default path for sqlite files
+    thumbnails_sqlite_database_path = os.path.join(settings.data_dir, "thumbnails.sqlite")
+    playlists_sqlite_database_path = os.path.join(settings.data_dir, "playlists.sqlite")
+
+
+def export_from_sqlite3_to_txt_e():
     
     ## bad way to join data from 2 databases
     
@@ -1167,8 +1228,8 @@ def export_thumbnails_to_jpg():
     # results = tmp[:]
     
     
-    database_path1 = os.path.join(settings.data_dir, "playlists.sqlite") 
-    connection = sqlite3.connect(database_path1)
+    tmp_database_path = os.path.join(settings.data_dir, "playlists.sqlite") 
+    connection = sqlite3.connect(tmp_database_path)
     cursor = connection.cursor()
     cursor.row_factory = sqlite3.Row    
     cursor.execute(f"ATTACH DATABASE '{os.path.join(settings.data_dir, 'thumbnails.sqlite')}' AS db2;")
@@ -1197,10 +1258,15 @@ def export_thumbnails_to_jpg():
     
     if not os.path.exists(os.path.join(settings.data_dir, 'export')):
         os.makedirs(os.path.join(settings.data_dir, 'export'))
+        os.makedirs(os.path.join(settings.data_dir, 'export', 'playlist_thumbnails'))
+        os.makedirs(os.path.join(settings.data_dir, 'export', 'subscription_thumbnails'))
     
-    count = 1
     for i in results:
-        folder_path = os.path.join(settings.data_dir, 'export', i['playlist_name'])
+        if i['playlist_name'] == 'subscription_thumbnails':
+            folder_path = os.path.join(settings.data_dir, 'export', 'subscription_thumbnails')
+        else:
+            folder_path = os.path.join(settings.data_dir, 'export', 'playlist_thumbnails', i['playlist_name'])
+            
         file_path = os.path.join(folder_path, i['id'] + '.jpg')
                 
         try:
@@ -1213,7 +1279,25 @@ def export_thumbnails_to_jpg():
         if not os.path.isfile(file_path):
             with open(file_path, "wb") as f:
                 picture = BytesIO(i['PICTURE'])
-                f.write(picture.getbuffer())
+                f.write(picture.getbuffer())    
+
+    items = get_playlists_sqlite_db('playlists', 'playlist_name')
+    backup = {}
+    for i in items: backup[i] = read_playlist_sqlite_db(i)
+    backup['0youtube_playlist_list'] = get_playlists_sqlite_db('playlists_youtube', '*')
+
+    if not os.path.exists(os.path.join(settings.data_dir, 'export')):
+        os.makedirs(os.path.join(settings.data_dir, 'export'))
+    if not os.path.exists(os.path.join(settings.data_dir, 'export', 'playlists')):    
+        os.makedirs(os.path.join(settings.data_dir, 'export', 'playlists'))
+    
+    folder_path = os.path.join(settings.data_dir, 'export', 'playlists')
+    
+    for playlists_name,video_info_list in backup.items():
+        file_path = os.path.join(folder_path, playlists_name + ".txt")
+        if not os.path.isfile(file_path):
+            with open(file_path, "w", encoding='utf-8') as file:
+                for info in video_info_list: file.write(json.dumps(info) + "\n")
 
 #############################################################
 
