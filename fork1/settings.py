@@ -282,6 +282,22 @@ For security reasons, enabling this is not recommended.''',
         'category': 'interface',
     }),
 
+    ('use_httpx', {
+        'label': 'Use httpx library',
+        'type': bool,
+        'default': False,
+        'comment': 'Use httpx for web requests',
+        'category': 'network',
+        }),
+
+    ('googlevideo_use_post', {
+        'label': 'Use post to get video from gvs',
+        'type': bool,
+        'default': False,
+        'comment': 'Use post with specific body payload to access video from gvs',
+        'category': 'network',
+        }),
+
     ('proxy_images', {
         'label': 'Route images',
         'type': bool,
