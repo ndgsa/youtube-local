@@ -166,8 +166,12 @@ def get_video_sources(info, target_resolution):
     pair_sources.sort(key=lambda src: src['quality_string'])
     pair_sources.sort(key=lambda src: src['quality'])
 
-    # if file_size is none than url is incorect for moment
-    uni_sources1 = [u for u in uni_sources if u['file_size'] != None] 
+    # if file_size is none for some videos url not work
+    # if clen is none for some videos url works
+    uni_sources1 = []
+    for u in uni_sources:
+        if u['file_size'] != None: uni_sources1.append(u)
+        elif u['file_size'] == None and u['clen'] == None: uni_sources1.append(u)
     uni_sources = uni_sources1[:]
 
     uni_idx = 0 if uni_sources else None
@@ -176,21 +180,12 @@ def get_video_sources(info, target_resolution):
             break
         uni_idx = i
 
-    default_lang = 0
+    # need original track as default
     pair_idx = 0 if pair_sources else None
     for i, pair_info in enumerate(pair_sources):
-
-        if 'undefined' in pair_info['audios'][0]['audio_track']:
-            default_lang = 0
-        elif 'original' in pair_info['audios'][0]['audio_track']:
-            default_lang = 1
-        else:
-            default_lang = 2
-
-        if pair_info['quality'] > target_resolution and default_lang != 2:
-            break
-        if settings.disable_dubbing: pair_idx = i
-        else: pair_idx = i - 1
+        if 'undefined' not in pair_info['audios'][0]['audio_track']: continue
+        if pair_info['quality'] > target_resolution: break
+        pair_idx = i
 
     # if pair_idx is bigger than pair_sources list size
     # try: _ = pair_sources[pair_idx]

@@ -550,6 +550,10 @@ def _extract_formats(info, player_response):
             extract_int(yt_fmt.get('qualityLabel'), whole_word=False)
         )
 
+        # mine
+        # need clen for uni_sources
+        if itag in [18]: fmt['clen'] = urllib.parse.parse_qs(urllib.parse.urlparse(fmt['url']).query).get('clen')
+
         info['formats'].append(fmt)
 
     # get ip address
