@@ -45,8 +45,22 @@ There can be bugs bugs bugs. <br/>
 
 [Settings page.](https://github.com/ndgsa/youtube-local/blob/master/screenshots/5.png?raw=true)
 
-## 
-Use violentmonkey or similar thing in your browser to redirect youtube urls to localhost:8080 <br/> 
+##
+
+## Warning! Do not overwrite this fork with your youtube-local. Structures are different. <br/>
+
+
+### If want to use your data(playlists/thumbnails) with this fork: <br/>
+1. Make a Backup of your data. <br/>
+2. Copy **\\data\\** folder to **new_location\youtube-local\assets\\** (example: E:\Programs\new-ndgsa-youtube-local\assets\data\\) <br/>
+3. Launch this fork youtube-local. <br/>
+4. Go to webpage http://127.0.0.1:8080/youtube.com/settings <br/>
+5. Uncheck "**Store images, playlist data in database**" setting. <br/>
+6. Relaunch this fork youtube-local. <br/>
+7. Done <br/>
+
+##
+Use violentmonkey or similar to redirect youtube urls to localhost:8080 <br/> 
 
 ##
 This are only cosmetic changes. <br/>
