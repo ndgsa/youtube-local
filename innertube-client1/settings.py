@@ -97,7 +97,7 @@ For security reasons, enabling this is not recommended.''',
         'max': 100,
         'min': -1,
         'comment': '''Sets a default volume.
-        Defaults to -1, which means no default value is forced and the browser will set the volume.''',
+Defaults to -1, which means no default value is forced and the browser will set the volume.''',
         'category': 'playback',
     }),
 
@@ -270,6 +270,22 @@ For security reasons, enabling this is not recommended.''',
         'comment': '',
         'category': 'interface',
     }),
+    ## mine
+    ('disable_dubbing', {
+        'label': 'Disable dubbing',
+        'type': bool,
+        'default': True,
+        'comment': '''Allows only original audio track''',
+        'category': 'interface',
+    }),
+    ## mine
+    ('allowed_dubbing_languages', {
+        'label': 'Allowed dubbing languages',
+        'type': str,
+        'default': 'English;Russian',
+        'comment': '''Allows dubbing for listed languages''',
+        'category': 'interface',
+    }),
 
     ('video_player', {
         'type': int,
@@ -423,7 +439,7 @@ Archive: https://archive.ph/OZQbN''',
         'comment': '''Allow playback of age restricted videos.
 If set to True, the system will try reloading the video player when encountering age restricted content.''',
         'category': 'playback',
-    }),                            
+    }),
 
     ('debugging_save_responses', {
         'type': bool,
@@ -666,7 +682,7 @@ def settings_page():
             settings_by_category = settings_by_category,
         )
     elif request.method == 'POST':
-        
+
         #################################################### mine
         if len(list(request.values.items())) == 0:
             current_settings_dict['disable_history'] = True
@@ -683,9 +699,9 @@ def settings_page():
             globals().update(current_settings_dict)
             save_settings(current_settings_dict)
             return flask.redirect(util.URL_ORIGIN + '/playlists/History', 303)
-        ####################################################    
-            
-        
+        ####################################################
+
+
         for key, value in request.values.items():
             if key in SETTINGS_INFO:
                 if SETTINGS_INFO[key]['type'] is bool and value == 'on':

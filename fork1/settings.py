@@ -97,7 +97,7 @@ For security reasons, enabling this is not recommended.''',
         'max': 100,
         'min': -1,
         'comment': '''Sets a default volume.
-        Defaults to -1, which means no default value is forced and the browser will set the volume.''',
+Defaults to -1, which means no default value is forced and the browser will set the volume.''',
         'category': 'playback',
     }),
 
@@ -245,7 +245,7 @@ For security reasons, enabling this is not recommended.''',
         'default': False,
         'comment': '',
         'category': 'interface',
-    }),    
+    }),
     ## mine
     ('display_as_grid', {
         'label': 'Display local playlist videos as grid',
@@ -268,6 +268,22 @@ For security reasons, enabling this is not recommended.''',
         'type': bool,
         'default': True,
         'comment': '',
+        'category': 'interface',
+    }),
+    ## mine
+    ('disable_dubbing', {
+        'label': 'Disable dubbing',
+        'type': bool,
+        'default': True,
+        'comment': '''Allows only original audio track''',
+        'category': 'interface',
+    }),
+    ## mine
+    ('allowed_dubbing_languages', {
+        'label': 'Allowed dubbing languages',
+        'type': str,
+        'default': 'English;Russian',
+        'comment': '''Allows dubbing for listed languages''',
         'category': 'interface',
     }),
 
@@ -615,7 +631,7 @@ def settings_page():
             globals().update(current_settings_dict)
             save_settings(current_settings_dict)
             return flask.redirect(util.URL_ORIGIN + '/playlists/History', 303)
-        #################################################### 
+        ####################################################
 
 
         for key, value in request.values.items():
