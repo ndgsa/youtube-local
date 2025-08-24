@@ -189,7 +189,8 @@ def get_video_sources(info, target_resolution):
 
         if pair_info['quality'] > target_resolution and default_lang != 2:
             break
-        pair_idx = i - 1
+        if settings.disable_dubbing: pair_idx = i
+        else: pair_idx = i - 1
 
     # if pair_idx is bigger than pair_sources list size
     # try: _ = pair_sources[pair_idx]
