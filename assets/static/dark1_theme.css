@@ -248,3 +248,33 @@ div.playlist-metadata{
 .plyr__controls__item {
 	color: #cccccc !important;
 }
+.plyr__control:hover, .plyr__control[aria-expanded="true"]{
+	background:var(--plyr-video-control-background-hover,var(--plyr-color-main,var(--plyr-color-main,#474d52))) !important;
+}
+.plyr {
+	--plyr-video-controls-background: rgba(0,0,0,0.6) !important;
+}
+.plyr--video .plyr__progress__buffer {
+	color: rgba(170, 158, 158, 0.75) !important;
+}
+.plyr--full-ui.plyr--video  input[type="range"]::-moz-range-thumb {
+	background-color: #cccccc !important;
+	/* height: 13px; */
+	/* width: 13px; */
+}
+.plyr--full-ui.plyr--video  input[type="range"]::-webkit-slider-thumb {
+	background-color: #cccccc !important;
+}
+.plyr--full-ui.plyr--video  input[type="range"]::-ms-thumb {
+	background-color: #cccccc !important;
+}
+.plyr__menu__container {
+	background: #cccccc !important;
+}
+.plyr div[role="menu"]{
+	scrollbar-color: #c2c2c2 #c2c2c2;
+}
+.plyr__control--back::before {
+	box-shadow: unset !important;
+	background: #adaeae !important;
+}
