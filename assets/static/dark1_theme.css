@@ -269,7 +269,11 @@ div.playlist-metadata{
 	background-color: #cccccc !important;
 }
 .plyr__menu__container {
-	background: #cccccc !important;
+	background: rgb(204,204,204) !important;
+}
+div[role="menu"] .plyr__control:hover, button.plyr__control--back:hover{
+	background: #adaeae !important;
+	color: unset !important;
 }
 .plyr div[role="menu"]{
 	scrollbar-color: #c2c2c2 #c2c2c2;
