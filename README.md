@@ -1,6 +1,6 @@
 # youtube-local
 
-![alt text](https://github.com/ndgsa/youtube-local/blob/master/screenshots/1.png?raw=true)
+![alt text](https://github.com/ndgsa/youtube-local-mix/blob/master/screenshots/1.png?raw=true)
 
 my fork with my local changes <br/>
 
@@ -34,16 +34,16 @@ There can be bugs bugs bugs. <br/>
 
 <h3>I dont know how to fix if player stops playing after 2 minutes.</h3>
 
-[comment]: <> (<a href="url"><img src="https://github.com/ndgsa/youtube-local/blob/master/screenshots/1.png" align="left" height="70%" width="70%"></a>)
+[comment]: <> (<a href="url"><img src="https://github.com/ndgsa/youtube-local-mix/blob/master/screenshots/1.png" align="left" height="70%" width="70%"></a>)
 
 ## Screenshots
-[Youtube playlist page display items as grid. Sort, bookmark, import.](https://github.com/ndgsa/youtube-local/blob/master/screenshots/2.png?raw=true)
+[Youtube playlist page display items as grid. Sort, bookmark, import.](https://github.com/ndgsa/youtube-local-mix/blob/master/screenshots/2.png?raw=true)
 
-[History page.](https://github.com/ndgsa/youtube-local/blob/master/screenshots/3.png?raw=true)
+[History page.](https://github.com/ndgsa/youtube-local-mix/blob/master/screenshots/3.png?raw=true)
 
-[Search page. Hide video, channel.](https://github.com/ndgsa/youtube-local/blob/master/screenshots/4.png?raw=true)
+[Search page. Hide video, channel.](https://github.com/ndgsa/youtube-local-mix/blob/master/screenshots/4.png?raw=true)
 
-[Settings page.](https://github.com/ndgsa/youtube-local/blob/master/screenshots/5.png?raw=true)
+[Settings page.](https://github.com/ndgsa/youtube-local-mix/blob/master/screenshots/5.png?raw=true)
 
 ##
 
