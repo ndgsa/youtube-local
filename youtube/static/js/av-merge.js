@@ -558,7 +558,7 @@ function fetchRange(url, start, end, debugInfo) {
             if (xhr.status >= 200 && xhr.status < 300) {
                 resolve(xhr.response);
             } else {
-                onFailure(e, 
+                onFailure(e,
                     'Status '
                     + String(xhr.status) + ' ' + String(xhr.statusText)
                 );

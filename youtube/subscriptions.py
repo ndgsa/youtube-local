@@ -673,7 +673,7 @@ def _get_upstream_videos(channel_id):
                                       description
                                   )
                                   VALUES ((SELECT id FROM subscribed_channels WHERE yt_channel_id=?), ?, ?, ?, ?, ?, ?, ?)''', rows)
-            cursor.executemany('''UPDATE videos SET 
+            cursor.executemany('''UPDATE videos SET
                                       title=?,
                                       duration=?,
                                       time_published=?,

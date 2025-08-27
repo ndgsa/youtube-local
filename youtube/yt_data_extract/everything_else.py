@@ -99,7 +99,7 @@ def extract_channel_info(polymer_json, tab, continuation=False):
                 link = link_outer.get('channelExternalLinkViewModel') or {}
                 link_content = extract_str(deep_get(link, 'link', 'content'))
                 for run in deep_get(link, 'link', 'commandRuns') or ():
-                    url = remove_redirect(deep_get(run, 'onTap', 
+                    url = remove_redirect(deep_get(run, 'onTap',
                         'innertubeCommand', 'urlEndpoint', 'url'))
                     if url and not (url.startswith('http://')
                             or url.startswith('https://')):

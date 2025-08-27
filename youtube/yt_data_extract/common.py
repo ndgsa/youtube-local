@@ -318,7 +318,7 @@ def extract_item_info(item, additional_info={}):
         info['type'] = 'channel'
     elif itype == 'videoWithContextRenderer': # stupid exception
         info['type'] = 'video'
-        primary_type = 'video' 
+        primary_type = 'video'
     else:
         info['type'] = 'unsupported'
 
