@@ -6,7 +6,10 @@ import settings
 import traceback
 import re
 from sys import exc_info
-yt_app = flask.Flask(__name__)
+yt_app = flask.Flask(__name__,
+# static_url_path='', # this generates error if assets not in project folder
+static_folder='../../assets/static', # use static from innertube fork
+template_folder='../../assets/templates') # use templates from innertube fork
 yt_app.url_map.strict_slashes = False
 # yt_app.jinja_env.trim_blocks = True
 # yt_app.jinja_env.lstrip_blocks = True
