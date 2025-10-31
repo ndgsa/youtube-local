@@ -1,14 +1,5 @@
 __pycache__/
 *$py.class
-debug/
-data/
-python/
-release/
-youtube-local/
-banned_addresses.txt
+assets/data/
 settings.txt
-get-pip.py
-latest-dist.zip
-*.7z
-*.zip
 *venv*
