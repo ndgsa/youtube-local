@@ -13,8 +13,8 @@ import cachetools.func
 
 
 def signature_solver(s, info):
-    solvers = ['']
-    return "No signature solver available"
+    solvers = ['', solver1]
+    return solvers[int(s)](info)
 
 
 def requires_decryption(info):
@@ -165,6 +165,15 @@ def validate_response_type(output, response_type):
         raise NotImplementedError('Request type not specified')
     elif response_type == 'pass': # in case dont require or is different
         pass
+    elif response_type == "n_sig":
+        if 'preprocessed_player' in output.keys(): k = ['type', 'responses', 'preprocessed_player']
+        else: k = ['type', 'responses']
+        k1 = ['type', 'data']
+        if set(k) != set(output.keys()):
+            raise ValueError(f"Invalid response type '{response_type}'")
+        for i in output.get('responses'):
+            if set(i.keys()) != set(k1):
+                raise ValueError(f"Invalid response type '{response_type}'")
 
 def _run_js_runtime_file(js_file, *args, js_format="file", response_format='json', response_type=None, timeout=30, custom_runtime=None):
     if not g_js_runtime:
@@ -262,4 +271,146 @@ def replace_n_s_signatures(info, decrypted_nsig, decrypted_ssig):
             else:
                 print("n_sig_decrypt: Warning ssig not available")
     return False
+
+
+
+ejs_version = '0.8.0'
+@cachetools.func.lru_cache(maxsize=1)
+def get_ejs():
+    '''Download ejs library if not exists.'''
+    yt_solver_lib_url = f"https://github.com/yt-dlp/ejs/releases/download/{ejs_version}/yt.solver.lib.min.js"
+    yt_solver_lib_name = 'yt.solver.lib.min_' + ejs_version.replace('.', '') + '.js'
+    yt_solver_core_url = f"https://github.com/yt-dlp/ejs/releases/download/{ejs_version}/yt.solver.core.min.js"
+    yt_solver_core_name = 'yt.solver.core.min_' + ejs_version.replace('.', '') + '.js'
+    yt_solver_dir = os.path.join(settings.other_dir, 'js', 'ejs')
+    yt_solver_lib_file = os.path.join(yt_solver_dir, yt_solver_lib_name)
+    yt_solver_core_file = os.path.join(yt_solver_dir, yt_solver_core_name)
+    if not os.path.isdir(yt_solver_dir):
+        print(f'Creating {yt_solver_dir} directory')
+        os.makedirs(yt_solver_dir)
+    for yt_s in [{'file': yt_solver_lib_file, 'url': yt_solver_lib_url}, {'file': yt_solver_core_file, 'url': yt_solver_core_url}]:
+        if not os.path.isfile(yt_s['file']):
+            try: content = util.fetch_url(yt_s['url'], report_text=f"Downloading ejs library from url \"{yt_s['url']}\"")
+            except: content = None
+            if content:
+                with open(yt_s['file'], 'w', encoding='utf-8') as file:
+                    print(f"Saving ejs library to \"{yt_s['file']}\"")
+                    file.write(content.decode('utf-8'))
+            else:
+                return ('', f'Unable to download ejs library', False)
+    if not os.path.isfile(yt_solver_lib_file):
+        return ('', f'{yt_solver_lib_name} library not available', False)
+    if not os.path.isfile(yt_solver_core_file):
+        return ('', f'{yt_solver_core_name} library not available', False)
+    return (yt_solver_lib_file, yt_solver_core_file, True)
+
+@cachetools.func.lru_cache(maxsize=2)
+def read_preprocessed_js_file(preprocessed_js_file, flag, encoding):
+    with open(preprocessed_js_file, flag, encoding=encoding) as f:
+        player = f.read()
+    print("n_sig_decrypt: Using preprocessed player")
+    return player
+
+def solver1(info):
+    '''return error string, or False if no errors'''
+
+    def solve_(info):
+        err = check_requirements(info)
+        if err != None: return err
+
+        yt_solver_lib_file, yt_solver_core_file, err = get_ejs()
+        if err == False: return yt_solver_core_file
+
+        n_sig_list, s_sig_list = extract_encrypted_n_s_signatures_from_info(info)
+
+        # solve signatures using javascript runtime as 'node', 'deno', ...
+        decrypted_nsig, decrypted_ssig = decrypt_nsig_ssig(info, yt_solver_lib_file, yt_solver_core_file, list(n_sig_list), list(s_sig_list))
+        if type(decrypted_nsig) == str and decrypted_ssig == False: return decrypted_nsig # things goes wrong
+
+        replace_n_s_signatures(info, decrypted_nsig, decrypted_ssig)
+
+        return False
+
+    def decrypt_nsig_ssig(info, yt_solver_lib_file, yt_solver_core_file, n_sig_list, s_sig_list):
+        '''return error string, or set of 2 dict if no errors'''
+
+        js_dir = os.path.join(settings.other_dir, 'js')
+        if not os.path.isdir(js_dir): os.makedirs(js_dir)
+        preprocessed_js_file = os.path.join(settings.players_cache_dir, 'iframe_api_base_' + info.get('player_version') + '_preprocessed' + '.js')
+
+        if not os.path.exists(js_dir):
+            return (f"Folder '{js_dir}\\' does not exist", False)
+        elif not os.path.exists(yt_solver_lib_file):
+            return (f"File '{yt_solver_lib_file}' does not exist", False)
+        elif not os.path.exists(yt_solver_core_file):
+            return (f"File '{yt_solver_core_file}' does not exist", False)
+
+        requests = [{'type': 'n', 'challenges': n_sig_list}, {'type': 'sig', 'challenges': s_sig_list}]
+        if not os.path.isfile(preprocessed_js_file):
+            preprocessed = False
+            with open(yt_solver_lib_file, 'r', encoding="utf8") as f: _lib_script_code = f.read()
+            with open(yt_solver_core_file, 'r', encoding="utf8") as f: _core_script_code = f.read()
+            player = util.get_player_data(client=info['__client_name'], include_basejs=True)['base_js']
+            data = {
+                'type': 'player',
+                'player': player,
+                'requests': requests,
+                'output_preprocessed': True, # if True then returns preprocessed player javascript code
+            }
+            jscode = f'''{_lib_script_code}
+Object.assign(globalThis, lib);
+{_core_script_code}
+var result = jsc({json.dumps(data)});
+console.log(JSON.stringify(result));
+'''
+            with open(preprocessed_js_file, 'w', encoding="utf-8") as f: f.write(jscode)
+        else:
+            preprocessed = True
+            # replace 'requests' in preprocessed_js_file
+            with open(preprocessed_js_file, 'r+', encoding="utf-8") as f:
+                js_file = f.read()
+                js_file = re.sub(r'''(\[\{"type": "n", .+\}\])''', json.dumps(requests), js_file)
+                f.seek(0)
+                f.write(js_file)
+                f.truncate()
+            print("n_sig_decrypt: Using preprocessed player")
+
+        # output = _run_js_runtime_bytes(g_js_runtime, preprocessed_js_file, requests, js_format="bytes")
+        output = _run_js_runtime_file(preprocessed_js_file, response_type='n_sig')
+
+        responses = output.get('responses', [])
+
+        # print(f"nsig: {responses[0]}\nssig: {responses[1]}")
+
+        if not preprocessed:
+            data = {'type': 'preprocessed', 'preprocessed_player': output.get('preprocessed_player'), 'requests': requests,}
+            jscode = f'''{_lib_script_code}
+Object.assign(globalThis, lib);
+{_core_script_code}
+var result = jsc({json.dumps(data)});
+console.log(JSON.stringify(result));
+'''
+            with open(preprocessed_js_file, 'w', encoding="utf-8") as f: f.write(jscode)
+            print("n_sig_decrypt: Write preprocessed_player to file")
+
+        output = None
+
+        if len(responses) != 2:
+            return ("nsig or ssig decryption failed", False)
+
+        n_resp = responses[0]
+        if n_resp['type'] == 'error':
+            return ("nsig decryption failed", False)
+        n_sig_list = n_resp['data']
+
+        s_resp = responses[1]
+        if s_resp['type'] == 'error':
+            return ("ssig decryption failed", False)
+        s_sig_list = s_resp['data']
+
+        return (n_sig_list, s_sig_list)
+
+
+    err = solve_(info)
+    return err
 
