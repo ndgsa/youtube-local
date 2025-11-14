@@ -16,6 +16,11 @@ yt_app.jinja_env.add_extension('jinja2.ext.do') # why
 
 yt_app.add_url_rule('/settings', 'settings_page', settings.settings_page, methods=['POST', 'GET'])
 
+# reload assets(html) files when changed
+yt_app.config['TEMPLATES_AUTO_RELOAD'] = True
+yt_app.jinja_env.auto_reload = True
+
+
 @yt_app.route('/')
 def homepage():
     return flask.render_template('home.html', title="Youtube local")
