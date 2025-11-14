@@ -301,6 +301,14 @@ Archive: https://archive.ph/OZQbN''',
         'category': 'interface',
     }),
 
+    ('display_as_grid', {
+        'label': 'Display local playlist videos as grid',
+        'type': bool,
+        'default': True,
+        'comment': '',
+        'category': 'interface',
+    }),
+
     ('subtitles_mode', {
         'type': int,
         'default': 0,
