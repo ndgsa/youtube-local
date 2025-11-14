@@ -1,4 +1,5 @@
 from youtube import util, yt_data_extract, proto, local_playlist
+from youtube.channel import sort_video_items
 from youtube import yt_app
 import settings
 
@@ -9,6 +10,8 @@ import mimetypes
 from flask import request
 import flask
 import os
+import re
+from datetime import datetime, timedelta
 import gevent
 import cachetools.func
 from math import ceil
@@ -79,7 +82,15 @@ def get_search_page():
     filters['type'] = int(request.args.get("type", "0"))
     filters['duration'] = int(request.args.get("duration", "0"))
 
+    if int(sort) == 100: sort = 0
     filters['reversed_order'] = request.args.get("reversed", None)
+    filters['more_precise_query'] = request.args.get("precise", None)
+    filters['duration1'] = request.args.get("duration1", "0")
+    filters['date_after'] = request.args.get("date_after", "")
+    filters['date_before'] = request.args.get("date_before", "")
+
+    query_orig = query
+    query = use_yt_search_operators(query, request.args, sort, filters)
     page_multiplier = settings.search_request_page_multiplier
 
     if True:
@@ -111,7 +122,7 @@ def get_search_page():
 
     return flask.render_template('search.html',
         header_playlist_names = local_playlist.get_playlist_names(),
-        query = query,
+        query = query_orig,
         estimated_results = search_info['estimated_results'],
         estimated_pages = search_info['estimated_pages'],
         corrections = search_info['corrections'],
@@ -128,18 +139,134 @@ def get_search_engine_xml():
 
 
 
+def use_yt_search_operators(query, request_args, sort, filters):
+    '''return query string with search operators'''
+    yt_search_operator = ""
+    # use search operators like before/after
+    if filters['time'] == 0: # Any
+        if request_args.get("time", None) == None:
+            filters['time'] = 0
+    # elif filters['time'] == 1: # Last hour
+        # yt_search_operator = f"after:{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}"
+    # elif filters['time'] == 2: # Today
+        # yt_search_operator = f"after:{(datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')}"
+    # elif filters['time'] == 3: # This week
+        # yt_search_operator = f"after:{(datetime.now() - timedelta(days=8)).strftime('%Y-%m-%d')}"
+    # elif filters['time'] == 4: # This month
+        # yt_search_operator = f"after:{(datetime.now() - timedelta(days=32)).strftime('%Y-%m-%d')}"
+    # elif filters['time'] == 5: # This year
+        # yt_search_operator = f"after:{(datetime.now() - timedelta(days=367)).strftime('%Y-%m-%d')}"
+    elif filters['time'] == 102: # last 2 days
+        filters['time'] = 3
+        filters['custom_time'] = 102
+        yt_search_operator = f"after:{(datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')}"
+    elif filters['time'] == 103: # last 3 days
+        filters['time'] = 3
+        filters['custom_time'] = 103
+        yt_search_operator = f"after:{(datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d')}"
+
+    try:
+        date_after = datetime.strptime(filters['date_after'], '%Y-%m-%d').strftime('%Y-%m-%d')
+        yt_search_operator = f" after:{date_after}"
+    except ValueError as e: pass
+    try:
+        date_before = datetime.strptime(filters['date_before'], '%Y-%m-%d').strftime('%Y-%m-%d')
+        yt_search_operator = yt_search_operator + f" before:{date_before}"
+    except ValueError as e: pass
+
+    sort = int(request_args.get("sort", "100")) # use by default more precise search
+    if int(sort) in [1,2,100] or filters['more_precise_query']: # upload date,relevance,rating returns many irrelevant results
+        query = f"intitle:{query} OR description:{query} {yt_search_operator}".rstrip()
+    else:
+        query = f"{query} {yt_search_operator}".rstrip()
+
+    return query
+
+
 def filter_search_items(search_info_items, query, page, request_url, request_args, sort, filters):
     '''return filtered search items'''
+
     other_type_list = [item for item in search_info_items if item['type'] != 'video']
     # filter only video type items
     search_info_items = [item for item in search_info_items if item['type'] == 'video'][:]
+
     initial_length = len(search_info_items)
+
     # hide if in hidelist
     if settings.include_hidden_videos == False:
         search_info_items = search_hidden_channels_hide(search_info_items)
+    # hide if duration
+    search_info_items = filter_search_items_by_duration(search_info_items, filters['duration1'])
     # print(f" *{len(search_info_items) - len(search_info_items)}* hidden videos: {tmp_removed}")
     print(f" *{initial_length - len(search_info_items)}* hidden videos")
+
+    # hide dublicates
+    dublicates = []
+    no_dublicates = []
+    query_url_string_no_page = request_url.replace('&page=' + page, '')
+    search_result_exist = False
+    for i in g_search_id_results:
+        if (query, query_url_string_no_page) == (i[0], i[1]):
+            search_result_exist = True
+            break
+    if not search_result_exist: g_search_id_results.append((query, query_url_string_no_page, {}))
+    for i in g_search_id_results:
+        if (query, query_url_string_no_page) == (i[0], i[1]):
+            if str(int(page)+1) in i[2]: i[2].clear() # if next page request empty dict
+            i[2][page] = [] # empty if page already requested becouse results are different
+            pages_ids_tmp = []
+            [pages_ids_tmp.extend(p1) for p1 in list(i[2].values())]
+            for item in search_info_items:
+                if (item not in no_dublicates) and (item['id'] not in pages_ids_tmp):
+                    no_dublicates.append(item)
+                    i[2][page].append(item['id'])
+                else: dublicates.append({'id': item['id'], 'title': item['title']})
+            break
+    # print(f" *{len(dublicates)}* dublicate videos: {dublicates}")
+    print(f" *{len(dublicates)}* hidden dublicate videos")
+    # no_dublicates = []
+    # [no_dublicates.append(x) for x in search_info_items if x not in no_dublicates]
+    search_info_items = no_dublicates[:]
+
+    sort = int(request_args.get("sort", "100")) # use by default more precise search
+
+    # sort items
+    # old to new
+    if int(sort) in [1,3] and filters['reversed_order']: search_info_items = sort_video_items(search_info_items, sort_key='approx_view_count', order=2)
+    # youtube sort by views badly in some cases, so sort items manualy
+    elif int(sort) in [1,3]: search_info_items = sort_video_items(search_info_items, sort_key='approx_view_count', order=1)
+    # youtube filter by upload date is broken so sort page result by date
+    if int(sort) in [2,100]: search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=1)
+    # relevance by date case
+    if int(sort) == 0 and filters['time'] in [1,2]: search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=1)
+
     return [*other_type_list, *search_info_items]
+
+
+def timedelta_parse(value):
+    """convert input string to timedelta"""
+    value = re.sub(r"[^0-9:.]", "", value)
+    if not value: return None
+    return timedelta(**{key:float(val) for val, key in zip(value.split(":")[::-1], ("seconds", "minutes", "hours", "days"))})
+
+def filter_search_items_by_duration(search_info_items, duration1):
+    '''return list without filtered items'''
+    tmp = search_info_items[:]
+    tmp_removed = []
+    for item in search_info_items:
+        try:
+            if duration1 == '0' or duration1 == '' or item.get('duration', None) == None: continue
+            elif len(duration1.split(':')) == 1: duration1 = duration1 + ":00"
+            video_duration = timedelta_parse(item['duration'])
+            user_duration = timedelta_parse(duration1)
+            if video_duration < user_duration:
+                tmp.remove(item)
+                tmp_removed.append({'id': item['id'], 'title': item['title']})
+            elif user_duration == None:
+                print(f"Bad input value {duration1} provided")
+        except Exception as e:
+            print(e)
+    return tmp[:]
 
 
 def search_hidden_channels_hide(search_info_items):
