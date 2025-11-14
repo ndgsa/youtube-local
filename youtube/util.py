@@ -19,6 +19,9 @@ import stem
 import stem.control
 import traceback
 
+import cachetools.func
+from datetime import datetime
+
 # The trouble with the requests library: It ships its own certificate bundle via certifi
 #  instead of using the system certificate store, meaning self-signed certificates
 #  configured by the user will not work. Some draconian networks block TLS unless a corporate
@@ -773,37 +776,6 @@ INNERTUBE_CLIENTS = {
     },
 }
 
-def get_visitor_data():
-    visitor_data = None
-    visitor_data_cache = os.path.join(settings.data_dir, 'visitorData.txt')
-    if not os.path.exists(settings.data_dir):
-        os.makedirs(settings.data_dir)
-    if os.path.isfile(visitor_data_cache):
-        with open(visitor_data_cache, 'r') as file:
-            print('Getting visitor_data from cache')
-            visitor_data = file.read()
-        max_age = 12*3600
-        file_age = time.time() - os.path.getmtime(visitor_data_cache)
-        if file_age > max_age:
-            print('visitor_data cache is too old. Removing file...')
-            os.remove(visitor_data_cache)
-        return visitor_data
-
-    print('Fetching youtube homepage to get visitor_data')
-    yt_homepage = 'https://www.youtube.com'
-    yt_resp = fetch_url(yt_homepage, headers={'User-Agent': mobile_user_agent}, report_text='Getting youtube homepage')
-    visitor_data_re = r'''"visitorData":\s*?"(.+?)"'''
-    visitor_data_match = re.search(visitor_data_re, yt_resp.decode())
-    if visitor_data_match:
-        visitor_data = visitor_data_match.group(1)
-        print(f'Got visitor_data: {len(visitor_data)}')
-        with open(visitor_data_cache, 'w') as file:
-            print('Saving visitor_data cache...')
-            file.write(visitor_data)
-        return visitor_data
-    else:
-        print('Unable to get visitor_data value')
-    return visitor_data
 
 def call_youtube_api(client, api, data):
     client_params = INNERTUBE_CLIENTS[client]
@@ -828,3 +800,109 @@ def call_youtube_api(client, api, data):
         report_text='Fetched ' + client + ' youtubei ' + api
     ).decode('utf-8')
     return response
+
+
+############################################################################# mine
+visitor_data_re = re.compile(r'''"visitorData":\s*?"(.+?)"''')
+@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
+def get_visitor_data_from_homepage():
+    visitor_data = None
+    yt_resp = fetch_url(
+        'https://www.youtube.com',
+        headers={'User-Agent': mobile_user_agent},
+        report_text='Getting youtube homepage'
+    )
+    visitor_data_match = re.search(visitor_data_re, yt_resp.decode())
+    if visitor_data_match: visitor_data = visitor_data_match.group(1)
+    return visitor_data
+
+@cachetools.func.ttl_cache(maxsize=3, ttl=12*3600)
+def generate_visitor_data(visitor_type):
+    # There are different options to get visitorData
+    if visitor_type == 'po_token':   visitor_data = get_po_token_visitor_data().get('visitorData')
+    elif visitor_type == 'homepage': visitor_data = get_visitor_data_from_homepage()
+    else: raise NotImplementedError('Unknown visitor_type')
+    return {'type': visitor_type, 'timestamp': str(datetime.now()), 'visitorData': visitor_data}
+
+def read_visitor_data(visitor_data_cache, visitor_type):
+    if visitor_type: print(f'Getting {visitor_type} type visitor_data from cache')
+    with open(visitor_data_cache, 'r') as file:
+        visitor_data_dict = json.load(file)
+    return visitor_data_dict
+
+@cachetools.func.ttl_cache(maxsize=3, ttl=2*3600)
+def get_visitor_data_(visitor_type):
+    visitor_data_dict = None
+    visitor_data_cache = os.path.join(settings.data_dir, 'visitorData.txt')
+
+    if not os.path.exists(settings.data_dir):
+        os.makedirs(settings.data_dir)
+
+    if os.path.exists(visitor_data_cache):
+        file_age = time.time() - os.path.getmtime(visitor_data_cache)
+        if file_age > 12*3600:
+            print('visitor_data cache is older than 12 hours')
+            os.remove(visitor_data_cache)
+        else:
+            visitor_data_dict = read_visitor_data(visitor_data_cache, visitor_type=None)
+            if visitor_data_dict.get('type') != visitor_type:
+                os.remove(visitor_data_cache)
+
+    if not os.path.isfile(visitor_data_cache):
+        visitor_data_dict = generate_visitor_data(visitor_type)
+        if visitor_data_dict.get('visitorData'):
+            print(f"Got new {visitor_type} type visitor_data: {len(visitor_data_dict.get('visitorData'))}")
+            with open(visitor_data_cache, 'w') as file:
+                file.write(json.dumps(visitor_data_dict))
+        else: print('Unable to generate visitor_data')
+
+    visitor_data_dict = read_visitor_data(visitor_data_cache, visitor_type)
+    return visitor_data_dict
+
+def get_visitor_data():
+    if settings.use_po_token: visitor_type = 'po_token'
+    elif not settings.use_po_token: visitor_type = 'homepage'
+
+    visitor_data_dict = get_visitor_data_(visitor_type)
+    return visitor_data_dict.get('visitorData')
+
+@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
+def get_po_token_visitor_data(c_p=settings.use_po_token):
+    po_token_dict = {}
+    if settings.use_po_token:
+        po_token_cache = os.path.join(settings.data_dir, 'po_token_cache.txt')
+        if os.path.isfile(po_token_cache):
+            with open(po_token_cache, 'r') as file:
+                print('Extracting po_token from po_token_cache')
+                po_token_dict = json.load(file)
+                # po_token = po_token_dict.get('poToken')
+        else:
+            print('po_token_cache.txt is not found.')
+    return po_token_dict
+
+
+def append_po_token(info):
+    po_token = get_po_token_visitor_data().get('poToken')
+    if po_token:
+        info['poToken'] = po_token
+        tmp = []
+        for fmt in info['formats']:
+            if fmt['url']:
+                fmt['url'] += f'&pot={po_token}'
+                tmp.append(fmt)
+        info['formats'] = tmp
+    else:
+        return False
+
+
+z_data_cache = cachetools.TTLCache(10, 360*60)
+@cachetools.cached(z_data_cache)
+def get_z_data_cache(key):
+    return value
+def set_z_data_cache(key, value):
+    @cachetools.cached(z_data_cache)
+    def dummy_func_using_same_cache(key):
+        return value
+    dummy_func_using_same_cache(key)
+#############################################################################
+

@@ -327,6 +327,10 @@ def decrypt_signatures(info, video_id):
     err = yt_data_extract.decrypt_signatures(info)
     return err
 
+# mine
+def append_po_token(info):
+    err = util.append_po_token(info)
+    return err
 
 def _add_to_error(info, key, additional_message):
     if key in info and info[key]:
@@ -348,12 +352,22 @@ def fetch_watch_page_info(video_id, playlist_id, index):
     if index:
         url += '&index=' + index
 
+    # mine
+    visitor_data = util.get_visitor_data()
+    visitor_data_header = None
+    if visitor_data: visitor_data_header = ('X-Goog-Visitor-Id', visitor_data)
+    else: print('No visitor data is used in this request.')
+
     headers = (
         ('Accept', '*/*'),
         ('Accept-Language', 'en-US,en;q=0.5'),
         ('X-YouTube-Client-Name', '2'),
         ('X-YouTube-Client-Version', '2.20180830'),
     ) + util.mobile_ua
+
+    # mine
+    if visitor_data_header:
+        headers = ( *headers, visitor_data_header )
 
     watch_page = util.fetch_url(url, headers=headers,
                                 debug_name='watch')
@@ -387,6 +401,13 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
     decryption_error = decrypt_signatures(info, video_id)
     if decryption_error:
         decryption_error = 'Error decrypting url signatures: ' + decryption_error
+        info['playability_error'] = decryption_error
+
+    # mine
+    # append po_token
+    po_token_append_error = append_po_token(info)
+    if po_token_append_error:
+        decryption_error += 'Error appending po_token'
         info['playability_error'] = decryption_error
 
     # check if urls ready (non-live format) in former livestream
