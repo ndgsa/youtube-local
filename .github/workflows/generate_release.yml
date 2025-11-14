@@ -1,0 +1,107 @@
+name: Generate release for youtube-local
+run-name: ${{ github.actor }} is creating release for youtube-local
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  generate-release-64:
+    # if: false
+    strategy:
+      matrix:
+        os: [windows-latest]
+        node: [20]
+        include:
+          - os: windows-latest
+            node: '20'
+            npm: '10'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Preparing repository
+        id: repository-preparation
+        uses: actions/checkout@v4
+      - name: Setting up latest python
+        id: python-setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Setting up nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Generating release (64 bit)
+        id: generating-release-64
+        run: |
+          cd ${{ github.workspace }}
+          python generate_release.py 3.13.12
+          mkdir -p D:\\tmp\\output\\
+          mv -v v*zip D:\\tmp\\output\\
+      - name: Runtime test (64 bit)
+        id: runtime-test-64
+        run: |
+          cd ${{ github.workspace }}\\youtube-local
+          ..\\python\\python.exe -c "import server; from youtube import util; url = 'https://cloudflare.com/cdn-cgi/trace'; resp = util.fetch_url(url, report_text='Fetching CF trace report') ; print(resp.decode())"
+      - name: Uploading build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zip-package-64
+          path: /tmp/output/
+      - name: Creating youtube-local release (64 bit)
+        id: create-release-64
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+            $TAG = & git describe --tag
+            gh release create "$TAG" D:\\tmp\\output\\* --verify-tag --generate-notes || gh release upload "$TAG" D:\\tmp\\output\\*
+
+  generate-release-32:
+    # if: false
+    strategy:
+      matrix:
+        os: [windows-latest]
+        node: [20]
+        include:
+          - os: windows-latest
+            node: '20'
+            npm: '10'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Preparing repository
+        id: repository-preparation
+        uses: actions/checkout@v4
+      - name: Setting up latest python
+        id: python-setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Setting up nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Generating release (32 bit)
+        id: generating-release-32
+        run: |
+          cd ${{ github.workspace }}
+          python generate_release.py 3.8.10 32
+          mkdir -p D:\\tmp\\output\\
+          mv -v v*zip D:\\tmp\\output\\
+      - name: Runtime test (32 bit)
+        id: runtime-test-32
+        run: |
+          cd ${{ github.workspace }}\\youtube-local
+          ..\\python\\python.exe -c "import server; from youtube import util; url = 'https://cloudflare.com/cdn-cgi/trace'; resp = util.fetch_url(url, report_text='Fetching CF trace report') ; print(resp.decode())"
+      - name: Uploading build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zip-package-32
+          path: /tmp/output/
+      - name: Creating youtube-local release (32 bit)
+        id: create-release-32
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+            $TAG = & git describe --tag
+            gh release create "$TAG" D:\\tmp\\output\\* --verify-tag --generate-notes || gh release upload "$TAG" D:\\tmp\\output\\*
