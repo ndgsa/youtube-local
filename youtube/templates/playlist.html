@@ -2,9 +2,10 @@
 {% extends "base.html" %}
 {% import "common_elements.html" as common_elements %}
 {% block style %}
-    main > * {
-        max-width: 800px;
-        margin:auto;
+    main > *{
+        width: 800px;
+		max-width: 100%;
+		margin: auto;
     }
 
     .playlist-metadata{
@@ -39,7 +40,7 @@
 
     }
         .thumbnail-box{     /* overides rule in shared.css */
-            height: 90px !important;
+            height: 94px !important; /* old value was 90 */
             width: 120px !important;
         }
     @media (max-width:600px){
@@ -54,20 +55,55 @@
             justify-items: center;
         }
     }
+
+	{% if display_as_grid %}
+		.playlist-metadata {
+			/*<!-- justify-content: space-between; --> */
+			margin-bottom: auto;
+			padding-bottom: 11px;
+			/*<!-- background-color: var(--interface-color); --> */
+		}
+		.item-grid{
+			width: auto;
+			padding-left: 50px;
+			width: 90%;
+		}
+		.item-box {
+			width: 370px !important;
+			margin-bottom: 15px;
+			padding-left: 10px;
+		}
+	{% endif %}
+
+    details > summary{
+        background-color: var(--interface-color);
+        border-style: solid;
+        border-width: 2px;
+        font-weight: bold;
+        padding: 4px;
+		font-size: 20px;
+		margin: 0px 0px 8px 0px;
+    }
+    details > summary:hover{
+        text-decoration: underline;
+    }
 {% endblock style %}
 
 {% block main %}
-    <div class="playlist-metadata">
-        <img class="playlist-thumbnail" src="{{ thumbnail }}">
-        <h2 class="playlist-title">{{ title }}</h2>
-        <a class="playlist-author" href="{{ author_url }}">{{ author }}</a>
-        <div class="playlist-stats">
-            <div>{{ video_count|commatize }} videos</div>
-            <div>{{ view_count|commatize }} views</div>
-            <div>Last updated {{ time_published }}</div>
-        </div>
-        <div class="playlist-description">{{ common_elements.text_runs(description) }}</div>
-    </div>
+	<details class="related-videos-outer" {{'open' if settings.related_videos_mode == 1 else ''}}>
+		<summary>{{ title }} (more info)</summary>
+		<div class="playlist-metadata">
+			<!-- <img class="playlist-thumbnail" src="{{ thumbnail }}"> -->
+			<h3 class="playlist-title"><li>Playlist name: {{ title }}</li></h2>
+			<a class="playlist-author" href="{{ author_url }}"><li>Author: {{ author }}</li></a>
+			<div class="playlist-stats">
+				<div><li>Video count: {{ video_count|commatize }} (videos)</li></div>
+				<div><li>View count: {{ view_count|commatize }} (views)</li></div>
+				<div><li>Last updated: {{ time_published }}</li></div>
+			</div>
+			<div class="playlist-description"><li>Description: {{ common_elements.text_runs(description) }}</li></div>
+		</div>
+	</details>
 
 	{% if display_as_grid %}
 		<div class="{{ 'item-grid' }}">
@@ -85,10 +121,6 @@
     <nav class="page-button-row">
         {{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlist', parameters_dictionary) }}
     </nav>
+
 {% endblock main %}
-
-
-
-
-
 
