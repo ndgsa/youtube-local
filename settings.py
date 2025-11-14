@@ -413,16 +413,19 @@ def log_ignored_line(line_number, message):
 
 
 
+if not os.path.isfile("settings.txt"):
+    with open("settings.txt", 'w') as file: pass
+
 if os.path.isfile("settings.txt"):
     print("Running in portable mode")
     settings_dir = os.path.normpath('./')
     data_dir = os.path.normpath(os.path.join(program_directory, 'data'))
-else:
-    print("Running in non-portable mode")
-    settings_dir = os.path.expanduser(os.path.normpath("~/.youtube-local"))
-    data_dir = os.path.expanduser(os.path.normpath("~/.youtube-local/data"))
-    if not os.path.exists(settings_dir):
-        os.makedirs(settings_dir)
+# else:
+    # print("Running in non-portable mode")
+    # settings_dir = os.path.expanduser(os.path.normpath("~/.youtube-local"))
+    # data_dir = os.path.expanduser(os.path.normpath("~/.youtube-local/data"))
+    # if not os.path.exists(settings_dir):
+        # os.makedirs(settings_dir)
 
 settings_file_path = os.path.join(settings_dir, 'settings.txt')
 
