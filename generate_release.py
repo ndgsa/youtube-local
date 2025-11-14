@@ -235,6 +235,17 @@ log('Finished generating python distribution')
 log('Copying python distribution into release folder')
 shutil.copytree(r'./python', r'./youtube-local/python')
 
+#mine
+# ----------- Download node and javascript libs -----------
+
+os.makedirs('./youtube-local/other/js/', exist_ok=True)
+node_url = "https://github.com/vladimir-andreevich/node.js-windows-7/blob/main/v20/node-v20.19.2-win-x86.zip?raw=true"
+node_name = "node-v20.19.2-win-x86.zip"
+download_if_not_exists(node_name, node_url)
+log('Extracting node.exe')
+check_subp(subprocess.run([r'7z', '-y', 'e', '-o./youtube-local/other/js/', node_name, "node-*/node.exe"]))
+# os.remove(node_name)
+
 # ----------- Create release zip -----------
 output_filename = 'youtube-local-' + release_tag + '-' + suffix + '.zip'
 if os.path.exists('./' + output_filename):
