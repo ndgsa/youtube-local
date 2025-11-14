@@ -1232,19 +1232,26 @@ def call_youtube_api(client, api, data, query_params=None, use_visitor=True, rep
     headers = generate_api_headers(client_name=client, use_visitor=use_visitor)
 
     ytcfg = get_ytcfg(client)
-    po_token_data = { 'poToken': get_po_token_visitor_data(settings.use_po_token).get('poToken') }
-    if ytcfg:
-        # Needed to set correct client version obtained from ytcfg
-        context = ytcfg['INNERTUBE_CONTEXT']
-        print('Got client context from ytcfg')
-        key = ytcfg['INNERTUBE_API_KEY']
-        # Needed to use correct visitorData from yt_po_token_cache.txt
-        visitor_data = get_po_token_visitor_data(settings.use_po_token).get('visitorData')
-        if visitor_data: context['client']['visitorData'] = visitor_data
+    po_token_data = {}
+    if use_visitor:
+        if settings.use_po_token and po_token_data != {} and data.get('videoId'): # dont like this aproach
+            print(f"Generating player bound po_token for {data['videoId']}")
+            po_token_data = { 'poToken': get_po_token_visitor_data(settings.use_po_token, identifier=data['videoId']).get('poToken') }
+        elif settings.use_po_token:
+            print(f"Using session bound po_token")
+            po_token_data = { 'poToken': get_po_token_visitor_data(settings.use_po_token).get('poToken') }
+        if ytcfg:
+            # Needed to set correct client version obtained from ytcfg
+            context = ytcfg['INNERTUBE_CONTEXT']
+            print('Got client context from ytcfg')
+            key = ytcfg['INNERTUBE_API_KEY']
+            # Needed to use correct visitorData from yt_po_token_cache.txt
+            visitor_data = get_po_token_visitor_data(settings.use_po_token).get('visitorData')
+            if visitor_data: context['client']['visitorData'] = visitor_data
 
     data['context'] = context
     require_js_player = client_params.get('REQUIRE_JS_PLAYER')
-    if require_js_player and data.get('videoId'):
+    if require_js_player and data.get('videoId') and use_visitor:
         print('js player is required for this client: ' + str(client))
 
         player_data = get_player_data(
@@ -1264,7 +1271,7 @@ def call_youtube_api(client, api, data, query_params=None, use_visitor=True, rep
                     }
                 }
 
-    if po_token_data and data.get('videoId'):
+    if po_token_data and data.get('videoId') and use_visitor:
         data['serviceIntegrityDimensions'] = po_token_data
 
     url = 'https://' + host + '/youtubei/v1/' + api
@@ -1447,20 +1454,106 @@ def get_visitor_data(client=None):
     visitor_data_dict = get_visitor_data_(client, visitor_type)
     return visitor_data_dict.get('visitorData')
 
-@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
-def get_po_token_visitor_data(c_p):
-    po_token_dict = {}
-    if settings.use_po_token:
-        po_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_cache.txt')
-        if os.path.isfile(po_token_cache):
-            with open(po_token_cache, 'r') as file:
-                print('Extracting po_token from yt_po_token_cache.txt')
-                po_token_dict = json.load(file)
-                # po_token = po_token_dict.get('poToken')
-        else:
-            print('yt_po_token_cache.txt is not found.')
-    return po_token_dict
+@cachetools.func.ttl_cache(maxsize=2, ttl=2*3600)
+def generate_po_token(po_token_provider, identifier=''):
+    print('Generating yt_po_token_cache.txt')
+    po_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_cache.txt')
+    player_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_player_cache.txt')
+    if not os.path.exists(settings.players_cache_dir): os.makedirs(settings.players_cache_dir)
+    js_dir = os.path.join(settings.other_dir, 'js')
+    js_extra_dir = os.path.join(js_dir, 'pot')
+    if not os.path.isdir(js_dir): os.makedirs(js_dir)
 
+    if po_token_provider < 4:
+
+        if po_token_provider == 1:
+            pot_generator_script = 'generate_po_token.js'
+            response_type = 'po_token'
+        elif po_token_provider == 2:
+            pot_generator_script = 'generate_po_token_2.js'
+            response_type = 'po_token_2'
+        elif po_token_provider == 3:
+            pot_generator_script = 'botGuard/vm/botGuard1.js'
+            response_type = 'po_token_3'
+
+        pot_generator_fullpath = os.path.join(js_extra_dir, pot_generator_script)
+        if not os.path.isfile(pot_generator_fullpath):
+            print("pot_generator_script unavailable")
+            get_visitor_data_(settings.innertube_client_name, 'homepage') # create new visitordata file
+            return {}
+
+        curdir = os.getcwd()
+        os.chdir(js_extra_dir)
+
+        print('po_token generation starts. Please wait until it finishes... (30 seconds)')
+        from youtube.yt_data_extract import _run_js_runtime_file
+        if identifier == '': output = _run_js_runtime_file(pot_generator_fullpath, response_type=response_type)
+        else: output = _run_js_runtime_file(pot_generator_fullpath, identifier, response_type=response_type)
+
+        if po_token_provider == 3: # botGuard do not retrieve visitorData so use homepage visitorData
+            visitor_data_dict = get_visitor_data_(settings.innertube_client_name, 'homepage')
+            visitor_data = visitor_data_dict.get('visitorData')
+            output['visitorData'] = visitor_data
+
+        os.chdir(curdir)
+
+    elif po_token_provider == 4:
+
+        client, client_params = get_innertube_client(client_name='web') # other clients not working
+        context = client_params['INNERTUBE_CONTEXT']
+        payload = {'bypass_cache': True, 'innertube_context': context}
+        visitor_data = get_visitor_data_(settings.innertube_client_name, 'homepage').get('visitorData')
+        if not identifier: payload['content_binding'] = visitor_data
+        else: payload['content_binding'] = identifier
+        try:
+            ping_result = json.loads(fetch_url('http://localhost:4416/ping').decode())
+            print(f"Using bgutil server {ping_result['version']}")
+            response = fetch_url('http://localhost:4416/get_pot',
+                report_text=f'Getting po_token via bgutil server',
+                headers={'Content-Type': 'application/json'},
+                data=json.dumps(payload))
+            output = json.loads(response.decode())
+            output['visitorData'] = visitor_data
+        except Exception as err:
+            print(err)
+            print('''Unable to generate po_token.
+                Make sure that bgutil server is running on localhost:4416.
+                Refer to https://github.com/Brainicism/bgutil-ytdlp-pot-provider for more detils.''')
+            return {}
+
+    if identifier:
+        output['identifier'] = identifier
+        with open(player_token_cache, 'w') as file: file.write(json.dumps(output))
+    else:
+        with open(po_token_cache, 'w') as file: file.write(json.dumps(output))
+    print(f"Got player_pot: { len(output['poToken']) }")
+
+    return output
+
+@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
+def get_po_token_visitor_data(c_p, identifier=''):
+    po_token_dict = {}
+    po_token_cache = None
+    if settings.use_po_token:
+        if identifier: po_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_player_cache.txt')
+        else: po_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_cache.txt')
+
+        if not identifier and os.path.exists(po_token_cache):
+            po_token_cache_file_age = time.time() - os.path.getmtime(po_token_cache)
+            if po_token_cache_file_age > 3600 * 24 * 6: # 6 days
+                print(f'{po_token_cache} is older more than 6 days old. ')
+                os.remove(po_token_cache)
+
+        if os.path.isfile(po_token_cache):
+            with open(po_token_cache, 'r') as file: po_token_dict = json.load(file)
+
+        if po_token_dict == {}:
+            po_token_dict = generate_po_token(settings.po_token_provider, identifier)
+
+        if identifier and po_token_dict == {}: print('Unable to get player bound po_token')
+        elif po_token_dict == {}: print('Unable to get po_token')
+
+    return po_token_dict
 
 def append_po_token(info):
     po_token = get_po_token_visitor_data(settings.use_po_token).get('poToken')
