@@ -141,11 +141,11 @@ For security reasons, enabling this is not recommended.''',
 
     ('signature_solver_id', {
         'type': int,
-        'default': 0,
+        'default': 1,
         'label': 'Signature solver',
         'comment': '''Decrypt signatures method''',
         'options': [
-            (0, 'old'),                     # not working
+            (1, 'ejs'),                     # ejs
         ],
         'category': 'client',
     }),
