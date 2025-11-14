@@ -88,6 +88,8 @@ def get_search_page():
         no_autocorrect_query_url = util.URL_ORIGIN + '/results?' + urllib.parse.urlencode(no_autocorrect_query_string, doseq=True)
         corrections['original_query_url'] = no_autocorrect_query_url
 
+    search_info['items'] = filter_search_items(search_info['items'][:], query, page, request.url, request.args, sort)
+
     return flask.render_template('search.html',
         header_playlist_names = local_playlist.get_playlist_names(),
         query = query,
@@ -104,3 +106,35 @@ def get_search_engine_xml():
         content = f.read().replace(b'$host_url',
                                    request.host_url.rstrip('/').encode())
         return flask.Response(content, mimetype='application/xml')
+
+
+
+def filter_search_items(search_info_items, query, page, request_url, request_args, sort):
+    '''return filtered search items'''
+    other_type_list = [item for item in search_info_items if item['type'] != 'video']
+    # filter only video type items
+    search_info_items = [item for item in search_info_items if item['type'] == 'video'][:]
+    initial_length = len(search_info_items)
+    # hide if in hidelist
+    if settings.include_hidden_videos == False:
+        search_info_items = search_hidden_channels_hide(search_info_items)
+    # print(f" *{len(search_info_items) - len(search_info_items)}* hidden videos: {tmp_removed}")
+    print(f" *{initial_length - len(search_info_items)}* hidden videos")
+    return [*other_type_list, *search_info_items]
+
+
+def search_hidden_channels_hide(search_info_items):
+    '''return list without filtered items'''
+    tmp = search_info_items[:]
+    tmp_removed = []
+    hidden_videos = [z['id'] for z in local_playlist.read_playlist('search_hidden_videos')]
+    hidden_channels = [z['author_id'] for z in local_playlist.read_playlist('search_hidden_channels')]
+    for item in search_info_items:
+        try:
+            if (item['author_id'] in hidden_channels) or (item['id'] in hidden_videos):
+                tmp.remove(item)
+                tmp_removed.append({'id': item['id'], 'title': item['title']})
+        except Exception as e:
+            print(e)
+    return tmp[:]
+

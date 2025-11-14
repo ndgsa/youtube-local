@@ -1,0 +1,154 @@
+{% set page_title = playlist_name + ' - Local playlist' %}
+{% extends "base.html" %}
+{% import "common_elements.html" as common_elements %}
+{% block style %}
+    main > * {
+        max-width: 800px;
+        margin: auto;
+    }
+        #result-info{
+            margin-top: 10px;
+            margin-bottom: 10px;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+            #number-of-results{
+                font-weight:bold;
+            }
+        .item-list{
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+            .badge{
+                background-color:#cccccc;
+            }
+
+    .playlist-metadata{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+
+        margin: 15px auto;
+        padding: 7px;
+        background-color: var(--interface-color);
+    }
+
+    #video-remove-container{
+        display: flex;
+        justify-content: space-between;
+        margin: 0px auto 15px auto;
+    }
+        #playlist-remove-button{
+            white-space: nowrap;
+        }
+
+	.page-button-row{
+		margin-left: auto;
+		margin-right: auto;
+	}
+	.next-previous-button-row{
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.item a.title{
+		font-size: 1.1rem;
+	}
+
+	.item-box {
+		width: 80%;
+	}
+
+	.thumbnail-img {
+	  margin: unset;
+	}
+
+	.has-description .thumbnail-box {
+	  width: auto;
+
+	}
+
+{% endblock style %}
+
+{% macro hide_related_channel(info, description=false, horizontal=true, include_author=true, include_badges=true, lazy_load=false, related=false) %}
+    <div class="item-box {{ info['type'] + '-item-box' }} {{'horizontal-item-box' if horizontal else 'vertical-item-box'}} {{'has-description' if description else 'no-description'}}">
+        {% if info['error'] %}
+            {{ info['error'] }}
+        {% else %}
+            <div class="item {{ info['type'] + '-item' }}">
+                <a class="thumbnail-box" href="/https://www.youtube.com/channel/{{ info['author_id'] }}" title="{{ info['title'] }}">
+                <img class="thumbnail-img" src="{{ info['thumbnail'] }}">
+                </a>
+                <div class="item-metadata">
+                    <div class="title"><a class="title" href="/https://www.youtube.com/channel/{{ info['author_id'] }}" title="{{ info['author'] }}">{{ info['author'] }}</a></div>
+                    {% if not display_as_grid %}
+						<ul class="stats {{'horizontal-stats'}}">
+							 <li><span>{{ info['approx_subscriber_count'] }} subscribers</span></li>
+							 {# <!-- <li><span>{{ info['video_count']|commatize }} videos</span></li> --> #}
+						</ul>
+						<span class="description">{{ common_elements.text_runs(info.get('short_description', ''))[:250] }} ...</span>
+					{% endif %}
+                </div>
+            </div>
+            {% if info['type'] == 'video' %}
+                <input class="item-checkbox" type="checkbox" name="video_info_list" value="{{ info['video_info'] }}" form="playlist-edit">
+            {% endif %}
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% block main %}
+    <div class="playlist-metadata">
+        <h2 class="playlist-title">{{ playlist_name }}</h2>
+        <div id="export-options">
+            <form id="playlist-export" method="post">
+                <select id="export-type" name="export_format">
+                    <option value="json">JSON</option>
+                    <option value="ids">Video id list (txt)</option>
+                    <option value="urls">Video url list (txt)</option>
+					<option value="key_value_dict">Video dict (txt)</option>
+                </select>
+                <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
+            </form>
+
+        </div>
+		<div>
+			<form class="subscriptions-import-export-form" enctype="multipart/form-data" method="POST">
+				<input type="file" id="subscriptions-import" accept="text/plain" name="videos_file" required>
+				<button type="submit" id="playlist-import-button" name="action" value="import">Import</button>
+			</form>
+		</div>
+    </div>
+
+    <form id="playlist-remove" action="/youtube.com/edit_playlist" method="post" target="_self"></form>
+    <div id="video-remove-container">
+		<button type="submit" name="action" value="remove_playlist" form="playlist-remove" formaction="" onclick="return confirm('You are about to permanently delete {{ playlist_name }}\n\nOnce a playlist is permanently deleted, it cannot be recovered.');"style="visibility:hidden;">Remove playlist</button>
+
+        <input type="hidden" name="playlist_page" value="{{ playlist_name }}" form="playlist-edit">
+        <button type="submit" id="playlist-remove-button" name="action" value="remove" form="playlist-edit" formaction="">Remove from playlist</button>
+    </div>
+
+
+	{% if display_as_grid %}
+		<div class="{{ 'item-grid' }}">
+			{% for video_info in videos %}
+				{{ hide_related_channel(video_info) }}
+			{% endfor %}
+		</div>
+
+		<nav class="page-button-row">
+			{{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlists/' + playlist_name, parameters_dictionary) }}
+		</nav>
+	{% else %}
+		<div class="item-list">
+			{% for info in videos %}
+				{{ hide_related_channel(info, description=true) }}
+			{% endfor %}
+		</div>
+
+		<nav class="page-button-row">
+			{{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlists/' + playlist_name, parameters_dictionary) }}
+		</nav>
+	{% endif %}
+{% endblock main %}
