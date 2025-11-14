@@ -68,13 +68,13 @@
 {% block main %}
     <div class="playlist-metadata">
         <h2 class="playlist-title">{{ playlist_name }}</h2>
-
         <div id="export-options">
             <form id="playlist-export" method="post">
                 <select id="export-type" name="export_format">
                     <option value="json">JSON</option>
                     <option value="ids">Video id list (txt)</option>
                     <option value="urls">Video url list (txt)</option>
+					<option value="key_value_dict">Video dict (txt)</option>
                 </select>
                 <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
             </form>
