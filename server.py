@@ -23,7 +23,6 @@ import time
 
 
 
-
 def youtu_be(env, start_response):
     id = env['PATH_INFO'][1:]
     env['PATH_INFO'] = '/watch'
@@ -51,12 +50,19 @@ def parse_range(range_header, content_length):
     return start_byte, end_byte
 
 def proxy_site(env, start_response, video=False):
-    client, client_params = util.get_innertube_client(client_name=settings.innertube_client_name)
-    client_context = client_params['INNERTUBE_CONTEXT']
-    send_headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)',
-        'Accept': '*/*',
-    }
+    send_headers = util.generate_api_headers(ua_platform='custom_1', update_headers_with=(('Accept-Language', None),('Origin', None),('Accept-language', 'en-US'),))
+
+    # client_params = util.INNERTUBE_CLIENTS[settings.innertube_client_name]
+    # client_context = client_params['INNERTUBE_CONTEXT']
+    # client_ua = client_context['client'].get('userAgent') or util.mobile_user_agent
+    # send_headers1 = {
+        # 'User-Agent': client_ua,
+        # 'Accept': '*/*',
+        # 'Accept-language': 'en-US',
+        # 'X-YouTube-Client-Name': client_params['INNERTUBE_CONTEXT_CLIENT_NAME'],
+        # 'X-YouTube-Client-Version': client_context['client']['clientVersion'],
+    # }
+
     current_range_start = 0
     range_end = None
     if 'HTTP_RANGE' in env:
@@ -94,6 +100,8 @@ def proxy_site(env, start_response, video=False):
         except AttributeError:
             pass
         if video:
+            send_headers = (list(send_headers)
+                            + [('origin', 'https://www.youtube.com')])
             response_headers = (list(response_headers)
                                 +[('Access-Control-Allow-Origin', '*')])
 
