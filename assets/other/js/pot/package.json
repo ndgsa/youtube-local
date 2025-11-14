@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  },
+  "dependencies": {
+    "bgutils-js": "^3.2.0",
+    "jsdom": "^27.1.0",
+    "youtube-po-token-generator": "^0.6.0",
+    "youtubei.js": "^16.0.1"
+  }
+}
