@@ -138,11 +138,13 @@ For security reasons, enabling this is not recommended.''',
 
     ('signature_solver_id', {
         'type': int,
-        'default': 1,
+        'default': 2,
         'label': 'Signature solver',
         'comment': '''Decrypt signatures method''',
         'options': [
             (1, 'ejs'),                     # ejs
+            (2, 'youtubei.js+dukpy'),       # youtubei.js extract decryption functions and dukpy decrypt signatures
+            (3, 'youtubei.js+nodejs'),      # youtubei.js extract decryption functions and nodejs decrypt signatures
         ],
         'category': 'client',
     }),
