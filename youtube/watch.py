@@ -704,6 +704,12 @@ def get_watch_page(video_id=None):
 
 
 
+    # mine
+    referrer_url = request.referrer if request.referrer else ""
+    if ("youtube.com/playlists/" in referrer_url) or request.args.get('playlists1'):
+        p_name = request.args.get('playlists1') if request.args.get('playlists1') else referrer_url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
+        info['playlist'] = local_playlist.get_watch_page_local_playlist(p_name, video_id)
+
     # 1 second per pixel, or the actual video width
     theater_video_target_width = max(640, info['duration'] or 0, video_width)
 
