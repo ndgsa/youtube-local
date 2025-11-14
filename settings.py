@@ -492,6 +492,13 @@ If set to True, the system will try reloading the video player when encountering
         'comment': '''Sets a default search page multiplier. Request multiple pages at once, helpful if need more than 20 videos.''',
     }),
 
+    ('use_sqlite3_db_as_storage', {
+        'label': 'Store images, playlist data in database',
+        'type': bool,
+        'default': False,
+        'comment': '',
+    }),
+
     ('debugging_save_responses', {
         'type': bool,
         'default': False,
