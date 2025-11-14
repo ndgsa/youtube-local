@@ -594,6 +594,45 @@ def get_toplevel_custom_page(custom, tab='videos'):
 
 
 
+def sort_video_items(data, sort_key='approx_view_count', order=1):
+    '''return sorted list of dicts by specific key'''
+    def get_multiplier(string):
+        if sort_key == 'approx_view_count':
+            view_count_multiplier = {'S': 1, 'K': 1000, 'M': 1000000, 'B': 1000000000}
+            if string[-1].isalpha() and not string[:-1].isalpha(): multiplier = float(string[:-1]) * view_count_multiplier[string[-1]]
+            elif not string.isalpha(): multiplier = int(string) * view_count_multiplier['S']
+            else: multiplier = 0 # if string is None
+            return multiplier
+        elif sort_key == 'time_published':
+            date_count_multiplier = {'second': 0.00028, 'minute': 0.0167, 'hour': 1, 'day': 24, 'week': 168, 'month': 730, 'year': 8766}
+            if string == None: return date_count_multiplier['minute'] # if string is None
+            for k,v in date_count_multiplier.items():
+                if k in string:
+                    multiplier = float(string.replace(' ' + k + ' ago', '').replace(' ' + k + 's ago', '')) * v
+                    return multiplier
+        elif sort_key in ['title', 'author']:
+            return string
+        else:
+            return None
+
+    # quicksort oneliner
+    q = lambda l: q([x for x in l[1:] if get_multiplier(x[sort_key]) <= get_multiplier(l[0][sort_key])]) + [l[0]] + q([x for x in l if get_multiplier(x[sort_key]) > get_multiplier(l[0][sort_key])]) if l else []
+
+    if len(data) > 1:
+        try:
+            data1 = q(data)
+        except Exception as e:
+            print('Error on sorting. Return default.')
+            return data
+
+        if order == 1: data1 = list(reversed(data1)) # biggest values at start
+        elif order == 2: pass # biggest values at end
+        else: pass
+
+    else: data1 = data
+
+    return data1
+
 def get_number_of_videos_channel_from_about_tab(channel_id):
     '''get number of videos from about channel tab'''
     response = util.fetch_url('https://m.youtube.com/channel/' + channel_id + '/about?pbj=1', headers_mobile).decode('utf-8')
