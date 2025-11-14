@@ -335,9 +335,13 @@ def _add_to_error(info, key, additional_message):
         info[key] = additional_message
 
 def fetch_player_response(client, video_id):
-    return util.call_youtube_api(client, 'player', {
+    api_data = {
         'videoId': video_id,
-    })
+    }
+    if settings.allow_age_restricted_content:
+        api_data['racyCheckOk'] = 'true'
+        api_data['contentCheckOk'] = 'true'
+    return util.call_youtube_api(client, 'player', api_data)
 
 def fetch_watch_page_info(video_id, playlist_id, index):
     # bpctr=9999999999 will bypass are-you-sure dialogs for controversial
@@ -375,13 +379,17 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
     yt_data_extract.update_with_new_urls(info, player_response)
 
     # Age restricted video, retry
-    if info['age_restricted'] or info['player_urls_missing']:
-        if info['age_restricted']:
-            print('Age restricted video, retrying')
-        else:
-            print('Player urls missing, retrying')
-        player_response = fetch_player_response('tv_embedded', video_id)
-        yt_data_extract.update_with_new_urls(info, player_response)
+    if not settings.allow_age_restricted_content:
+        if info.get('age_restricted'):
+            print('Age restricted content is not allowed.')
+    else:
+        if info['age_restricted'] or info['player_urls_missing']:
+            if info['age_restricted']:
+                print('Age restricted video, retrying')
+            else:
+                print('Player urls missing, retrying')
+            player_response = fetch_player_response('tv_embedded', video_id)
+            yt_data_extract.update_with_new_urls(info, player_response)
 
     # signature decryption
     decryption_error = decrypt_signatures(info, video_id)
