@@ -51,6 +51,8 @@ def parse_range(range_header, content_length):
     return start_byte, end_byte
 
 def proxy_site(env, start_response, video=False):
+    client, client_params = util.get_innertube_client(client_name=settings.innertube_client_name)
+    client_context = client_params['INNERTUBE_CONTEXT']
     send_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64)',
         'Accept': '*/*',
