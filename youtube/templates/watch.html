@@ -611,9 +611,11 @@ Reload without invidious (for usage of new identity button).</a>
                         <li>Autoplay: <input type="checkbox" id="autoplay-toggle"></li>
                         {% if playlist['current_index'] is none %}
                             <li>[Error!]/{{ playlist['video_count'] }}</li>
-                        {% else %}
-                            <li>{{ playlist['current_index']+1 }}/{{ playlist['video_count'] }}</li>
-                        {% endif %}
+						{% elif playlist['total_videos'] %}
+							<li>{{ playlist['current_video_id_index']+1 }}/{{ playlist['total_videos'] }}</li>
+						{% else %}
+							<li>{{ playlist['current_index']+1 }}/{{ playlist['video_count'] }}</li>
+						{% endif %}
                         <li><a href="{{ playlist['author_url'] }}" title="{{ playlist['author'] }}">{{ playlist['author'] }}</a></li>
                     </ul>
                 </div>
