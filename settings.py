@@ -404,6 +404,14 @@ Defaults to -1, which means no default value is forced and the browser will set 
         'comment': '',
     }),
 
+    ## mine
+    ('use_sqlite3_db_as_storage', {
+        'label': 'Store images, playlist data in database',
+        'type': bool,
+        'default': False,
+        'comment': '',
+    }),
+
     ('debugging_save_responses', {
         'type': bool,
         'default': False,
