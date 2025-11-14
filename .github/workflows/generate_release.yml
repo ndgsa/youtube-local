@@ -30,6 +30,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      # - name: Download and cache nodejs for windows 7
+        # id: download-nodejs-windows-7
+        # uses: mercury233/action-cache-download-file@v1.0.0
+        # with:
+          # url: 'https://github.com/vladimir-andreevich/node.js-windows-7/blob/main/v20/node-v20.19.2-win-x86.zip?raw=true'
+          # destination: '.'
+          # filename: 'node-v20.19.2-win-x86.zip'
+      - name: Download and cache nodejs for windows 7
+        id: download-nodejs-windows-7
+        uses: cdqag/action-download-repository-file@v1.0.1
+        with:
+          repository: "vladimir-andreevich/node.js-windows-7"
+          file: "v20/node-v20.19.2-win-x86.zip"
+          destination: "node-v20.19.2-win-x86.zip"
+      - name: Use downloaded nodejs for windows 7
+        run: echo "File downloaded to ${{ steps.download-nodejs-windows-7.outputs.filepath }}"
       - name: Generating release (64 bit)
         id: generating-release-64
         run: |
@@ -80,6 +96,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      # - name: Download and cache nodejs for windows 7
+        # id: download-nodejs-windows-7
+        # uses: mercury233/action-cache-download-file@v1.0.0
+        # with:
+          # url: 'https://github.com/vladimir-andreevich/node.js-windows-7/blob/main/v20/node-v20.19.2-win-x86.zip?raw=true'
+          # destination: '.'
+          # filename: 'node-v20.19.2-win-x86.zip'
+      - name: Download and cache nodejs for windows 7
+        id: download-nodejs-windows-7
+        uses: cdqag/action-download-repository-file@v1.0.1
+        with:
+          repository: "vladimir-andreevich/node.js-windows-7"
+          file: "v20/node-v20.19.2-win-x86.zip"
+          destination: "node-v20.19.2-win-x86.zip"
+      - name: Use downloaded nodejs for windows 7
+        run: echo "File downloaded to ${{ steps.download-nodejs-windows-7.outputs.filepath }}"
       - name: Generating release (32 bit)
         id: generating-release-32
         run: |
