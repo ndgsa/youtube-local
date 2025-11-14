@@ -26,7 +26,7 @@
     </head>
     <body>
         <header>
-                <form id="site-search" action="/youtube.com/results">
+                <form id="site-search" action="/youtube.com/results" name="mysearchform" onsubmit="check_mysearchform_Fields();">
 
 					<div class="dropdown_home">
 						<a target="_blank" rel="noopener noreferrer" class="dropbtn_home" href="/youtube.com" id="home-link">Home</a>
@@ -46,18 +46,25 @@
                     <label for="filter-dropdown-toggle-cbox" class="filter-dropdown-toggle-button button">Filter</label>
                     <input id="filter-dropdown-toggle-cbox" type="checkbox" hidden>
                     <div class="filter-dropdown-content">
+
                         <h3>Sort by</h3>
                         <input type="radio" id="sort_relevance" name="sort" value="0">
                         <label for="sort_relevance">Relevance</label>
 
-                        <input type="radio" id="sort_upload_date" name="sort" value="2">
-                        <label for="sort_upload_date">Upload date</label>
+                        <input type="radio" id="sort_relevance_precise" name="sort" value="100">
+                        <label for="sort_relevance_precise">Relevance(precise)</label>
+
+                        <!-- <input type="radio" id="sort_upload_date" name="sort" value="2"> -->
+                        <!-- <label for="sort_upload_date">Upload date</label> -->
 
                         <input type="radio" id="sort_view_count" name="sort" value="3">
                         <label for="sort_view_count">View count</label>
 
-                        <input type="radio" id="sort_rating" name="sort" value="1">
-                        <label for="sort_rating">Rating</label>
+                        <!-- <input type="radio" id="sort_rating" name="sort" value="1"> -->
+                        <!-- <label for="sort_rating">Rating</label> -->
+
+                        <input type="checkbox" id="more_precise_query" name="precise" value="true">
+                        <label for="more_precise_query">Precise</label>
 
                         <input type="checkbox" id="reversed_order" name="reversed" value="true">
                         <label for="reversed_order">Reversed order</label>
@@ -73,6 +80,12 @@
                         <input type="radio" id="time_today" name="time" value="2">
                         <label for="time_today">Today</label>
 
+                        <input type="radio" id="time_2_days" name="time" value="102">
+                        <label for="time_2_days">2 days</label>
+
+                        <input type="radio" id="time_3_days" name="time" value="103">
+                        <label for="time_3_days">3 days</label>
+
                         <input type="radio" id="time_this_week" name="time" value="3">
                         <label for="time_this_week">This week</label>
 
@@ -81,6 +94,7 @@
 
                         <input type="radio" id="time_this_year" name="time" value="5">
                         <label for="time_this_year">This year</label>
+
 
                         <h3>Type</h3>
                         <input type="radio" id="type_any" name="type" value="0">
@@ -95,25 +109,55 @@
                         <input type="radio" id="type_playlist" name="type" value="3">
                         <label for="type_playlist">Playlist</label>
 
-                        <input type="radio" id="type_movie" name="type" value="4">
-                        <label for="type_movie">Movie</label>
+                        <!-- <input type="radio" id="type_movie" name="type" value="4"> -->
+                        <!-- <label for="type_movie">Movie</label> -->
 
-                        <input type="radio" id="type_show" name="type" value="5">
-                        <label for="type_show">Show</label>
+                        <!-- <input type="radio" id="type_show" name="type" value="5"> -->
+                        <!-- <label for="type_show">Show</label> -->
+
+                        <input type="radio" id="type_shorts" name="type" value="9">
+                        <label for="type_shorts">Shorts</label>
 
 
                         <h3>Duration</h3>
                         <input type="radio" id="duration_any" name="duration" value="0">
                         <label for="duration_any">Any</label>
 
-                        <input type="radio" id="duration_short" name="duration" value="1">
-                        <label for="duration_short">Short (&lt; 4 minutes)</label>
+                        <input type="radio" id="duration_short1" name="duration" value="4">
+                        <label for="duration_short1">Short (&lt; 3 minutes)</label>
 
-                        <input type="radio" id="duration_long" name="duration" value="3">
-                        <label for="duration_long">Regular (&gt; 4 - 20 minutes)</label>
+                        <!-- <input type="radio" id="duration_short" name="duration" value="1"> -->
+                        <!-- <label for="duration_short">Short (&lt; 4 minutes)</label> -->
+
+                        <input type="radio" id="duration_medium1" name="duration" value="5">
+                        <label for="duration_medium1">Medium (3-20 minutes)</label>
+
+                        <!-- <input type="radio" id="duration_medium" name="duration" value="3"> -->
+                        <!-- <label for="duration_medium">Medium (4-20 minutes)</label> -->
 
                         <input type="radio" id="duration_long" name="duration" value="2">
                         <label for="duration_long">Long (&gt; 20 minutes)</label>
+
+
+                        <h3>Hide by duration</h3>
+						<label for="hide_duration_custom"></label>
+						<input type="text" list="timing" placeholder="hh:mm:ss" id="hide_duration_custom" name="duration1" style="width:100px" autocomplete="off"/>
+						<datalist id="timing">
+							<option value="0">Any</option>
+							<option value="0:30"></option>
+							<option value="1:00"></option>
+							<option value="4:00"></option>
+						</datalist>
+
+
+						<h3>Filter by date</h3>
+						<h4 style="grid-column:1/span 2;font-weight:normal;">Date After</h4>
+						<label for="date_after"></label>
+                        <input type="date" id="date_after" name="date_after" style="width:120px;font-weight:bold;">
+
+						<h4 style="grid-column:1/span 2;font-weight:normal;">Date Before</h4>
+						<label for="date_before"></label>
+                        <input type="date" id="date_before" name="date_before" style="width:120px;font-weight:bold;">
 
                     </div>
                     {% if header_playlist_names is defined %}
@@ -133,6 +177,33 @@
                     <button type="submit" id="playlist-add-button" class="button" name="action" value="add">Add to playlist</button>
                     <button type="reset" id="item-selection-reset" class="button">Clear selection</button>
                 </form>
+				<script>
+					<!-- function addAfterDate(radioElement){ -->
+						<!-- if(radioElement.checked){radioElement.value = substractDate(radioElement.getAttribute('data-value1')); -->
+						<!-- } else {radioElement.value = null}; -->
+					<!-- } -->
+					<!-- function substractDate(days) { -->
+						<!-- let yourDate = new Date(); -->
+						<!-- var offset = yourDate.getTimezoneOffset(); -->
+						<!-- yourDate = new Date(yourDate.getTime() - (offset*60*1000)); -->
+						<!-- yourDate.setDate(yourDate.getDate() - days); -->
+						<!-- return yourDate.toISOString().split('T')[0]; -->
+					<!-- } -->
+					function check_mysearchform_Fields(){
+						<!-- onclick="if(document.getElementById('hide_duration_custom').value){document.getElementById('hide_duration_custom').disabled=true;};this.form.submit();" -->
+						if(document.mysearchform.duration1.value === ""){
+							<!-- console.log(document.mysearchform.duration1.value); -->
+							document.mysearchform.duration1.disabled = true;
+						};
+						if(document.mysearchform.date_after.value === ""){
+							document.mysearchform.date_after.disabled = true;
+						};
+						if(document.mysearchform.date_before.value === ""){
+							document.mysearchform.date_before.disabled = true;
+						};
+						return true;
+					}
+				</script>
                 <script>
                     /* Takes control of the form if javascript is enabled, so that adding stuff to a playlist will not cause things to stop loading, and will display a status message. If javascript is disabled, the form will still work using regular HTML methods, but causes things on the page (such as the video) to stop loading. */
                     var playlistAddForm = document.getElementById('playlist-edit');
