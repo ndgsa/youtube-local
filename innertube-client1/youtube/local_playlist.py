@@ -219,7 +219,7 @@ def get_playlist_names():
     tmp = []
     for item in items:
         name, ext = os.path.splitext(item)
-        if ext == '.txt' and (name not in ["History"]):
+        if ext == '.txt' and (name not in ["History", "0youtube_playlist_list"]):
             # yield name
             tmp.append(name)
     return tmp
@@ -262,7 +262,7 @@ def get_local_playlist_page(playlist_name=None):
         return flask.render_template('local_playlists_list.html', playlists=playlists)
 
     if playlist_name is None:
-        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name not in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]] + [("hidden_videos_channels", util.URL_ORIGIN + '/playlists/' + "hidden_videos_channels")]
+        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name not in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]] + [("hidden_videos_channels", util.URL_ORIGIN + '/playlists/' + "hidden_videos_channels")] + youtube_playlists_from_local(action='get')
         return flask.render_template('local_playlists_list.html', playlists=playlists)
     else:
         page = int(request.args.get('page', 1))
@@ -352,6 +352,20 @@ def edit_playlist():
     if request.values['playlist_name'] == 'History' and settings.disable_history:
         flask.abort(400)
         return
+
+    if request.values.get('bookmark_playlist', None) == 'true':
+        if request.values['playlist_name'] == '' or request.values['playlist_url'] == '':
+            print('Incorrect playlist data provided')
+            return '', 204
+        data = {'playlist_name': request.values['playlist_name'], 'playlist_url': request.values['playlist_url']}
+        if request.values['action'] == 'add':
+            youtube_playlists_from_local(action='add', data=data)
+            return '', 204
+        elif request.values['action'] == 'remove':
+            youtube_playlists_from_local(action='remove', data=data)
+            return '', 204
+        else:
+            flask.abort(400)
 
     if request.values['action'] == 'add':
         add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
@@ -557,6 +571,43 @@ def get_all_videos_from_playlist(playlist_id):
         tmp.append(json.dumps(video_info))
 
     return tmp
+
+
+def youtube_playlists_from_local(playlist_name='0youtube_playlist_list', action='get', data={}):
+
+    if not os.path.exists(playlists_directory):
+        os.makedirs(playlists_directory)
+
+    playlist_list = []
+    playlist_list_formated = []
+
+    try:
+        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'r', encoding='utf-8') as file: yt_playlists = file.read()
+        for yt_playlist in yt_playlists.splitlines():
+            if yt_playlist.strip():
+                playlist = json.loads(yt_playlist)
+                playlist_list.append(playlist)
+                playlist_list_formated.append(('(*) ' + playlist['playlist_name'], '/' + playlist['playlist_url']))
+    except FileNotFoundError:
+        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'a') as file: pass
+        return []
+
+    if action == 'get': return playlist_list_formated
+    elif action == 'add' and data != {}:
+        if data not in playlist_list:
+            with open(os.path.join(playlists_directory, playlist_name + ".txt"), "a", encoding='utf-8') as file:
+                file.write(json.dumps(data) + "\n")
+    elif action == 'remove' and data != {}:
+        try: playlist_list.remove(data)
+        except ValueError: pass
+
+        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'w', encoding='utf-8') as file:
+            for i in playlist_list: file.write(json.dumps(i) + "\n")
+
+        with open(os.path.join(playlists_directory, playlist_name + ".txt")) as reader, open(os.path.join(playlists_directory, playlist_name + ".txt"), 'r+') as writer:
+            for line in reader:
+                if line.strip(): writer.write(line)
+            writer.truncate()
 
 
 @yt_app.route('/playlists/History', methods=['GET'])
