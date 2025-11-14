@@ -20,13 +20,6 @@ from types import SimpleNamespace
 from math import ceil
 
 
-try:
-    with open(os.path.join(settings.data_dir, 'decrypt_function_cache.json'), 'r') as f:
-        decrypt_cache = json.loads(f.read())['decrypt_cache']
-except FileNotFoundError:
-    decrypt_cache = {}
-
-
 def codec_name(vcodec):
     if vcodec.startswith('avc'):
         return 'h264'
@@ -352,12 +345,7 @@ def fetch_watch_page_info(video_id, playlist_id, index):
     if index:
         url += '&index=' + index
 
-    headers = (
-        ('Accept', '*/*'),
-        ('Accept-Language', 'en-US,en;q=0.5'),
-        ('X-YouTube-Client-Name', '2'),
-        ('X-YouTube-Client-Version', '2.20180830'),
-    ) + util.mobile_ua
+    headers = util.generate_api_headers(use_visitor=True)
 
     watch_page = util.fetch_url(url, headers=headers,
                                 debug_name='watch')
