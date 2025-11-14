@@ -296,7 +296,12 @@ def path_edit_playlist(playlist_name):
             pass
         return flask.redirect(util.URL_ORIGIN + '/playlists')
     elif request.values['action'] == 'export':
-        videos = read_playlist(playlist_name)
+
+        # mine
+        if request.values.get('export_youtube_playlist', None) == 'true':
+            videos = [json.loads(v) for v in get_all_videos_from_playlist(request.values['playlist_id'])]
+        else: videos = read_playlist(playlist_name)
+
         fmt = request.values['export_format']
         if fmt in ('ids', 'urls'):
             prefix = ''
@@ -521,6 +526,52 @@ def extract_info_mini2(video_id, use_invidious, playlist_id=None, index=None):
     util.check_gevent_exceptions(*tasks)
     info = tasks[0].value
     return info
+
+
+def get_all_videos_from_playlist(playlist_id):
+    if not playlist_id: return []
+
+    from youtube.playlist import (playlist_first_page, get_videos)
+
+    first_page_json = playlist_first_page(playlist_id)
+    info = yt_data_extract.extract_playlist_info(first_page_json)
+    # some playlist does not give items for first page
+    if len(info.get('items', [])) == 0:
+        info = yt_data_extract.extract_playlist_info(get_videos(playlist_id, 1))
+
+    if info['error']:
+        print('Error on extracting items.')
+        return []
+
+    items = info['items']
+    video_count = yt_data_extract.deep_get(info, 'metadata', 'video_count')
+    if video_count is None: return []
+    num_pages = math.ceil(video_count/100)
+    # print(video_count, num_pages)
+
+    tasks = []
+    for p in range(2, num_pages+1):
+        tasks.append(gevent.spawn(get_videos, playlist_id, p))
+    tasks = tuple(tasks)
+    gevent.joinall(tasks)
+    util.check_gevent_exceptions(*tasks)
+    for t in tasks:
+        info = yt_data_extract.extract_playlist_info(t.value)
+        if info['error']:
+            print('Error on extracting items.')
+            return []
+        items.extend(info['items'])
+
+    tmp = []
+    for item in items:
+        video_info = {}
+        for key in ('id', 'title', 'author', 'author_id', 'duration'):
+            try: video_info[key] = item[key]
+            except KeyError: video_info[key] = None
+
+        tmp.append(json.dumps(video_info))
+
+    return tmp
 
 
 @yt_app.route('/playlists/History', methods=['GET'])
