@@ -19,6 +19,9 @@ import stem
 import stem.control
 import traceback
 
+import cachetools.func
+import copy
+
 # The trouble with the requests library: It ships its own certificate bundle via certifi
 #  instead of using the system certificate store, meaning self-signed certificates
 #  configured by the user will not work. Some draconian networks block TLS unless a corporate
@@ -223,7 +226,7 @@ def fetch_url_response(url, headers=(), timeout=30, data=None,
     When both are set to the same object, cookies will be sent from the object,
      and response cookies will be merged into it.
     '''
-    headers = dict(headers)     # Note: Calling dict() on a dict will make a copy
+    headers = headers if type(headers) is dict else dict(headers)     # Note: Calling dict() on a dict will make a copy
     if have_brotli:
         headers['Accept-Encoding'] = 'gzip, br'
     else:
@@ -386,24 +389,6 @@ def head(url, use_tor=False, report_text=None, max_redirects=10):
             '    Latency:',
             round(time.monotonic() - start_time,3))
     return response
-
-mobile_user_agent = 'Mozilla/5.0 (Linux; Android 7.0; Redmi Note 4 Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile Safari/537.36'
-mobile_ua = (('User-Agent', mobile_user_agent),)
-desktop_user_agent = 'Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'
-desktop_ua = (('User-Agent', desktop_user_agent),)
-json_header = (('Content-Type', 'application/json'),)
-desktop_xhr_headers = (
-    ('Accept', '*/*'),
-    ('Accept-Language', 'en-US,en;q=0.5'),
-    ('X-YouTube-Client-Name', '1'),
-    ('X-YouTube-Client-Version', '2.20240304.00.00'),
-) + desktop_ua
-mobile_xhr_headers = (
-    ('Accept', '*/*'),
-    ('Accept-Language', 'en-US,en;q=0.5'),
-    ('X-YouTube-Client-Name', '2'),
-    ('X-YouTube-Client-Version', '2.20240304.08.00'),
-) + mobile_ua
 
 
 
@@ -656,6 +641,19 @@ def to_valid_filename(name):
         name = '_' + name
 
     return name
+
+
+def get_user_agent(ua_platform):
+    if ua_platform == 'desktop':
+        user_agent = 'Mozilla/5.0 (Windows NT 6.1; rv:91.0) Gecko/20100101 Firefox/91.0'
+    elif ua_platform == 'mobile':
+        user_agent = 'Mozilla/5.0 (Linux; Android 7.0; Redmi Note 4 Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile Safari/537.36'
+    else:
+        raise NameError(f'Invalid user agent platform: {ua_platform}')
+    return user_agent
+mobile_user_agent = get_user_agent('mobile')
+desktop_user_agent = get_user_agent('desktop')
+
 
 # https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube.py#L72
 INNERTUBE_CLIENTS = {
@@ -981,24 +979,66 @@ INNERTUBE_CLIENTS = {
     },
 }
 
-innertube_client = list(INNERTUBE_CLIENTS.keys())
-client = innertube_client[settings.innertube_client_id]
-client_xhr_headers = (
-    ('Accept', '*/*'),
-    ('Accept-Language', 'en-US,en;q=0.5'),
-    ('X-YouTube-Api-Format-Version', '1'),
-    ('X-YouTube-Client-Name', INNERTUBE_CLIENTS[client]['INNERTUBE_CONTEXT_CLIENT_NAME']),
-    ('X-YouTube-Client-Version', INNERTUBE_CLIENTS[client]['INNERTUBE_CONTEXT']['client']['clientVersion']),
-    )
-
+@cachetools.func.lru_cache(maxsize=20)
 def get_innertube_client(client_name=None, is_authenticated=False):
-    import copy
     client_name = client_name or settings.innertube_client_name
     innertube = copy.deepcopy(INNERTUBE_CLIENTS[client_name])
     if innertube.get('AUTHENTICATED_USER_AGENT') and is_authenticated: # alternative user-agent if logged-in
         client_context = innertube.setdefault('INNERTUBE_CONTEXT', {}).setdefault('client', {})
         client_context['userAgent'] = innertube['AUTHENTICATED_USER_AGENT']
     return client_name, innertube
+
+def merge_dicts(*dicts):
+    merged = {}
+    for a_dict in dicts:
+        for k, v in a_dict.items():
+            # if ((v is not None and k not in merged) or (isinstance(v, str) and merged[k] == '')):
+            if ((v is not None) or (isinstance(v, str) and merged[k] == '')): # if similar key use key-value from last
+                merged[k] = v
+    return merged
+def filter_dict(dct, cndn=lambda _, v: v is not None):
+    return {k: v for k, v in dct.items() if cndn(k, v)}
+
+def generate_api_headers(ua_platform='innertube', client_name=None, use_visitor=False, additional_headers=(), update_headers_with=()):
+    additional_headers = dict(additional_headers)
+    update_headers_with = dict(update_headers_with)
+
+    client, innertube = get_innertube_client(client_name=client_name or settings.innertube_client_name)
+
+    client_headers = None
+    client_xhr_headers = {
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Origin': 'https://' + 'www.youtube.com' or innertube.get('INNERTUBE_HOST'),
+        'X-Goog-Visitor-Id': get_visitor_data() if use_visitor else None,}
+
+    if ua_platform == 'desktop':
+        client_headers = {
+            'X-YouTube-Client-Name': '1',
+            'X-YouTube-Client-Version': '2.20180830', # '2.20180830' # '2.20240304.00.00'
+            'User-Agent': get_user_agent('desktop'),}
+    elif ua_platform == 'mobile':
+        client_headers = {
+            'X-YouTube-Client-Name': '2',
+            'X-YouTube-Client-Version': '2.20180830', # '2.20180830' # '2.20240304.00.00'
+            'User-Agent': get_user_agent('mobile'),}
+    elif ua_platform == 'custom_1':
+        client_headers = {
+            'X-YouTube-Client-Name': innertube['INNERTUBE_CONTEXT_CLIENT_NAME'],
+            'X-YouTube-Client-Version': innertube['INNERTUBE_CONTEXT']['client']['clientVersion'],
+            'User-Agent': innertube['INNERTUBE_CONTEXT']['client'].get('userAgent') or get_user_agent('mobile'),}
+    elif ua_platform == 'innertube':
+        client_headers = {
+            'X-YouTube-Client-Name': innertube['INNERTUBE_CONTEXT_CLIENT_NAME'],
+            'X-YouTube-Client-Version': innertube['INNERTUBE_CONTEXT']['client']['clientVersion'],
+            'X-YouTube-Api-Format-Version': '1',
+            'User-Agent': innertube['INNERTUBE_CONTEXT']['client'].get('userAgent') or get_user_agent('mobile'),
+            'Content-Type': 'application/json',}
+    else: raise ValueError(f'Unavailable user agent: {ua_platform}')
+
+    client_xhr_headers = merge_dicts(client_xhr_headers, client_headers, additional_headers)
+    client_xhr_headers = {**client_xhr_headers, **update_headers_with}
+    return filter_dict(client_xhr_headers)
 
 def get_visitor_data():
     visitor_data = None
