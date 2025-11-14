@@ -37,7 +37,7 @@
 
                     {% if include_author %}
                         {% if info.get('author_url') %}
-                            <address title="{{ info['author'] }}">By <a href="{{ info['author_url'] }}">{{ info['author'] }}</a></address>
+                            <address title="{{ info['author'] }}"  style="display:inline-block;">By <a href="{{ info['author_url'] }}">{{ info['author'] }}</a></address>
                         {% else %}
                             <address title="{{ info['author'] }}"><b>{{ info['author'] }}</b></address>
                         {% endif %}
@@ -57,7 +57,7 @@
                             <li><span>{{ info['approx_subscriber_count'] }} subscribers</span></li>
                             <li><span>{{ info['video_count']|commatize }} videos</span></li>
                         {% else %}
-                            {% if info.get('approx_view_count') %}
+                            {% if info.get('approx_view_count') and info.get('approx_view_count') != '0' %}
                                 <li><span class="views">{{ info['approx_view_count'] }} views</span></li>
                             {% endif %}
                             {% if info.get('time_published') %}
