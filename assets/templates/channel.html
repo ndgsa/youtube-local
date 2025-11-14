@@ -192,7 +192,14 @@
                     {% else %}
                         <a class="sort-button" href="{{ channel_url + '/' + current_tab + '?sort=' + sort_number }}">{{ 'Sort by ' + sort_name }}</a>
                     {% endif %}
-                {% endfor %}
+				{% endfor %}
+
+				{% if current_tab in ('videos', 'shorts', 'streams') %}
+					{% set z_current_page = parameters_dictionary.get('page', 1)|int %}
+					{% set curr_sort_page = '3' if settings.include_shorts_in_channel else '4' %}
+					{% set z_sort_page = parameters_dictionary.get('sort', curr_sort_page)|int %}
+					<a class="sort-button" href="{{ channel_url + '/' + current_tab + '?sort=' + z_sort_page|string + '&page=' + z_current_page|string + '&sort1=2' }}">{{ 'Sort current page by views'}}</a>
+				{% endif %}
             </div>
 
             <nav class="{{ 'item-list' if current_tab == 'search' else 'item-grid' }}">
