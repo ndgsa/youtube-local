@@ -103,6 +103,14 @@ For security reasons, enabling this is not recommended.''',
         'category': 'client',
     }),
 
+    ('hardcoded_player_version', {
+        'label': 'Hardcoded youtube base.js player version',
+        'type': str,
+        'default': '',
+        'comment': '''Hardcoded working player version instead of automatically extracted player version''',
+        'category': 'client',
+    }),
+
     ('use_visitor_data', {
         'label': 'Use visitor data',
         'type': bool,
