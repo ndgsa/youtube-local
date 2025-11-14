@@ -579,3 +579,76 @@ def get_custom_c_page(custom, tab='videos'):
 def get_toplevel_custom_page(custom, tab='videos'):
     return get_channel_page_general_url('https://www.youtube.com/' + custom, tab, request)
 
+
+
+def transform_time_string(string):
+    string = re.sub(r"[^0-9:.]", "", string or '')
+    if not string: return ''
+    time_parts = [part.zfill(2) for part in string.split(":")]
+    if len(time_parts) == 2: time_parts = ['00'] + time_parts
+    return ':'.join(time_parts)
+
+def sort_video_items_by_duration(data, sort_key):
+    '''return sorted list of dicts by duration key'''
+    sorted_list = data
+    for i in range(len(sorted_list)):
+        for j in range(i + 1, len(sorted_list)):
+            i_s = transform_time_string(sorted_list[i][sort_key])
+            j_s = transform_time_string(sorted_list[j][sort_key])
+            if i_s > j_s:
+                sorted_list[i], sorted_list[j] = sorted_list[j], sorted_list[i]
+                i_s, j_s = j_s, i_s  # swapping vars in case next if is True
+            if len(i_s) > len(j_s):
+                sorted_list[i], sorted_list[j] = sorted_list[j], sorted_list[i]
+    return sorted_list
+
+def sort_video_items(data, sort_key='approx_view_count', order=1):
+    '''return sorted list of dicts by specific key'''
+    def get_multiplier(string):
+        if sort_key == 'approx_view_count':
+            view_count_multiplier = {'S': 1, 'K': 1000, 'M': 1000000, 'B': 1000000000}
+            if string[-1].isalpha() and not string[:-1].isalpha(): multiplier = float(string[:-1]) * view_count_multiplier[string[-1]]
+            elif not string.isalpha(): multiplier = int(string) * view_count_multiplier['S']
+            else: multiplier = 0 # if string is None
+            return multiplier
+        elif sort_key == 'time_published':
+            date_count_multiplier = {'second': 0.00028, 'minute': 0.0167, 'hour': 1, 'day': 24, 'week': 168, 'month': 730, 'year': 8766}
+            if string == None: return date_count_multiplier['minute'] # if string is None
+            for k,v in date_count_multiplier.items():
+                if k in string:
+                    multiplier = float(string.replace(' ' + k + ' ago', '').replace(' ' + k + 's ago', '')) * v
+                    return multiplier
+        elif sort_key in ['title', 'author']:
+            return string
+        else:
+            return None
+
+    if sort_key == 'duration':
+        q = lambda l: sort_video_items_by_duration(l, sort_key)
+    else:
+        # quicksort oneliner
+        q = lambda l: q([x for x in l[1:] if get_multiplier(x[sort_key]) <= get_multiplier(l[0][sort_key])]) + [l[0]] + q([x for x in l if get_multiplier(x[sort_key]) > get_multiplier(l[0][sort_key])]) if l else []
+
+    if len(data) > 1:
+        try:
+            data1 = q(data)
+        except Exception as e:
+            print('Error on sorting. Return default.')
+            return data
+
+        if order == 1: data1 = list(reversed(data1)) # biggest values at start
+        elif order == 2: pass # biggest values at end
+        else: pass
+
+    else: data1 = data
+
+    return data1
+
+def get_number_of_videos_channel_from_about_tab(channel_id):
+    '''get number of videos from about channel tab'''
+    response = util.fetch_url('https://m.youtube.com/channel/' + channel_id + '/about?pbj=1', headers_mobile).decode('utf-8')
+    # match = re.search(r'"videoCountText".*?([,\d]+)', response)
+    match = re.search(r'"videoCountText"\:"?([,\d]+)', response)
+    if match: return int(match.group(1).replace(',',''))
+    else: return 0
+
