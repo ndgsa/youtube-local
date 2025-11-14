@@ -74,6 +74,10 @@
 		font-size: 18px;
 	}
 
+	 #submit_form_checkbox{
+		margin-top: 7px;
+	}
+
 	{% if display_as_grid %}
 		.playlist-metadata {
 			/*<!-- justify-content: space-between; --> */
@@ -124,6 +128,15 @@
                 <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
             </form>
         </div>
+
+		<form id="youtube-playlist-edit" action="/youtube.com/edit_playlist" method="post" target="_self" autocomplete="off">
+			<input type="hidden" value="{{ title }}" name="playlist_name" />
+			<input type="hidden" value="https://www.youtube.com/playlist?list={{  parameters_dictionary.get('list', '') }}" name="playlist_url" />
+			<input type="hidden" value="true" name="bookmark_playlist" />
+			<input name="action" type="checkbox" id="submit_form_checkbox"/>
+			<label for="action" id="submit_form_checkbox_label">Bookmark</label><br>
+		</form>
+
     </div>
 
 	<details class="related-videos-outer" {{'open' if settings.related_videos_mode == 1 else ''}}>
@@ -158,5 +171,29 @@
         {{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlist', parameters_dictionary) }}
     </nav>
 
+	<script>
+		document.getElementById("submit_form_checkbox").checked={{ is_bookmarked|safe }};
+
+		function validate() {
+			const checkbox = document.getElementById('submit_form_checkbox')
+			checkbox.addEventListener('change', (event) => {
+				if (event.currentTarget.checked === true) {
+					checkbox.value = 'add';
+					<!-- require to check if want to send value -->
+					checkbox.checked = true;
+					checkbox.form.submit();
+					checkbox.checked = true;
+				} else if (event.currentTarget.checked === false) {
+					checkbox.value = 'remove';
+					<!-- require to check if want to send value -->
+					checkbox.checked = true;
+					checkbox.form.submit();
+					checkbox.checked = false;
+				}
+			})
+		}
+
+		validate()
+	</script>
 {% endblock main %}
 
