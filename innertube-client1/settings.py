@@ -436,6 +436,22 @@ If set to True, the system will try reloading the video player when encountering
         'category': 'playback',
     }),
 
+    ('disable_dubbing', {
+        'label': 'Disable dubbing',
+        'type': bool,
+        'default': True,
+        'comment': '''Allows only original audio track''',
+        'category': 'playback',
+    }),
+
+    ('allowed_dubbing_languages', {
+        'label': 'Allowed dubbing languages',
+        'type': str,
+        'default': 'English;Russian',
+        'comment': '''Allows dubbing for listed languages''',
+        'category': 'playback',
+    }),
+
     ('default_comment_sorting', {
         'type': int,
         'default': 1,
