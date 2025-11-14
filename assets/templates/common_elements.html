@@ -14,7 +14,7 @@
     {%- endif -%}
 {% endmacro %}
 
-{% macro item(info, description=false, horizontal=true, include_author=true, include_badges=true, lazy_load=false) %}
+{% macro item(info, description=false, horizontal=true, include_author=true, include_badges=true, lazy_load=false, related=false) %}
     <div class="item-box {{ info['type'] + '-item-box' }} {{'horizontal-item-box' if horizontal else 'vertical-item-box'}} {{'has-description' if description else 'no-description'}}">
         {% if info['error'] %}
             {{ info['error'] }}
@@ -41,6 +41,16 @@
                         {% else %}
                             <address title="{{ info['author'] }}"><b>{{ info['author'] }}</b></address>
                         {% endif %}
+
+
+						{% if related %}
+							{% if info['type'] == 'video' %}
+								<input class="item-checkbox" type="checkbox" name="video_info_list" value="{{ info['video_info'] }}" form="playlist-edit" hidden>
+								<button id='button-block-related-channel' style="color:rgb(209, 210, 210);font-size:15px;background-color:inherit;display:inline-block;border-color:grey;" onClick="add_related_to_hidden(this, 'channel');">x</button>
+							{% endif %}
+						{% endif %}
+
+
                     {% endif %}
                     <ul class="stats {{'horizontal-stats' if horizontal else 'vertical-stats'}}">
                         {% if info['type'] == 'channel' %}
@@ -66,6 +76,9 @@
             </div>
             {% if info['type'] == 'video' %}
                 <input class="item-checkbox" type="checkbox" name="video_info_list" value="{{ info['video_info'] }}" form="playlist-edit">
+				{% if related %}
+					<button id='button-delete-related-video' style="color:grey;font-size:22px;background-color:inherit;margin:auto;border-color:grey;" onClick="add_related_to_hidden(this, 'video');">x</button>
+				{% endif %}
             {% endif %}
         {% endif %}
     </div>
