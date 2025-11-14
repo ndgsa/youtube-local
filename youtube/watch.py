@@ -365,17 +365,18 @@ def fetch_watch_page_info(video_id, playlist_id, index):
     return yt_data_extract.extract_watch_info_from_html(watch_page)
 
 def extract_info(video_id, use_invidious, playlist_id=None, index=None):
+    client, _ = util.get_innertube_client(client_name=settings.innertube_client_name)
     tasks = (
         # Get video metadata from here
         gevent.spawn(fetch_watch_page_info, video_id, playlist_id, index),
 
 
-        gevent.spawn(fetch_player_response, 'android_vr', video_id)
+        gevent.spawn(fetch_player_response, client, video_id)
     )
     gevent.joinall(tasks)
     util.check_gevent_exceptions(*tasks)
     info, player_response = tasks[0].value, tasks[1].value
-
+    info['__client_name'] = client
     yt_data_extract.update_with_new_urls(info, player_response)
 
     # Age restricted video, retry
@@ -388,7 +389,7 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
                 print('Age restricted video, retrying')
             else:
                 print('Player urls missing, retrying')
-            player_response = fetch_player_response('tv_embedded', video_id)
+            player_response = fetch_player_response('tv_simply', video_id)
             yt_data_extract.update_with_new_urls(info, player_response)
 
     # signature decryption
