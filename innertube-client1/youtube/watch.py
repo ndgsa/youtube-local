@@ -534,6 +534,7 @@ time_table = {'h': 3600, 'm': 60, 's': 1}
 @yt_app.route('/shorts/<video_id>')
 def get_watch_page(video_id=None):
     video_id = request.args.get('v') or video_id
+    if settings.embed_page_mode: video_id = video_id.split('&')[0]
     if not video_id:
         return flask.render_template('error.html', error_message='Missing video id'), 404
     if len(video_id) < 11:
@@ -550,6 +551,13 @@ def get_watch_page(video_id=None):
     lc = request.args.get('lc', '')
     playlist_id = request.args.get('list')
     index = request.args.get('index')
+
+    if settings.embed_page_mode:
+        if not playlist_id and len(urllib.parse.parse_qs(request.path).get('list', [])) > 0:
+            playlist_id = urllib.parse.parse_qs(request.path).get('list')[0]
+        if not index and len(urllib.parse.parse_qs(request.path).get('index', [])) > 0:
+            index = urllib.parse.parse_qs(request.path).get('index')[0]
+
     use_invidious = bool(int(request.args.get('use_invidious', '1')))
     if request.path.startswith('/embed') and settings.embed_page_mode:
         tasks = (
@@ -693,6 +701,17 @@ def get_watch_page(video_id=None):
         )
 
 
+    referrer_url = request.referrer if request.referrer else ""
+    if ("youtube.com/playlists/" in referrer_url) or request.args.get('playlists1') or urllib.parse.parse_qs(request.path).get('playlists1'):
+        if request.args.get('playlists1'):
+            p_name = request.args.get('playlists1')
+        elif len(urllib.parse.parse_qs(request.path).get('playlists1', [])) > 0:
+            p_name = urllib.parse.parse_qs(request.path).get('playlists1')[0]
+        else:
+            p_name = referrer_url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
+        info['playlist'] = local_playlist.get_watch_page_local_playlist(p_name, video_id)
+    if "/embed/" in request.url and settings.embed_page_mode and info['playlist']:
+        for item in info['playlist']['items']: item['url'] = item['url'].replace("watch?v=", "embed/")
 
     # 1 second per pixel, or the actual video width
     theater_video_target_width = max(640, info['duration'] or 0, video_width)
