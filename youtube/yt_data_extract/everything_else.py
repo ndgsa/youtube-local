@@ -74,7 +74,22 @@ def extract_channel_info(polymer_json, tab, continuation=False):
     #    return info
 
     if tab in ('videos', 'shorts', 'streams', 'playlists', 'search'):
-        items, ctoken = extract_items(response)
+        is_video = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'selected'],) # True
+        is_video_title = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'title'],) # Videos
+
+        if tab == 'streams':
+            is_stream = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'selected'],) # True
+            is_stream_title = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'title'],) # 'Live'
+            # ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'selected'] # videos tab
+            if is_stream == True and is_stream_title == 'Live': items, ctoken = extract_items(response, item_types={'videoRenderer'})
+            elif is_video == True and is_video_title in ['Videos', 'Home']: items, ctoken = [], None
+            else: items, ctoken = extract_items(response)
+        elif tab == 'shorts':
+            if is_video == True and is_video_title in ['Videos', 'Home']: items, ctoken = [], None
+            else: items, ctoken = extract_items(response)
+        elif tab == 'playlists': items, ctoken = extract_items(response, item_types={'lockupViewModel'})
+        else: items, ctoken = extract_items(response)
+
         additional_info = {
             'author': info['channel_name'],
             'author_id': info['channel_id'],
@@ -87,6 +102,15 @@ def extract_channel_info(polymer_json, tab, continuation=False):
     elif tab == 'about':
         # Latest type
         items, _ = extract_items(response, item_types={'aboutChannelRenderer'})
+
+        if not items:
+            items = multi_deep_get(response, ['onResponseReceivedEndpoints', 0, 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents'], default=None)
+            # also some info is here ['header', 'pageHeaderRenderer', 'content', 'pageHeaderViewModel', 'metadata', 'contentMetadataViewModel']
+            # r_header = multi_deep_get(response, ['header', 'pageHeaderRenderer', 'content', 'pageHeaderViewModel', 'metadata', 'contentMetadataViewModel'], default=None)
+            # info['approx_video_count'] = extract_approx_int(deep_get(r_header, 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'))
+            # info['approx_subscriber_count'] = extract_approx_int(deep_get(r_header, 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'))
+            # info['canonical_url'] = 'https://www.youtube.com/' + extract_str(deep_get(r_header, 'metadataRows', 0, 'metadataParts', 0, 'text', 'content', ))
+
         if items:
             a_metadata = deep_get(items, 0, 'aboutChannelRenderer',
                 'metadata', 'aboutChannelViewModel')
@@ -99,7 +123,7 @@ def extract_channel_info(polymer_json, tab, continuation=False):
                 link = link_outer.get('channelExternalLinkViewModel') or {}
                 link_content = extract_str(deep_get(link, 'link', 'content'))
                 for run in deep_get(link, 'link', 'commandRuns') or ():
-                    url = remove_redirect(deep_get(run, 'onTap', 
+                    url = remove_redirect(deep_get(run, 'onTap',
                         'innertubeCommand', 'urlEndpoint', 'url'))
                     if url and not (url.startswith('http://')
                             or url.startswith('https://')):
@@ -114,9 +138,7 @@ def extract_channel_info(polymer_json, tab, continuation=False):
                 text = extract_str(deep_get(link, 'title', 'content'))
                 info['links'].append( (text, url) )
 
-            info['date_joined'] = extract_date(
-                a_metadata.get('joinedDateText')
-            )
+            info['date_joined'] = extract_date(deep_get(a_metadata, 'joinedDateText', 'content'))
             info['view_count'] = extract_int(a_metadata.get('viewCountText'))
             info['approx_view_count'] = extract_approx_int(
                 a_metadata.get('viewCountText')
@@ -134,6 +156,14 @@ def extract_channel_info(polymer_json, tab, continuation=False):
             info['canonical_url'] = extract_str(
                 a_metadata.get('canonicalChannelUrl')
             )
+
+            if not info['short_description']:
+                info['short_description'] = info['description']
+                if info['short_description'] and len(info['short_description']) > 730:
+                    info['short_description'] = info['short_description'][0:730] + '...'
+            # if not info['channel_name']: info['channel_name'] = info['canonical_url'].replace("http://www.youtube.com/", "")
+            if not info['channel_id']: info['channel_id'] = a_metadata.get('channelId')
+            if not info['channel_url']: info['channel_url'] = 'https://www.youtube.com/channel/' + a_metadata.get('channelId')
 
         # Old type
         else:
@@ -165,6 +195,8 @@ def extract_channel_info(polymer_json, tab, continuation=False):
             info['canonical_url'] = None
     else:
         raise NotImplementedError('Unknown or unsupported channel tab: ' + tab)
+
+    # check_for_empty_value('extract_channel_info', info, ['error', 'items', 'links', 'avatar', 'ctoken'])
 
     return info
 
@@ -209,6 +241,8 @@ def extract_search_info(polymer_json):
         if i_info.get('type') != 'unsupported':
             info['items'].append(i_info)
 
+    # check_for_empty_value('extract_search_info', info, ['error'])
+    # check_for_empty_value('extract_search_info', info['items'], ['error', 'description', 'badges', 'index', 'video_count'])
 
     return info
 
@@ -264,6 +298,84 @@ def extract_playlist_metadata(polymer_json):
         metadata, 'thumbnail', deep_get(microformat, 'thumbnail',
                                         'thumbnails', -1, 'url')
     )
+
+
+    header = multi_deep_get(response,
+    ['header', 'pageHeaderRenderer', 'content', 'pageHeaderViewModel'],
+    ['header', 'playlistHeaderRenderer'],
+    ['sidebar', 'playlistSidebarRenderer', 'items', 0, 'playlistSidebarPrimaryInfoRenderer'],
+    default={})
+
+    metadata['first_video_id'] = multi_deep_get(header,
+    ['playEndpoint', 'watchEndpoint', 'videoId'],
+    ['playlistHeaderBanner', 'heroPlaylistThumbnailRenderer', 'onTap', 'watchEndpoint', 'videoId'],
+    ['actions', 'flexibleActionsViewModel', 'actionsRows', 0, 'actions', 0,'buttonViewModel', 'onTap', 'innertubeCommand', 'watchEndpoint', 'videoId'],
+    ['navigationEndpoint', 'watchEndpoint', 'videoId'],
+    default='')
+
+    first_id = re.search(r'([A-Za-z0-9_\-]{11})', multi_deep_get(header,
+    ['thumbnail', 'thumbnails', 0, 'url'],
+    ['playlistHeaderBanner', 'heroPlaylistThumbnailRenderer', 'thumbnail', 'thumbnails', 0, 'url'],
+    ['thumbnailRenderer', 'playlistVideoThumbnailRenderer', 'thumbnail', 'thumbnails', 0, 'url'],
+    default=''))
+
+    if first_id:
+        conservative_update(metadata, 'first_video_id', first_id.group(1))
+    if metadata['first_video_id'] is None:
+        metadata['thumbnail'] = None
+    else:
+        metadata['thumbnail'] = 'https://i.ytimg.com/vi/' + metadata['first_video_id'] + '/mqdefault.jpg'
+
+    microformat = multi_deep_get(response, ['microformat', 'microformatDataRenderer'], default={})
+    metadata['title'] = extract_str(microformat.get('title'))
+    metadata['description'] = extract_str(microformat.get('description'))
+    metadata['thumbnail'] = deep_get(microformat, 'thumbnail', 'thumbnails', -1, 'url')
+
+    playlistSSIR = multi_deep_get(response,
+    ['sidebar','playlistSidebarRenderer','items',1,'playlistSidebarSecondaryInfoRenderer'],
+    ['contents', 'singleColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'playlistVideoListRenderer', 'contents', 0, 'playlistVideoRenderer', 'shortBylineText'],
+    default={})
+    metadata['author'] = multi_deep_get(playlistSSIR,
+    ['videoOwner','videoOwnerRenderer','title', 'runs', 0, 'text'],
+    ['runs', 0, 'text'])
+    metadata['author_id'] = multi_deep_get(playlistSSIR,
+    ['videoOwner','videoOwnerRenderer', 'title', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'],
+    ['runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'])
+
+    if metadata['author_id']:
+        metadata['author_url'] = 'https://www.youtube.com/channel/' + metadata['author_id']
+    else:
+        metadata['author_url'] = None
+
+    metadata['video_count'] = extract_int(multi_deep_get(header, ['numVideosText']))
+    if not metadata['video_count']:
+        try:
+            metadata['video_count'] = int(deep_get(header, 'metadata', 'contentMetadataViewModel', 'metadataRows', default={})[1]['metadataParts'][1]['text']['content'].replace(' videos',''))
+        except:
+            metadata['video_count'] = None
+
+
+    if not metadata['video_count']:
+        metadata['video_count'] = extract_int("".join([i['text'] for i in multi_deep_get(header, ['stats', 0, 'runs'], default=[])]).replace(' videos',''))
+
+    metadata['view_count'] = extract_int(multi_deep_get(header,
+    ['metadata','contentMetadataViewModel','metadataRows', -1, 'metadataParts', -1, 'text', 'content'],
+    ['stats', 1, 'simpleText'],
+    ))
+
+    try:
+        time_published1 = multi_deep_get(header, ['stats', -1, 'runs'], default=[])
+        if not time_published1:
+            time_published1 = multi_deep_get(response, ['sidebar', 'playlistSidebarRenderer', 'items', 0, 'playlistSidebarPrimaryInfoRenderer', 'stats', -1, 'runs'], default=[])
+
+        metadata['time_published'] = extract_date(time_published1[-1]['text'])
+    except:
+        pass
+
+    #print(response['sidebar']['playlistSidebarRenderer']['items'][0]['playlistSidebarPrimaryInfoRenderer'])
+    #print(response['sidebar']['playlistSidebarRenderer']['items'][1]['playlistSidebarSecondaryInfoRenderer'])
+
+    # check_for_empty_value('extract_playlist_metadata', metadata, ['error', 'description', 'like_count', 'view_count', 'time_published'])
 
     return metadata
 
@@ -380,4 +492,24 @@ def extract_comments_info(polymer_json, ctoken=None):
 
         info['comments'].append(comment_info)
 
+    # check_for_empty_value('extract_comments_info', info, ['error', 'video_title', 'ctoken'])
+    # check_for_empty_value('extract_comments_info', info['comments'], ['error', 'like_count', 'approx_like_count', 'reply_ctoken'])
+
     return info
+
+
+
+def check_for_empty_value(method_name, data_iter, ignore_key):
+
+    def if_dict(method_name, data_iter, ignore_key):
+        for k_data,v_data in data_iter.items():
+            if v_data in [None, "", [], {}, ()] and k_data not in ignore_key:
+                print(f"{method_name} Warning: '{k_data}' has empty value")
+
+    if isinstance(data_iter, dict):
+        if_dict(method_name, data_iter, ignore_key)
+    elif isinstance(data_iter, list):
+        # if list of dicts
+        for l in data_iter:
+            if_dict(method_name, l, ignore_key)
+
