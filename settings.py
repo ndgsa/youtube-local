@@ -72,7 +72,7 @@ For security reasons, enabling this is not recommended.''',
 
     ('related_videos_mode', {
         'type': int,
-        'default': 1,
+        'default': 2,
         'comment': '''0 - Related videos disabled
 1 - Related videos always shown
 2 - Related videos hidden; shown by clicking a button''',
@@ -86,7 +86,7 @@ For security reasons, enabling this is not recommended.''',
 
     ('comments_mode', {
         'type': int,
-        'default': 1,
+        'default': 2,
         'comment': '''0 - Video comments disabled
 1 - Video comments always shown
 2 - Video comments hidden; shown by clicking a button''',
@@ -100,14 +100,14 @@ For security reasons, enabling this is not recommended.''',
 
     ('enable_comment_avatars', {
         'type': bool,
-        'default': True,
+        'default': False,
         'comment': '',
         'category': 'interface',
     }),
 
     ('theater_mode', {
         'type': bool,
-        'default': True,
+        'default': False,
         'comment': '',
         'category': 'interface',
     }),
@@ -197,7 +197,7 @@ For security reasons, enabling this is not recommended.''',
 
     ('default_volume', {
         'type': int,
-        'default': -1,
+        'default': 50,
         'max': 100,
         'min': -1,
         'comment': '''Sets a default volume.
@@ -207,7 +207,7 @@ Defaults to -1, which means no default value is forced and the browser will set 
 
     ('default_resolution', {
         'type': int,
-        'default': 720,
+        'default': 360,
         'comment': '',
         'options': [
             (144, '144p'),
@@ -284,7 +284,7 @@ Defaults to -1, which means no default value is forced and the browser will set 
 
     ('default_comment_sorting', {
         'type': int,
-        'default': 0,
+        'default': 1,
         'comment': '''0 to sort by top
 1 to sort by newest''',
         'options': [
@@ -301,13 +301,13 @@ Defaults to -1, which means no default value is forced and the browser will set 
 
     ('include_shorts_in_subscriptions', {
         'type': bool,
-        'default': 0,
+        'default': 1,
         'comment': '',
     }),
 
     ('include_shorts_in_channel', {
         'type': bool,
-        'default': 1,
+        'default': 0,
         'comment': '',
     }),
 

@@ -501,8 +501,6 @@ _item_types = {
     'videoWithContextRenderer',
     'gridVideoRenderer',
     'playlistVideoRenderer',
-    'shortsLockupViewModel',
-    'lockupViewModel',
 
     'reelItemRenderer',
 
