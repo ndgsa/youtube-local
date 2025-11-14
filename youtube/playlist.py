@@ -191,6 +191,17 @@ def get_playlist_page():
     for t in tmp:
         if playlist_id in t[1]: is_bookmarked = 'true'
 
+    if request.args.get('sort1'):
+        from youtube.channel import sort_video_items
+        sort1 = request.args.get('sort1', '0')
+        order, order1 = (2,1) if request.args.get("sort1_reversed", "false") == 'true' else (1,2)
+        if sort1 == '1': info['items'] = sort_video_items(info.get('items', []), sort_key='approx_view_count', order=order) # popular
+        elif sort1 == '2': info['items'] = sort_video_items(info.get('items', []), sort_key='time_published', order=order) # oldest
+        elif sort1 == '3': info['items'] = sort_video_items(info.get('items', []), sort_key='time_published', order=order1) # newest
+        elif sort1 == '4': info['items'] = sort_video_items(info.get('items', []), sort_key='title', order=order1) # video title
+        elif sort1 == '5': info['items'] = sort_video_items(info.get('items', []), sort_key='author', order=order1) # video author
+        elif sort1 == '6': info['items'] = sort_video_items(info.get('items', []), sort_key='duration', order=order) # video duration
+
     return flask.render_template('playlist.html',
         header_playlist_names = local_playlist.get_playlist_names(),
         video_list = info.get('items', []),
