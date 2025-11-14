@@ -27,7 +27,19 @@
     <body>
         <header>
                 <form id="site-search" action="/youtube.com/results">
-                    <a href="/youtube.com" id="home-link">Home</a>
+
+					<div class="dropdown_home">
+						<a target="_blank" rel="noopener noreferrer" class="dropbtn_home" href="/youtube.com" id="home-link">Home</a>
+						<div class="dropdown_home_content">
+							<a target="_blank" rel="noopener noreferrer" href="/youtube.com/playlists/History" id="home-link">Local History</a>
+							<a target="_blank" rel="noopener noreferrer" href="/youtube.com/playlists" id="home-link">Local playlists</a>
+							<a target="_blank" rel="noopener noreferrer" href="/youtube.com/subscriptions" id="home-link">Subscriptions</a>
+							<a target="_blank" rel="noopener noreferrer" href="/youtube.com/subscription_manager" id="home-link">Subscription Manager</a>
+							<a target="_blank" rel="noopener noreferrer" href="/youtube.com/settings" id="home-link">Settings</a>
+						</div>
+					</div>
+
+                    <!-- <a href="/youtube.com" id="home-link">Home</a> -->
                     <input type="search" name="search_query" class="search-box" value="{{ search_box_value }}"
                         {{ "autofocus" if (request.path in ("/", "/results") or error_message) else "" }} placeholder="Type to search...">
                     <button type="submit" value="Search" class="button search-button">Search</button>
