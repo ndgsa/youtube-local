@@ -412,6 +412,8 @@ def log_ignored_line(line_number, message):
 
 
 
+other_dir = os.path.normpath(os.path.join(program_directory, 'assets', 'other'))
+players_cache_dir = os.path.normpath(os.path.join(program_directory, 'data', 'players_cache'))
 
 if not os.path.isfile("settings.txt"):
     with open("settings.txt", 'w') as file: pass
