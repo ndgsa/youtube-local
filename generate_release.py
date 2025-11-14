@@ -289,6 +289,20 @@ os.makedirs('./youtube-local/assets/other/js/_node/', exist_ok=True)
     # check_subp(subprocess.run([r'7z', '-y', 'e', '-o./youtube-local/assets/other/js/_node/', node_name, "node-*/node.exe"]))
 #### os.remove(node_name)
 
+os.makedirs('./youtube-local/assets/other/js/ejs/', exist_ok=True)
+ejs_version = '0.8.0'
+yt_solver_lib_url = f"https://github.com/yt-dlp/ejs/releases/download/{ejs_version}/yt.solver.lib.min.js"
+yt_solver_lib_sha256 = 'c55987fe697e5b9ee18830163f7af85327e9bb5c3e674b969d38c8d205eaa577'
+yt_solver_lib_name = 'yt.solver.lib.min_' + ejs_version.replace('.', '') + '.js'
+yt_solver_core_url = f"https://github.com/yt-dlp/ejs/releases/download/{ejs_version}/yt.solver.core.min.js"
+yt_solver_core_sha256 = '18da6ce0758b416e7ae645084f4f8801f9f9d59d6c477c05eaa0ff94ebd8cc00'
+yt_solver_core_name = 'yt.solver.core.min_' + ejs_version.replace('.', '') + '.js'
+download_if_not_exists(yt_solver_lib_name, yt_solver_lib_url, sha256=yt_solver_lib_sha256)
+download_if_not_exists(yt_solver_core_name, yt_solver_core_url, sha256=yt_solver_core_sha256)
+log('Copying yt_solver js files')
+shutil.move(yt_solver_lib_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_lib_name)
+shutil.move(yt_solver_core_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_core_name)
+
 # ----------- Create release zip -----------
 output_filename = release_tag + '-' + suffix + '-' + bitness + '.zip'
 if os.path.exists('./' + output_filename):
