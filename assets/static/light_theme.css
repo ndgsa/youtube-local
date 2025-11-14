@@ -19,3 +19,31 @@ body{
     background-color: #888888;
 }
 
+
+#home-link {
+    color: var(--text-color);
+    background-color: #f8f8f8;
+    /* border: 1px solid var(--text-color); */
+    border-radius: 3px;
+    padding: 5px 5px;
+}
+
+#home-link:hover {
+	background-color: #888888;
+}
+
+/* base.html */
+.dropdown_home_content {
+	display: none;
+	position: absolute;
+	/* background-color: lightgrey; */
+	min-width: 160px;
+	z-index:1;
+}
+.dropdown_home_content a {
+	color: black;
+	padding: 5px 10px;
+	display: block;
+}
+.dropdown_home_content a:hover {background-color: white;}
+.dropdown_home:hover .dropdown_home_content {display: block;}
