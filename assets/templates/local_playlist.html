@@ -78,7 +78,14 @@
                 </select>
                 <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
             </form>
+
         </div>
+		<div>
+			<form class="subscriptions-import-export-form" enctype="multipart/form-data" method="POST">
+				<input type="file" id="subscriptions-import" accept="text/plain" name="videos_file" required>
+				<button type="submit" id="playlist-import-button" name="action" value="import">Import</button>
+			</form>
+		</div>
     </div>
     <form id="playlist-remove" action="/youtube.com/edit_playlist" method="post" target="_self"></form>
     <div id="video-remove-container">
