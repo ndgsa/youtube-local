@@ -1039,6 +1039,86 @@ def generate_api_headers(ua_platform='innertube', client_name=None, use_visitor=
     client_xhr_headers = {**client_xhr_headers, **update_headers_with}
     return filter_dict(client_xhr_headers)
 
+ytcfg_endpoints_list = ['web', 'mweb', 'tv']
+ytcfg_re = re.compile(r'ytcfg\.set\((\{.+?\})\)')
+@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
+def get_ytcfg(client):
+    if not settings.use_ytcfg:
+        return {}
+
+    yt_endpoint = {
+        'web': 'https://www.youtube.com',
+        'mweb': 'https://m.youtube.com',
+        'tv': 'https://www.youtube.com/tv'
+    }
+
+    if client not in ytcfg_endpoints_list:
+        print(f'Not using ytcfg with client: {client}')
+        return {}
+    else:
+        print(f'Using ytcfg with client: {client}')
+
+    if not os.path.isdir(settings.players_cache_dir):
+        os.makedirs(settings.players_cache_dir)
+
+    ytcfg = {}
+    ytcfg_file = os.path.join(settings.players_cache_dir, f'ytcfg_{client}.json')
+
+    # First need to check creation date of file, then remove if old
+    if os.path.exists(ytcfg_file):
+        ytcfg_file_age = time.time() - os.path.getmtime(ytcfg_file)
+        if ytcfg_file_age > 86400:
+            print(f'{ytcfg_file} is more than 24h old. Will get a new one on the next video load.')
+            os.remove(ytcfg_file)
+
+    if not os.path.exists(ytcfg_file):
+        user_agent = INNERTUBE_CLIENTS[client]['INNERTUBE_CONTEXT']['client'].get('userAgent').replace(',gzip(gfe)','')
+        endpoint_response = fetch_url(yt_endpoint.get(client), headers={'User-Agent': user_agent}, report_text=f'Fetched endpoint for client: {client}')
+        ytcfg_search = re.search(ytcfg_re, endpoint_response.decode())
+        if ytcfg_search:
+            ytcfg_str = ytcfg_search.group(1)
+            ytcfg = json.loads(ytcfg_str)
+            with open(ytcfg_file, 'w') as file:
+                print(f'Saving ytcfg file as {ytcfg_file}: ' + str(len(ytcfg_str)))
+                file.write(ytcfg_str)
+        else:
+            print('Unable to find ytcfg')
+            ytcfg = {}
+    else:
+        with open(ytcfg_file, 'r') as file:
+            ytcfg = json.load(file)
+            print('Getting ytcfg from cache.')
+
+    from youtube.yt_data_extract import multi_deep_get
+    data = {}
+    data['INNERTUBE_CONTEXT'] = multi_deep_get(ytcfg, ['INNERTUBE_CONTEXT'], default=None)
+    forbidden_item = [ 'remoteHost', 'configInfo', 'rolloutToken', 'deviceExperimentId' ]
+    for item in forbidden_item:
+        data['INNERTUBE_CONTEXT']['client'].pop(item, None)
+        data['INNERTUBE_CONTEXT'].pop('clickTracking', None)
+
+    data['visitorData'] = multi_deep_get(data['INNERTUBE_CONTEXT'], ['client', 'visitorData'], default=None)
+
+    data['INNERTUBE_API_KEY'] = multi_deep_get(ytcfg, ['INNERTUBE_API_KEY'], default=None)
+
+    data['player_version'] = multi_deep_get(ytcfg,
+    ['WEB_PLAYER_CONTEXT_CONFIGS', 'WEB_PLAYER_CONTEXT_CONFIG_ID_LIVING_ROOM_WATCH', 'jsUrl'],
+    ['WEB_PLAYER_CONTEXT_CONFIGS', 'WEB_PLAYER_CONTEXT_CONFIG_ID_LIVING_ROOM_WATCH', 'trustedJsUrl', 'privateDoNotAccessOrElseTrustedResourceUrlWrappedValue'],
+    default='///').split('/')[3]
+
+    # ytcfg_str = json.dumps(ytcfg)
+    # player_version_re = re.compile(r'player\\?/([0-9a-fA-F]{8})\\?/')
+    # player_version_search = re.search(player_version_re, ytcfg_str)
+    # if player_version_search:
+        # player_version = player_version_search.group(1)
+    # data['player_version'] = player_version
+
+    for k, v in data.items():
+        if v == None:
+            raise Exception(f"Error on extracting data from {ytcfg_file}. '{k}' value not found.")
+
+    return data
+
 
 def call_youtube_api(client, api, data):
     client_params = INNERTUBE_CLIENTS[client]
@@ -1083,6 +1163,7 @@ def get_visitor_data_from_homepage():
 def generate_visitor_data(client, visitor_type):
     # There are different options to get visitorData
     if visitor_type == 'po_token':   visitor_data = get_po_token_visitor_data(settings.use_po_token).get('visitorData')
+    elif visitor_type == 'ytcfg':    visitor_data = get_ytcfg(client).get('visitorData')
     elif visitor_type == 'homepage': visitor_data = get_visitor_data_from_homepage()
     else: raise NotImplementedError('Unknown visitor_type')
     return {'type': visitor_type, 'timestamp': str(datetime.now()), 'visitorData': visitor_data}
@@ -1118,11 +1199,7 @@ def get_visitor_data_(client, visitor_type):
             with open(visitor_data_cache, 'w') as file:
                 file.write(json.dumps(visitor_data_dict))
         else:
-            print('Unable to generate visitor_data. Try default')
-            visitor_data_dict = {'type': 'homepage', 'timestamp': str(datetime.now()), 'visitorData': get_visitor_data_from_homepage()}
-            if visitor_data_dict.get('visitorData'):
-                with open(visitor_data_cache, 'w') as file: file.write(json.dumps(visitor_data_dict))
-            else: raise Exception(f'Unable to generate visitor_data')
+            print('Unable to generate visitor_data')
 
     visitor_data_dict = read_visitor_data(visitor_data_cache, visitor_type)
     return visitor_data_dict
@@ -1130,7 +1207,9 @@ def get_visitor_data_(client, visitor_type):
 def get_visitor_data(client=None):
     if not client: client, _ = get_innertube_client(client_name=settings.innertube_client_name)
     if settings.use_po_token: visitor_type = 'po_token'
-    elif not settings.use_po_token: visitor_type = 'homepage'
+    elif settings.use_ytcfg and (client in ytcfg_endpoints_list): visitor_type = 'ytcfg'
+    elif not settings.use_po_token and not settings.use_ytcfg: visitor_type = 'homepage'
+    else: visitor_type = 'homepage'
 
     visitor_data_dict = get_visitor_data_(client, visitor_type)
     return visitor_data_dict.get('visitorData')
