@@ -299,6 +299,14 @@ log('Copying yt_solver js files')
 shutil.move(yt_solver_lib_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_lib_name)
 shutil.move(yt_solver_core_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_core_name)
 
+os.makedirs('./youtube-local/assets/other/js/youtubei/', exist_ok=True)
+youtubei_version = '17.0.1'
+youtubei_lib_url = f"https://cdn.jsdelivr.net/npm/youtubei.js@{youtubei_version}/bundle/browser.min.js"
+youtubei_lib_name = 'youtubei_' + youtubei_version.replace('.', '') + '.js'
+download_if_not_exists(youtubei_lib_name, youtubei_lib_url)
+log('Copying youtubei file')
+shutil.move(youtubei_lib_name, r'./youtube-local/assets/other/js/youtubei/' + youtubei_lib_name)
+
 # ----------- Create release zip -----------
 output_filename = release_tag + '-' + suffix + '-' + bitness + '.zip'
 if os.path.exists('./' + output_filename):
