@@ -448,6 +448,13 @@ If set to True, the system will try reloading the video player when encountering
         'comment': '',
     }),
 
+    ('include_hidden_videos', {
+        'label': 'Include hidden videos',
+        'type': bool,
+        'default': False,
+        'comment': 'If enabled, no videos will be hidden from related/search.',
+    }),
+
     ('debugging_save_responses', {
         'type': bool,
         'default': False,
