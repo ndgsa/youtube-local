@@ -530,8 +530,20 @@ def _extract_formats(info, player_response):
         # Example: https://www.youtube.com/watch?v=gF9kkB0UWYQ
         # Only get the original language for now so a foreign
         # translation will not be picked just because it comes first
-        if deep_get(yt_fmt, 'audioTrack', 'audioIsDefault') is False:
-            continue
+        # if deep_get(yt_fmt, 'audioTrack', 'audioIsDefault') is False:
+            # continue
+
+        # if deep_get(yt_fmt, 'audioTrack', 'audioIsDefault') is True and deep_get(yt_fmt, 'audioTrack', 'isAutoDubbed') is True:
+            # continue
+
+        # what if user upload audio track without using auto dubbing???
+        if settings.disable_dubbing and deep_get(yt_fmt, 'audioTrack', 'isAutoDubbed') is True: continue
+        allowed = [a.strip().lower() for a in settings.allowed_dubbing_languages.split(';') if a not in ['', ' ', ',', ';', ':']] + ['undefined']
+        lng = deep_get(yt_fmt, 'audioTrack', 'displayName', default='undefined')
+        if 'original' in lng.lower(): lng = 'undefined'
+        if lng != 'undefined' and settings.disable_dubbing: continue # in case 'audioIsDefault' is not None
+        if len(allowed) == 1: pass # in case allowed list is empty
+        elif lng.lower().split(' ')[0] not in allowed: continue
 
         fmt = {}
         fmt['itag'] = itag
@@ -548,6 +560,7 @@ def _extract_formats(info, player_response):
         fmt['fps'] = yt_fmt.get('fps')
         fmt['init_range'] = yt_fmt.get('initRange')
         fmt['index_range'] = yt_fmt.get('indexRange')
+        fmt['audio_track'] = lng
         for key in ('init_range', 'index_range'):
             if fmt[key]:
                 fmt[key]['start'] = int(fmt[key]['start'])
@@ -575,6 +588,9 @@ def _extract_formats(info, player_response):
             fmt, 'quality',
             extract_int(yt_fmt.get('qualityLabel'), whole_word=False)
         )
+
+        # need clen for uni_sources
+        if itag in [18]: fmt['clen'] = urllib.parse.parse_qs(urllib.parse.urlparse(fmt['url']).query).get('clen')
 
         info['formats'].append(fmt)
 
