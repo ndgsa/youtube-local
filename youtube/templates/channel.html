@@ -168,7 +168,11 @@
             <div id="links-metadata">
                 {% if current_tab in ('videos', 'shorts', 'streams') %}
                     {% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'), ('4', 'newest - no shorts'),] %}
-                    <div id="number-of-results">{{ number_of_videos }} videos</div>
+                    {% if current_tab in ('shorts', 'streams') and not is_last_page %}
+                        <div id="number-of-results">{{ number_of_videos }}+ videos</div>
+                    {% else %}
+                        <div id="number-of-results">{{ number_of_videos }} videos</div>
+                    {% endif %}
                 {% elif current_tab == 'playlists' %}
                     {% set sorts = [('3', 'newest'), ('4', 'last video added')] %}
                     {% if items %}
