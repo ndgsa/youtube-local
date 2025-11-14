@@ -432,6 +432,21 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
     else:
         info['hls_formats'] = []
 
+    # web_safari have hls urls
+    if info['__client_name'] == "web_safari":
+        if (info['hls_manifest_url'] and (info['urls_ready'] or not info['was_live'])):
+
+            manifest = util.fetch_url(info['hls_manifest_url'],
+                debug_name='hls_manifest.m3u8',
+                report_text='Fetched hls manifest'
+            ).decode('utf-8')
+
+            info['hls_formats'], err = yt_data_extract.extract_hls_formats(manifest)
+            if not err:
+                info['playability_error'] = None
+            for fmt in info['hls_formats']:
+                fmt['video_quality'] = video_quality_string(fmt)
+
     # check for 403. Unnecessary for tor video routing b/c ip address is same
     info['invidious_used'] = False
     info['invidious_reload_button'] = False
