@@ -172,12 +172,13 @@ For security reasons, enabling this is not recommended.''',
 
     ('theme', {
         'type': int,
-        'default': 0,
+        'default': 3, ## mine
         'comment': '',
         'options': [
             (0, 'Light'),
             (1, 'Gray'),
             (2, 'Dark'),
+            (3, 'Dark1'), ## mine
         ],
         'category': 'interface',
     }),

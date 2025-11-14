@@ -25,6 +25,7 @@ theme_names = {
     0: 'light_theme',
     1: 'gray_theme',
     2: 'dark_theme',
+    3: 'dark1_theme', ## mine
 }
 
 @yt_app.context_processor
