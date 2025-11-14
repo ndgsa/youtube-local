@@ -209,7 +209,39 @@
                     {% else %}
                         <a class="sort-button" href="{{ channel_url + '/' + current_tab + '?sort=' + sort_number }}">{{ 'Sort by ' + sort_name }}</a>
                     {% endif %}
-                {% endfor %}
+				{% endfor %}
+
+				{% if current_tab in ('videos', 'shorts', 'streams') %}
+					{% set z_current_page = parameters_dictionary.get('page', 1)|int %}
+					{% set curr_sort_page = '3' if settings.include_shorts_in_channel else '4' %}
+					{% set z_sort_page = parameters_dictionary.get('sort', curr_sort_page)|int %}
+					<!-- <a class="sort-button" href="{{ channel_url + '/' + current_tab + '?sort=' + z_sort_page|string + '&page=' + z_current_page|string + '&sort1=2' }}">{{ 'Sort current page by views'}}</a> -->
+
+					<div class="dropdown_home sort-button" style="">
+						<a class="" style="">Sort by</a>
+						<div class="dropdown_home_content">
+							<div>
+								<!-- lighter version of sort do not require page reload -->
+								<!-- {% set sorts = [('1', 'views'), ('6', 'duration'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'),] %} -->
+								<!-- {% for sort_number, sort_name in sorts %} -->
+									<!-- <a class="sort-button-1" id="home-link" href="javascript:;" data-sort-number="{{sort_number}}" data-sort-name="{{sort_name}}" onclick="SortData(this)">{{ sort_name }}</a> -->
+								<!-- {% endfor %} -->
+
+								{% set sorts = [('1', 'views'), ('6', 'duration'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'),] %}
+								{% for sort_number, sort_name in sorts %}
+									{% set sort_tmp_parameters_dictionary = parameters_dictionary.to_dict() %}
+									{% set _ = sort_tmp_parameters_dictionary.__setitem__('sort1', sort_number) %}
+									<a class="sort-button-1" id="home-link" href="{{ channel_url + '/' + current_tab + '?sort=' + z_sort_page|string + '&page=' + z_current_page|string + '&sort1=' + sort_number }}{{ '&sort1_reversed=true' if sort_tmp_parameters_dictionary.get('sort1_reversed', 'false') == 'true' else '&sort1_reversed=false' }}">{{ sort_name }}</a>
+								{% endfor %}
+								<div class="sort-button-1" id="home-link">
+									<input type="checkbox" id="sort1_reversed" name="sort1_reversed" value="true">
+									<label for="sort1_reversed"> reversed</label>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				{% endif %}
             </div>
 
             <nav class="{{ 'item-list' if current_tab == 'search' else 'item-grid' }}">
@@ -229,4 +261,6 @@
             {% endif %}
         </div>
     {% endif %}
+
+	<script src="/youtube.com/static/js/sort2.js"></script>
 {% endblock main %}
