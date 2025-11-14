@@ -115,6 +115,22 @@
     <div class="playlist-metadata1">
 		<!-- <h2 class="playlist-title">{{ title }}</h2>		 -->
 
+		<div class="dropdown_home" style="margin-top:3px;">
+			<a style="font-weight:bold;font-size: 18px;">Sort by</a>
+			<div class="dropdown_home_content">
+				<div id="links-metadata">
+					{% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'),] %}
+					{% for sort_number, sort_name in sorts %}
+						{% if sort_number == current_sort.__str__() %}
+							<a class="sort-button" id="home-link">{{ sort_name }}</a>
+						{% else %}
+							<a class="sort-button" id="home-link" href="/https://www.youtube.com/playlist?list={{  parameters_dictionary.get('list', '') }}{{'&sort1=' + sort_number }}">{{ sort_name }}</a>
+						{% endif %}
+					{% endfor %}
+				</div>
+			</div>
+		</div>
+
         <div id="export-options">
             <form id="playlist-export" method="post" action="/youtube.com/playlists/{{ title }}">
                 <select id="export-type" name="export_format">
@@ -161,6 +177,18 @@
 			<div class="playlist-description"><li>Description: {{ common_elements.text_runs(description) }}</li></div>
 		</div>
 	</details>
+
+	<!-- <div id="links-metadata"> -->
+		<!-- {% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'),] %} -->
+		<!-- Sort by  -->
+		<!-- {% for sort_number, sort_name in sorts %} -->
+			<!-- {% if sort_number == current_sort.__str__() %} -->
+				<!-- <a class="sort-button">{{ sort_name }}</a> -->
+			<!-- {% else %} -->
+				<!-- <a class="sort-button" href="/https://www.youtube.com/playlist?list={{  parameters_dictionary.get('list', '') }}{{'&sort1=' + sort_number }}">{{ sort_name }}</a> -->
+			<!-- {% endif %} -->
+		<!-- {% endfor %} -->
+	<!-- </div> -->
 
 	{% if display_as_grid %}
 		<div class="{{ 'item-grid' }}">
