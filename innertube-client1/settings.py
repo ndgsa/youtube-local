@@ -131,6 +131,20 @@ For security reasons, enabling this is not recommended.''',
         'category': 'interface',
     }),
 
+    ('use_video_download', {
+        'type': int,
+        'default': 1,
+        'comment': '',
+        'options': [
+            (0, 'Disabled'),
+            (1, 'Enabled'),
+        ],
+        'category': 'interface',
+        'comment': '''If enabled, you may incur legal issues with RIAA. Disabled by default.
+More info: https://torrentfreak.com/riaa-thwarts-youts-attempt-to-declare-youtube-ripping-legal-221002/
+Archive: https://archive.ph/OZQbN''',
+    }),
+
     ('use_comments_js', {
         'label': 'Enable comments.js',
         'type': bool,
