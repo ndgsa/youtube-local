@@ -773,6 +773,25 @@ INNERTUBE_CLIENTS = {
     },
 }
 
+innertube_client = list(INNERTUBE_CLIENTS.keys())
+client = innertube_client[settings.innertube_client_id]
+client_xhr_headers = (
+    ('Accept', '*/*'),
+    ('Accept-Language', 'en-US,en;q=0.5'),
+    ('X-YouTube-Api-Format-Version', '1'),
+    ('X-YouTube-Client-Name', INNERTUBE_CLIENTS[client]['INNERTUBE_CONTEXT_CLIENT_NAME']),
+    ('X-YouTube-Client-Version', INNERTUBE_CLIENTS[client]['INNERTUBE_CONTEXT']['client']['clientVersion']),
+    )
+
+def get_innertube_client(client_name=None, is_authenticated=False):
+    import copy
+    client_name = client_name or settings.innertube_client_name
+    innertube = copy.deepcopy(INNERTUBE_CLIENTS[client_name])
+    if innertube.get('AUTHENTICATED_USER_AGENT') and is_authenticated: # alternative user-agent if logged-in
+        client_context = innertube.setdefault('INNERTUBE_CONTEXT', {}).setdefault('client', {})
+        client_context['userAgent'] = innertube['AUTHENTICATED_USER_AGENT']
+    return client_name, innertube
+
 def get_visitor_data():
     visitor_data = None
     visitor_data_cache = os.path.join(settings.data_dir, 'visitorData.txt')
