@@ -62,36 +62,12 @@ For security reasons, enabling this is not recommended.''',
         'category': 'network',
     }),
 
-    ('subtitles_mode', {
-        'type': int,
-        'default': 0,
-        'comment': '''0 - off by default
-1 - only manually created subtitles on by default
-2 - enable even if automatically generated is all that's available''',
-        'label': 'Default subtitles mode',
-        'options': [
-            (0, 'Off'),
-            (1, 'Manually created only'),
-            (2, 'Automatic if manual unavailable'),
-        ],
-        'category': 'playback',
-    }),
-
-    ('subtitles_language', {
-        'type': str,
-        'default': 'en',
-        'comment': '''ISO 639 language code: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes''',
-        'category': 'playback',
-    }),
-
-    ('default_volume', {
-        'type': int,
-        'default': -1,
-        'max': 100,
-        'min': -1,
-        'comment': '''Sets a default volume.
-Defaults to -1, which means no default value is forced and the browser will set the volume.''',
-        'category': 'playback',
+    ('proxy_images', {
+        'label': 'Route images',
+        'type': bool,
+        'default': True,
+        'comment': '',
+        'category': 'network',
     }),
 
     ('related_videos_mode', {
@@ -129,22 +105,104 @@ Defaults to -1, which means no default value is forced and the browser will set 
         'category': 'interface',
     }),
 
-    ('default_comment_sorting', {
-        'type': int,
-        'default': 0,
-        'comment': '''0 to sort by top
-1 to sort by newest''',
-        'options': [
-            (0, 'Top'),
-            (1, 'Newest'),
-        ],
-    }),
-
     ('theater_mode', {
         'type': bool,
         'default': True,
         'comment': '',
         'category': 'interface',
+    }),
+
+    ('use_video_hotkeys', {
+        'label': 'Enable video hotkeys',
+        'type': bool,
+        'default': True,
+        'comment': '',
+        'category': 'interface',
+    }),
+
+    ('video_player', {
+        'type': int,
+        'default': 1,
+        'comment': '',
+        'options': [
+            (0, 'Browser Default'),
+            (1, 'Plyr'),
+        ],
+        'category': 'interface',
+    }),
+
+    ('use_comments_js', {
+        'label': 'Enable comments.js',
+        'type': bool,
+        'default': True,
+        'comment': '',
+        'category': 'interface',
+    }),
+
+    ('theme', {
+        'type': int,
+        'default': 0,
+        'comment': '',
+        'options': [
+            (0, 'Light'),
+            (1, 'Gray'),
+            (2, 'Dark'),
+        ],
+        'category': 'interface',
+    }),
+
+    ('font', {
+        'type': int,
+        'default': 1,
+        'comment': '',
+        'options': [
+            (0, 'Browser default'),
+            (1, 'Arial'),
+            (2, 'Liberation Serif'),
+            (3, 'Verdana'),
+            (4, 'Tahoma'),
+        ],
+        'category': 'interface',
+    }),
+
+    ('embed_page_mode', {
+        'type': bool,
+        'label': 'Enable embed page',
+        'default': True,
+        'comment': '',
+        'category': 'interface',
+    }),
+
+    ('subtitles_mode', {
+        'type': int,
+        'default': 0,
+        'comment': '''0 - off by default
+1 - only manually created subtitles on by default
+2 - enable even if automatically generated is all that's available''',
+        'label': 'Default subtitles mode',
+        'options': [
+            (0, 'Off'),
+            (1, 'Manually created only'),
+            (2, 'Automatic if manual unavailable'),
+        ],
+        'category': 'playback',
+    }),
+
+    ('subtitles_language', {
+        'type': str,
+        'default': 'en',
+        'comment': '''ISO 639 language code: https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes''',
+        'category': 'playback',
+    }),
+
+    ('default_volume', {
+        'type': int,
+        'default': -1,
+        'max': 100,
+        'min': -1,
+        'comment': '''Sets a default volume.
+Defaults to -1, which means no default value is forced and the browser will set the volume.''',
+        'category': 'playback',
     }),
 
     ('default_resolution', {
@@ -216,41 +274,6 @@ Defaults to -1, which means no default value is forced and the browser will set 
         'description': 'If set to Prefer or Always and the default resolution is set to 360p or 720p, uses the unified (integrated) video files which contain audio and video, with buffering managed by the browser. If set to prefer not, uses the separate audio and video files through custom buffer management in av-merge via MediaSource unless they are unavailable.',
     }),
 
-    ('use_video_hotkeys', {
-        'label': 'Enable video hotkeys',
-        'type': bool,
-        'default': True,
-        'comment': '',
-        'category': 'interface',
-    }),
-
-    ('video_player', {
-        'type': int,
-        'default': 1,
-        'comment': '',
-        'options': [
-            (0, 'Browser Default'),
-            (1, 'Plyr'),
-        ],
-        'category': 'interface',
-    }),
-
-    ('proxy_images', {
-        'label': 'Route images',
-        'type': bool,
-        'default': True,
-        'comment': '',
-        'category': 'network',
-    }),
-
-    ('use_comments_js', {
-        'label': 'Enable comments.js',
-        'type': bool,
-        'default': True,
-        'comment': '',
-        'category': 'interface',
-    }),
-
     ('use_sponsorblock_js', {
         'label': 'Enable SponsorBlock',
         'type': bool,
@@ -259,38 +282,15 @@ Defaults to -1, which means no default value is forced and the browser will set 
         'category': 'playback',
     }),
 
-    ('theme', {
+    ('default_comment_sorting', {
         'type': int,
         'default': 0,
-        'comment': '',
+        'comment': '''0 to sort by top
+1 to sort by newest''',
         'options': [
-            (0, 'Light'),
-            (1, 'Gray'),
-            (2, 'Dark'),
+            (0, 'Top'),
+            (1, 'Newest'),
         ],
-        'category': 'interface',
-    }),
-
-    ('font', {
-        'type': int,
-        'default': 1,
-        'comment': '',
-        'options': [
-            (0, 'Browser default'),
-            (1, 'Arial'),
-            (2, 'Liberation Serif'),
-            (3, 'Verdana'),
-            (4, 'Tahoma'),
-        ],
-        'category': 'interface',
-    }),
-
-    ('embed_page_mode', {
-        'type': bool,
-        'label': 'Enable embed page',
-        'default': True,
-        'comment': '',
-        'category': 'interface',
     }),
 
     ('autocheck_subscriptions', {
@@ -298,11 +298,13 @@ Defaults to -1, which means no default value is forced and the browser will set 
         'default': 0,
         'comment': '',
     }),
+
     ('include_shorts_in_subscriptions', {
         'type': bool,
         'default': 0,
         'comment': '',
     }),
+
     ('include_shorts_in_channel', {
         'type': bool,
         'default': 1,
@@ -536,7 +538,7 @@ set_img_prefix()
 add_setting_changed_hook('proxy_images', set_img_prefix)
 
 
-categories = ['network', 'interface', 'playback', 'other']
+categories = ['network', 'client', 'interface', 'playback', 'other']
 def settings_page():
     if request.method == 'GET':
         settings_by_category = {categ: [] for categ in categories}
