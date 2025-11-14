@@ -511,6 +511,22 @@ def extract_item_info(item, additional_info={}):
         info['id'] = multi_deep_get(item, ['onTap', 'innertubeCommand', 'reelWatchEndpoint', 'videoId'])
         info['duration'] = extract_str(item.get('lengthText', ''))
 
+    if primary_type in ['video', 'channel']:
+        # some channels have shortcut channel id, so requesting it, it gives error
+        # if error on channels.py, then request username instead channel id
+        info['canonicalBaseUrl'] = multi_deep_get(item,
+            ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'canonicalBaseUrl'],
+            ['longBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'canonicalBaseUrl'],
+            ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'],
+            ['longBylineText', 'runs', 0, 'navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'],
+            # in some cases
+            ['avatar', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],
+            # related
+            ['channelThumbnail', 'channelThumbnailWithLinkRenderer', 'navigationEndpoint', 'browseEndpoint', 'canonicalBaseUrl'],
+            ['channelThumbnail', 'channelThumbnailWithLinkRenderer', 'navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'],
+            default=None,
+        )
+
 
     info.update(additional_info)
 
