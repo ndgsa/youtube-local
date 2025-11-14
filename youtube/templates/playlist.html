@@ -136,7 +136,15 @@
 			<input name="action" type="checkbox" id="submit_form_checkbox"/>
 			<label for="action" id="submit_form_checkbox_label">Bookmark</label><br>
 		</form>
-
+		<form id="playlist-edit" action="/youtube.com/edit_playlist" method="post" target="_self" autocomplete="off">
+			<input type="hidden" value="{{ title }}" name="playlist_name" />
+			<input type="hidden" value="{{  parameters_dictionary.get('list', '') }}" name="playlist_id" />
+			<input type="hidden" value="true" name="import_playlist" />
+			{% for info in video_list %}
+				<input type="hidden" value="{{ info['video_info'] }}" name="video_info_list" />
+			{% endfor %}
+			<button type="submit" id="playlist-browser-import-button" name="action" value="add">Import playlist</button>
+		</form>
     </div>
 
 	<details class="related-videos-outer" {{'open' if settings.related_videos_mode == 1 else ''}}>

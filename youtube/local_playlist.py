@@ -374,8 +374,14 @@ def edit_playlist():
         else:
             flask.abort(400)
 
+    #mine
     if request.values['action'] == 'add':
-        add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
+        if request.values.get('import_playlist', None) == 'true':
+            items = get_all_videos_from_playlist(request.values['playlist_id'])
+            items = items[::-1]  # items must be reversed
+            add_to_playlist(request.values['playlist_name'], items)
+        else:
+            add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
         return '', 204
     else:
         flask.abort(400)
