@@ -72,6 +72,22 @@ For security reasons, enabling this is not recommended.''',
         'category': 'network',
     }),
 
+    ('use_httpx', {
+        'label': 'Use httpx library',
+        'type': bool,
+        'default': False,
+        'comment': 'Use httpx for web requests',
+        'category': 'network',
+    }),
+
+    ('googlevideo_use_post', {
+        'label': 'Use post to get video from gvs',
+        'type': bool,
+        'default': False,
+        'comment': 'Use post with specific body payload to access video from gvs',
+        'category': 'network',
+    }),
+
     ('use_innertube_for_captions', {
         'type': bool,
         'default': True,
