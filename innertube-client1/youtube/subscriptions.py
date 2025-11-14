@@ -21,16 +21,18 @@ import re
 import flask
 from flask import request
 
+from youtube.local_playlist import get_image_sqlite_db, get_images_sqlite_db, download_thumbnail_sqlite_db, use_sqlite3_db_as_storage
+from io import BytesIO
 
 thumbnails_directory = os.path.join(settings.data_dir, "subscription_thumbnails")
 
 # https://stackabuse.com/a-sqlite-tutorial-with-python/
 
-database_path = os.path.join(settings.data_dir, "subscriptions.sqlite")
+database_path = os.path.join(settings.data_dir, 'db', "subscriptions.sqlite")
 
 def open_database():
-    if not os.path.exists(settings.data_dir):
-        os.makedirs(settings.data_dir)
+    if not os.path.exists(os.path.join(settings.data_dir, 'db')):
+        os.makedirs(os.path.join(settings.data_dir, 'db'))
     connection = sqlite3.connect(database_path, check_same_thread=False)
 
     try:
@@ -137,7 +139,9 @@ def _unsubscribe(cursor, channel_ids):
                                  )''', (channel_id,)).fetchall()
         to_delete += [row[0] + '.jpg' for row in rows]
 
-    gevent.spawn(delete_thumbnails, to_delete)
+    if use_sqlite3_db_as_storage(): pass
+    else: gevent.spawn(delete_thumbnails, to_delete)
+
     cursor.executemany("DELETE FROM subscribed_channels WHERE yt_channel_id=?", ((channel_id, ) for channel_id in channel_ids))
 
 def _get_videos(cursor, number_per_page, offset, tag = None):
@@ -301,10 +305,13 @@ def exact_timestamp(posix_time):
         return result[1:]
     return result
 
-try:
-    existing_thumbnails = set(os.path.splitext(name)[0] for name in os.listdir(thumbnails_directory))
-except FileNotFoundError:
-    existing_thumbnails = set()
+if use_sqlite3_db_as_storage():
+    pass
+else:
+    try:
+        existing_thumbnails = set(os.path.splitext(name)[0] for name in os.listdir(thumbnails_directory))
+    except FileNotFoundError:
+        existing_thumbnails = set()
 
 
 # --- Manual checking system. Rate limited in order to support very large numbers of channels to be checked ---
@@ -673,7 +680,7 @@ def _get_upstream_videos(channel_id):
                                       description
                                   )
                                   VALUES ((SELECT id FROM subscribed_channels WHERE yt_channel_id=?), ?, ?, ?, ?, ?, ?, ?)''', rows)
-            cursor.executemany('''UPDATE videos SET 
+            cursor.executemany('''UPDATE videos SET
                                       title=?,
                                       duration=?,
                                       time_published=?,
@@ -1052,6 +1059,9 @@ def post_subscriptions_page():
 @yt_app.route('/data/subscription_thumbnails/<thumbnail>')
 def serve_subscription_thumbnail(thumbnail):
     '''Serves thumbnail from disk if it's been saved already. If not, downloads the thumbnail, saves to disk, and serves it.'''
+
+    if use_sqlite3_db_as_storage(): return serve_subscription_thumbnail_sqlite_db(thumbnail)
+
     assert thumbnail[-4:] == '.jpg'
     video_id = thumbnail[0:-4]
     thumbnail_path = os.path.join(thumbnails_directory, thumbnail)
@@ -1085,7 +1095,24 @@ def serve_subscription_thumbnail(thumbnail):
 
 
 
+def serve_subscription_thumbnail_sqlite_db(thumbnail):
+    '''Serves thumbnail from db'''
+    assert thumbnail[-4:] == '.jpg'
+    video_id = thumbnail[0:-4]
+    thumbnails = get_images_sqlite_db('id')
 
+    if video_id not in thumbnails:
+        try:
+            download_thumbnail_sqlite_db(video_id)
+        except Exception as e:
+            print(f"Video with id: '{video_id}' is not available")
 
+    bytes_io = get_image_sqlite_db(video_id)
+    if bytes_io != []:
+        bytes_io = BytesIO(bytes_io)
+    else:
+        bytes_io = BytesIO(b'')
 
+    # return flask.send_file(bytes_io, mimetype='image/jpeg')
+    return flask.Response(bytes_io, mimetype='image/jpeg')
 
