@@ -72,16 +72,30 @@ For security reasons, enabling this is not recommended.''',
 
     ('innertube_client_name', {
         'type': str,
-        'default': 'android',
+        'default': 'android_vr',
         'label': 'Innertube client',
         'comment': '''innertube client to access YouTube API, i.e. fetching player data
-        Available clients: android, ios, android-test-suite, web
+        Available clients: android, android-test-suite, ios, tv_embedded, web, web_creator, mweb, tv, android_vr
         ''',
         'options': [
-            ('android'),
-            ('ios'),
-            ('android-test-suite'),
-            ('web'),
+            ('android'),                 #
+            # ('android-test-suite'),    # not working
+            # ('ios'),                   #(require: po_token;) after 1 minute fails
+            # ('tv_embedded'),           #(require: js; cookies;)
+            ('web'),                     #(require: js; ytcfg-endpoint;)
+            # ('web_creator'),           # not working (require: js; cookies; po_token;)
+            ('mweb'),                    #
+            ('tv'),                      #(require: js;)
+            ('android_vr'),              #
+            # ('web_safari'),            # not working
+            # ('web_embedded'),          # not working
+            # ('web_remix'),             # not working
+            ('tv_simply'),               #(require: js;)
+            ('tv_downgraded'),           #(require: js; cookies;)
+            # ('ipados'),                #(require: po_token;) after 1 minute fails
+            # ('android_creator'),       #(require: cookies;)
+            ('android_sdkless'),         #
+            ('visionos'),                #
         ],
         'category': 'client',
     }),
