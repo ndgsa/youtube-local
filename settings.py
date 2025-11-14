@@ -157,12 +157,13 @@ Archive: https://archive.ph/OZQbN''',
 
     ('theme', {
         'type': int,
-        'default': 0,
+        'default': 3,
         'comment': '',
         'options': [
             (0, 'Light'),
             (1, 'Gray'),
             (2, 'Dark'),
+            (3, 'Dark1'),
         ],
         'category': 'interface',
     }),
