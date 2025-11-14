@@ -18,18 +18,9 @@ import traceback
 import flask
 from flask import request
 
-headers_desktop = (
-    ('Accept', '*/*'),
-    ('Accept-Language', 'en-US,en;q=0.5'),
-    ('X-YouTube-Client-Name', '1'),
-    ('X-YouTube-Client-Version', '2.20180830'),
-) + util.desktop_ua
-headers_mobile = (
-    ('Accept', '*/*'),
-    ('Accept-Language', 'en-US,en;q=0.5'),
-    ('X-YouTube-Client-Name', '2'),
-    ('X-YouTube-Client-Version', '2.20180830'),
-) + util.mobile_ua
+# headers_desktop = util.generate_api_headers(ua_platform='desktop', update_headers_with=(('X-YouTube-Client-Version', '2.20180830'),))
+headers_desktop = util.generate_api_headers(ua_platform='desktop')
+headers_mobile = util.generate_api_headers(ua_platform='mobile')
 real_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=8XihrAcN1l4'),)
 generic_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=ST1Ti53r4fU'),)
 
@@ -258,15 +249,14 @@ def get_channel_tab(channel_id, page="1", sort=3, tab='videos', view=1,
                 'hl': 'en',
                 'gl': 'US',
                 'clientName': 'WEB',
-                'clientVersion': '2.20180830',
+                'clientVersion': headers_desktop['X-YouTube-Client-Version'],
             },
         },
         'continuation': ctoken,
     }
 
-    content_type_header = (('Content-Type', 'application/json'),)
     content = util.fetch_url(
-        url, headers_desktop + content_type_header,
+        url, util.merge_dicts(headers_desktop, {'Content-Type': 'application/json'}),
         data=json.dumps(data), debug_name='channel_tab', report_text=message)
 
     return content
@@ -356,15 +346,14 @@ def get_channel_search_json(channel_id, query, page):
                 'hl': 'en',
                 'gl': 'US',
                 'clientName': 'WEB',
-                'clientVersion': '2.20180830',
+                'clientVersion': headers_desktop['X-YouTube-Client-Version'],
             },
         },
         'continuation': ctoken,
     }
 
-    content_type_header = (('Content-Type', 'application/json'),)
     polymer_json = util.fetch_url(
-        url, headers_desktop + content_type_header,
+        url, util.merge_dicts(headers_desktop, {'Content-Type': 'application/json'}),
         data=json.dumps(data), debug_name='channel_search')
 
     return polymer_json
