@@ -582,6 +582,8 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
 
     post_process_channel_info(info)
 
+    if request.args.get('sort1', None) == '2': info['items'] = sort_video_items(info['items'], sort_key='approx_view_count') # mine
+
     return flask.render_template('channel.html',
         parameters_dictionary = request.args,
         **info
