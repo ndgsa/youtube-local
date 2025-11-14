@@ -412,6 +412,8 @@ def log_ignored_line(line_number, message):
 
 
 
+other_dir = os.path.normpath('./other') # mine
+players_cache_dir = os.path.normpath(os.path.join('data', 'players_cache')) # mine
 
 # mine
 if not os.path.isfile("settings.txt"):
