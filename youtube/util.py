@@ -453,6 +453,10 @@ def download_thumbnail(save_directory, video_id):
     except urllib.error.HTTPError as e:
         print("Failed to download thumbnail for " + video_id + ": " + str(e))
         return False
+    except FetchError as e:
+        print("Failed to download thumbnail for " + video_id + ": " + str(e))
+        if '404 Not Found' in e.__str__() or "403 Forbidden" in e.__str__():
+            thumbnail = b''
     try:
         f = open(save_location, 'wb')
     except FileNotFoundError:
@@ -563,6 +567,10 @@ def add_extra_html_info(item):
                 video_info[key] = item[key]
             except KeyError:
                 video_info[key] = None
+
+        for key in ('approx_view_count', 'time_published'):
+            if key in item: video_info[key] = item[key]
+
         item['video_info'] = json.dumps(video_info)
 
     elif item['type'] == 'playlist' and item['playlist_type'] == 'radio':
