@@ -227,6 +227,10 @@ def get_playlist_page():
     for t in tmp:
         if playlist_id in t[1]: is_bookmarked = 'true'
 
+    if request.args.get('sort1'):
+        from youtube.channel import sort_video_items_custom
+        info['items'] = sort_video_items_custom(info.get('items', []), request.args.get('sort1', '0'), request.args.get("sort1_reversed", "false")) # sorting
+
     return flask.render_template('playlist.html',
         header_playlist_names = local_playlist.get_playlist_names(),
         video_list = info.get('items', []),
