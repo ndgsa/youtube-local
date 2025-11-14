@@ -10,4 +10,4 @@ from .watch_extraction import (extract_watch_info, get_caption_url,
     update_with_new_urls, _formats, update_format_with_type_info, extract_hls_formats,
     extract_watch_info_from_html, captions_available)
 
-from .signature_solvers import (signature_solver)
+from .signature_solvers import (signature_solver, _run_js_runtime_file)
