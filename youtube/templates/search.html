@@ -35,6 +35,9 @@
                 <div>Did you mean <a href="{{ corrections['corrected_query_url'] }}">{{ common_elements.text_runs(corrections['corrected_query_text']) }}</a></div>
 {% endif %}
             </div>
+            <nav class="page-button-row">
+                {{ common_elements.page_buttons(estimated_pages, '/https://www.youtube.com/results', parameters_dictionary) }}
+            </nav>
             <div class="item-list">
                 {% for info in results %}
                     {{ common_elements.item(info, description=true,  related=true) }}
