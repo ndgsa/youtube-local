@@ -364,7 +364,7 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
         info['playability_error'] = decryption_error
     # check if urls ready (non-live format) in former livestream
     # urls not ready if all of them have no filesize
-    if info['was_live']:
+    if info.get('was_live'):
         info['urls_ready'] = False
         for fmt in info['formats']:
             if fmt['file_size'] is not None:

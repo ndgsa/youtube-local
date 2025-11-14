@@ -358,7 +358,7 @@ def _extract_watch_info_mobile(top_level):
 
     # comment section info
     items, _ = extract_items(response, item_types={
-        'commentSectionRenderer', 'commentsEntryPointHeaderRenderer'})
+        'commentSectionRenderer', 'commentsEntryPointHeaderRenderer', 'videoMetadataCarouselViewModel'})
     if items:
         header_type = list(items[0])[0]
         comment_info = items[0][header_type]
@@ -370,6 +370,10 @@ def _extract_watch_info_mobile(top_level):
         if header_type == 'commentsEntryPointHeaderRenderer':
             comment_count_text = extract_str(multi_get(
                 comment_info, 'commentCount', 'headerText'))
+
+        elif header_type == 'videoMetadataCarouselViewModel':
+            comment_count_text = extract_str(deep_get(comment_info, 'carouselTitles', 0, 'carouselTitleViewModel', 'subtitle'))
+
         else:
             comment_count_text = extract_str(deep_get(comment_info,
                 'header', 'commentSectionHeaderRenderer', 'countText'))
@@ -426,7 +430,41 @@ def _extract_watch_info_desktop(top_level):
     info['view_count'] = extract_int(extract_str(deep_get(video_info, 'viewCount', 'videoViewCountRenderer', 'viewCount')))
 
     related = deep_get(top_level, 'response', 'contents', 'twoColumnWatchNextResults', 'secondaryResults', 'secondaryResults', 'results', default=[])
-    info['related_videos'] = [extract_item_info(renderer) for renderer in related]
+    info['related_videos'] = [extract_item_info(renderer) for renderer in related if not 'continuationItemRenderer' in renderer]
+
+    if not info['description']:
+        info['description'] = deep_get(video_info, 'attributedDescription', 'content')
+    if not info['like_count']:
+        info['like_count'] = multi_deep_get(video_info,
+            # ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'title'],
+            # ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'toggledButtonViewModel', 'buttonViewModel', 'title'],
+            ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'accessibilityText'],
+            ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'toggledButtonViewModel', 'buttonViewModel', 'accessibilityText'],
+        default=None)
+        if info['like_count']:
+            info['like_count'] = int(''.join(i for i in info['like_count'] if i.isdigit() or i in '-./\\')) # int(re.sub(r'\D', '', info['like_count']))
+
+    playlist = deep_get(top_level, 'response', 'contents', 'twoColumnWatchNextResults', 'playlist', 'playlist')
+    if playlist is None:
+        info['playlist'] = None
+    else:
+        info['playlist'] = {}
+        info['playlist']['title'] = playlist.get('title')
+        info['playlist']['author'] = extract_str(multi_get(playlist,
+            'ownerName', 'longBylineText', 'shortBylineText', 'ownerText'))
+        author_id = deep_get(playlist, 'longBylineText', 'runs', 0,
+            'navigationEndpoint', 'browseEndpoint', 'browseId')
+        info['playlist']['author_id'] = author_id
+        info['playlist']['author_url'] = concat_or_none(
+            'https://www.youtube.com/channel/', author_id)
+        info['playlist']['id'] = playlist.get('playlistId')
+        info['playlist']['url'] = concat_or_none(
+            'https://www.youtube.com/playlist?list=',
+            info['playlist']['id'])
+        info['playlist']['video_count'] = playlist.get('totalVideos')
+        info['playlist']['current_index'] = playlist.get('currentIndex')
+        # 'playlistPanelVideoRenderer'
+        info['playlist']['items'] = [extract_item_info(i) for i in playlist.get('contents', ())]
 
     return info
 
@@ -803,8 +841,18 @@ def extract_watch_info_from_html(watch_html):
         initial_data = JS_STRING_ESCAPE_RE.sub(js_escape_replace, initial_data)
         initial_data = json.loads(initial_data)
     else:
-        print('extract_watch_info_from_html: failed to find initialData')
-        initial_data = None
+        _YT_INITIAL_DATA_RE = r'(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|ytInitialData)\s*='
+        start_pattern = _YT_INITIAL_DATA_RE
+        contains_pattern=r'{(?s:.+)}'
+        end_pattern=';</script>'
+        pattern = re.compile(rf'(?:{start_pattern})\s*(?P<json>{contains_pattern})\s*(?:{end_pattern})')
+        initial_data_match = pattern.search(watch_html)
+        if initial_data_match is not None:
+            initial_data = initial_data_match.group(1)
+            initial_data = json.loads(initial_data)
+        else:
+            print('extract_watch_info_from_html: failed to find initialData')
+            initial_data = None
 
     # imitate old format expected by extract_watch_info
     fake_polymer_json = {
