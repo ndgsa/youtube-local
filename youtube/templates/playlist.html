@@ -69,11 +69,19 @@
         <div class="playlist-description">{{ common_elements.text_runs(description) }}</div>
     </div>
 
-    <div id="results">
-        {% for info in video_list %}
-            {{ common_elements.item(info) }}
-        {% endfor %}
-    </div>
+	{% if display_as_grid %}
+		<div class="{{ 'item-grid' }}">
+			{% for video_info in video_list %}
+				{{ common_elements.item(video_info) }}
+			{% endfor %}
+		</div>
+		{% else %}
+		<div id="results">
+			{% for info in video_list %}
+				{{ common_elements.item(info) }}
+			{% endfor %}
+		</div>
+	{% endif %}
     <nav class="page-button-row">
         {{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlist', parameters_dictionary) }}
     </nav>
