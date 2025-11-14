@@ -1136,6 +1136,92 @@ def get_ytcfg(client):
 
     return data
 
+player_version_re = re.compile(r'player\\?/([0-9a-fA-F]{8})\\?/')
+@cachetools.func.ttl_cache(maxsize=2, ttl=2*3600)
+def get_player_version_(headers, video_id):
+    player_version = None
+    player_version_cache = os.path.join(settings.players_cache_dir, 'player_version.txt')
+
+    if not os.path.exists(settings.players_cache_dir):
+        os.makedirs(settings.players_cache_dir)
+
+    # First need to check creation date of file, then remove if old
+    if os.path.exists(player_version_cache):
+        file_age = time.time() - os.path.getmtime(player_version_cache)
+        if file_age > 6*3600:
+            print('player_version cache is older than 6 hours')
+            os.remove(player_version_cache)
+
+    if not os.path.isfile(player_version_cache):
+        iframe_api = 'https://www.youtube.com/iframe_api'
+        iframe_dump = 'iframe_dump_'+video_id+'.js'
+        iframe_response = fetch_url(iframe_api + '?videoId=' + video_id, headers=headers, report_text='Downloading iframe_api js', debug_name=iframe_dump)
+        player_version_search = re.search(player_version_re, iframe_response.decode("utf-8"))
+
+        if player_version_search:
+            player_version = player_version_search.group(1)
+            with open(player_version_cache, 'w') as file:
+                print('Saving extracted player_version from iframe_api')
+                file.write(player_version)
+        else:
+            print('Unable to extract player_version from iframe_api')
+            player_version = None
+    else:
+        with open(player_version_cache, 'r') as file:
+            player_version = file.read()
+
+    return player_version
+
+def get_player_version(client, video_id=None, headers=None, ytcfg_player_version=None, info_js=None):
+    player_version = None
+    player_version_source = ''
+    hardcoded_player_version = settings.hardcoded_player_version
+
+    if hardcoded_player_version:
+        player_version_source = 'hardcoded'
+        player_version = hardcoded_player_version
+    elif ytcfg_player_version:
+        player_version_source = 'ytcfg'
+        player_version = ytcfg_player_version
+    elif info_js and not INNERTUBE_CLIENTS[client].get('REQUIRE_JS_PLAYER'):
+        player_version_source = 'watch info'
+        player_version = re.search(player_version_re, info_js).group(1)
+    else:
+        player_version_source = 'cache'
+        player_version = get_player_version_(headers, video_id)
+
+    if len(player_version) != 8:
+        raise Exception(f'Invalid player version format: {player_version }')
+
+    print(f"{player_version_source} player version: {player_version}")
+
+    if info_js and INNERTUBE_CLIENTS[client].get('REQUIRE_JS_PLAYER'):
+        player_version_from_info = re.search(player_version_re, info_js).group(1)
+        if player_version != player_version_from_info:
+            print(f"Warning: different player versions: {player_version} != {player_version_from_info}")
+
+    return player_version
+
+sts_re = re.compile(r'(?:signatureTimestamp|sts)\s*:\s*(?P<sts>[0-9]{5})')
+@cachetools.func.lru_cache(maxsize=2)
+def get_signature_timestamp(player_version, player_url, player_file, headers):
+    signature_timestamp = None
+    signature_timestamp_cache = os.path.join(settings.players_cache_dir, 'sts_' + player_version + '.txt')
+    if os.path.exists(signature_timestamp_cache):
+        with open(signature_timestamp_cache, 'r') as file: signature_timestamp = file.read()
+    else:
+        base_js = get_player_base_js(player_version, player_url, player_file, headers)
+
+        signature_timestamp_search = sts_re.search(base_js)
+        if not signature_timestamp_search == None:
+            signature_timestamp = signature_timestamp_search.group(1)
+
+    if signature_timestamp:
+        if not os.path.exists(settings.players_cache_dir): os.makedirs(settings.players_cache_dir)
+        with open(signature_timestamp_cache, 'w') as file: file.write(signature_timestamp)
+
+    return signature_timestamp
+
 
 def call_youtube_api(client, api, data):
     client_params = INNERTUBE_CLIENTS[client]
@@ -1161,6 +1247,79 @@ def call_youtube_api(client, api, data):
     ).decode('utf-8')
     return response
 
+
+
+from youtube.yt_data_extract import (normalize_url)
+from gevent.lock import Semaphore
+gevent_lock = Semaphore()
+def get_player_data(client=None, video_id=None, player_version=None, headers=None, ytcfg_player_version=None, info_js=None, include_basejs=False):
+    if not client: client, _ = get_innertube_client(client_name=settings.innertube_client_name)
+    video_id="60ItHLz5WEA" # Use constant video_id - this is experimental only
+    player_data = get_player_data_(client, video_id, player_version, headers, ytcfg_player_version, info_js, include_basejs)
+    return player_data
+
+@cachetools.func.ttl_cache(maxsize=3, ttl=1*3600)
+def get_player_data_(client=None, video_id=None, player_version=None, headers=None, ytcfg_player_version=None, info_js=None, include_basejs=False):
+
+    if not player_version:
+        player_version = get_player_version(client, video_id=video_id, headers=headers, ytcfg_player_version=ytcfg_player_version, info_js=info_js)
+    player_url = 'https://www.youtube.com/s/player/' + player_version + '/player_ias.vflset/en_US/base.js'
+    player_file = os.path.join(settings.players_cache_dir, 'iframe_api_base_' + player_version + '.js')
+
+    if INNERTUBE_CLIENTS[client].get('REQUIRE_JS_PLAYER') and (include_basejs or not os.path.isfile(player_file)):
+        gevent_lock.acquire()
+        base_js = get_player_base_js(player_version, player_url, player_file, headers)
+        gevent_lock.release()
+    else: base_js = None
+
+    signature_timestamp = get_signature_timestamp(player_version, player_url, player_file, headers)
+
+    player_data = {
+        'player_version': player_version,
+        'player_url': player_url,
+        'player_name': player_file,
+        'signature_timestamp': signature_timestamp,
+        'base_js': base_js,
+    }
+
+    return player_data
+
+@cachetools.func.lru_cache(maxsize=1)
+def get_player_base_js(player_version, player_url, player_name, headers=None): # info['player_version'] info['base_js'] info['player_name']
+    """return content of base.js or None"""
+
+    if not player_name:
+        return 'Could not find player name'
+
+    if not headers:
+        headers = generate_api_headers()
+
+    base_js = None
+    if not os.path.exists(settings.players_cache_dir):
+        os.mkdir(settings.players_cache_dir)
+    if os.path.exists(player_name):
+        try:
+            with open(player_name, 'rb') as file:
+                base_js = file.read()
+                file.close()
+        except:
+            base_js = None
+    else:
+        base_js = fetch_url(player_url, headers=headers, report_text='Fetching player url (base.js) version ' + player_version, debug_name=player_name)
+        try:
+            with open(player_name, 'wb') as file:
+                file.write(base_js)
+                file.close()
+                if os.path.getsize(player_name) < 2000000: base_js = None
+        except OSError:
+            print('An OS error prevents accessing ' + player_name)
+
+    if base_js == None:
+        raise Exception("Unable to access base_js " + player_name)
+    else:
+        base_js = base_js.decode('utf-8')
+
+    return base_js
 
 
 visitor_data_re = re.compile(r'''"visitorData":\s*?"(.+?)"''')
