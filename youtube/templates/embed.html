@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% import "common_elements.html" as common_elements %}
 <html>
     <head>
         <meta charset="utf-8">
@@ -6,6 +7,8 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; media-src 'self' https://*.googlevideo.com;
             {{ "img-src 'self' https://*.googleusercontent.com https://*.ggpht.com https://*.ytimg.com;" if not settings.proxy_images else "" }}">
         <!--<link href="{{ theme_path }}" type="text/css" rel="stylesheet">-->
+		<link href="/youtube.com/shared.css" type="text/css" rel="stylesheet">
+		<link href="/youtube.com/static/dark1_theme.css" type="text/css" rel="stylesheet">
 
         <style>
             * {
@@ -66,6 +69,64 @@
                 width: 100%;
                 height: 56.25vw; /* 360/640 == 720/1280 */
             }
+
+			{% if playlist %}
+
+				.playlist{
+					grid-column: 4;
+					max-width: 640px;
+					border-style: solid;
+					border-width: 2px;
+					border-color: lightgray;
+					margin-bottom: 10px;
+				}
+					.playlist-header{
+						background-color: var(--interface-color);
+						padding: 3px;
+						border-bottom-style: solid;
+						border-bottom-width: 2px;
+						border-bottom-color: lightgray;
+					}
+						.playlist-header h3{
+							margin: 2px;
+						}
+						.playlist-metadata{
+							list-style: none;
+							padding: 0px;
+							margin: 0px;
+						}
+							.playlist-metadata li{
+								display: inline;
+								margin: 2px;
+							}
+					.playlist-videos{
+						height: 300px;
+						overflow-y: scroll;
+						display: grid;
+						grid-auto-rows: 90px;
+						grid-row-gap: 10px;
+						padding-top: 10px;
+					}
+				.autoplay-toggle-container{
+					margin-bottom: 10px;
+				}
+					.thumbnail-box{     /* overides rule in shared.css */
+						height: 90px !important;
+						width: 120px !important;
+					}
+
+				.dropdown_playlist_content {
+					display: none;
+					position: absolute;
+					/* background-color: lightgrey; */
+					background-color: #121112;
+					min-width: 160px;
+					z-index:1;
+				}
+				.dropdown_playlist:hover .dropdown_playlist_content {display: block;}
+
+			{% endif %}
+
         </style>
 
         {% if js_data %}
@@ -82,14 +143,57 @@
     </head>
 
     <body>
+        <div class="external-player-controls">
+            <input id="speed-control" type="hidden" title="Video speed" placeholder="Speed">
+        </div>
         <a class="video-link text-height" href="{{ video_url }}" title="{{ title }}" target="_blank" rel="noopener noreferrer"><h2 class="text-height">{{ title }}</h2></a>
         <div class="video-info-bar text-height">
             <ol class="video-info-list text-height">
                 <li class="text-height"><time class="text-height"><span class="text-height">{{ time_published }}</span></time></li>
                 <li class="text-height"><address class="text-height"><span class="text-height">Uploaded by <a class="text-height" href="{{ uploader_channel_url }}" title="{{ uploader }}" target="_blank" rel="noopener noreferrer">{{ uploader }}</a></span></address></li>
+				{% if playlist %}
+					<li>
+						<div class="dropdown_playlist">
+							<a target="_blank" rel="noopener noreferrer" class="dropbtn_home" id="home-link">Playlist</a>
+							<div class="dropdown_playlist_content">
+								<div class="playlist">
+									<div class="playlist-header">
+										<a href="{{ playlist['url'] }}" title="{{ playlist['title'] }}"><h3>{{ playlist['title'] }}</h3></a>
+										<ul class="playlist-metadata">
+											<li>Autoplay: <input type="checkbox" id="autoplay-toggle"></li>
+											{% if playlist['current_index'] is none %}
+												<li>[Error!]/{{ playlist['video_count'] }}</li>
+											{% elif playlist['total_videos'] %}
+												<li>{{ playlist['current_video_id_index']+1 }}/{{ playlist['total_videos'] }}</li>
+											{% else %}
+												<li>{{ playlist['current_index']+1 }}/{{ playlist['video_count'] }}</li>
+											{% endif %}
+											<li><a href="{{ playlist['author_url'] }}" title="{{ playlist['author'] }}">{{ playlist['author'] }}</a></li>
+										</ul>
+									</div>
+									<nav class="playlist-videos">
+										{% for info in playlist['items'] %}
+											{# non-lazy load for 5 videos surrounding current video #}
+											{# for non-js browsers or old such that IntersectionObserver doesn't work #}
+											{# -10 is sentinel to not load anything if there's no current_index for some reason #}
+											{% if (playlist.get('current_index', -10) - loop.index0)|abs is lt(5)  %}
+												{{ common_elements.item(info, include_badges=false, lazy_load=false) }}
+											{% else %}
+												{{ common_elements.item(info, include_badges=false, lazy_load=true) }}
+											{% endif %}
+										{% endfor %}
+									</nav>
+								</div>
+							</div>
+						</div>
+					</li>
+				{% else %}
+					<!-- <label for="autoplay-toggle" style="margin:0px 0px 10px 20px;font-size:0.80rem;">Autoplay: </label><input type="checkbox" id="autoplay-toggle" style="transform: scale(1.2);"> -->
+					<li class="text-height" hidden><label for="autoplay-toggle">Autoplay: </label><input type="checkbox" id="autoplay-toggle"></li>
+				{% endif %}
             </ol>
         </div>
-        <video controls autofocus class="video" height="{{ video_height }}px">
+        <video controls autofocus class="video" height="{{ video_height }}px" {{ 'autoplay' if settings.autoplay_videos }}>
             {% if uni_sources %}
                 <source src="{{ uni_sources[uni_idx]['url'] }}" type="{{ uni_sources[uni_idx]['type'] }}" data-res="{{ uni_sources[uni_idx]['quality'] }}">
             {% endif %}
@@ -102,6 +206,7 @@
                 {% endif %}
             {% endfor %}
         </video>
+		<script src="/youtube.com/static/js/watch.js"></script>
         {% if settings.video_player == 1 %}
             <!-- plyr -->
             <script src="/youtube.com/static/modules/plyr/plyr.js"></script>
@@ -113,5 +218,23 @@
             <script src="/youtube.com/static/js/common.js"></script>
             <script src="/youtube.com/static/js/hotkeys.js"></script>
         {% endif %}
+
+		<script type="text/javascript">
+			let dropdown_playlist = document.getElementsByClassName("dropdown_playlist");
+			if (dropdown_playlist.length === 1) {
+				dropdown_playlist[0].addEventListener("mouseover", setScrollPosition, { once: true });
+			}
+			let already_used = false
+			function setScrollPosition(event){
+				if (data.playlist !== null && data.playlist['current_index'] !== null && already_used !== true) {
+					// scroll playlist to proper position
+					// item height + gap == 100
+					let pl = document.querySelector('.playlist-videos');
+					pl.scrollTop = 100*data.playlist['current_index'];
+					// console.log(pl.scrollTop);
+					already_used = true
+				}
+			}
+		</script>
     </body>
 </html>

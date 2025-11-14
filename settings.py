@@ -471,6 +471,13 @@ If set to True, the system will try reloading the video player when encountering
         'comment': 'If enabled, no videos will be hidden from related/search.',
     }),
 
+    ('include_local_playlist_on_watch_page', {
+        'label': 'Local playlist on watch',
+        'type': bool,
+        'default': True,
+        'comment': 'If enabled, display local playlist on watch page.',
+    }),
+
     ('search_request_page_multiplier', {
         'label': 'Search page multiplier',
         'type': int,
