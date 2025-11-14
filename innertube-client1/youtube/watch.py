@@ -288,38 +288,6 @@ def get_ordered_music_list_attributes(music_list):
 
     return ordered_attributes
 
-def save_decrypt_cache():
-    try:
-        f = open(os.path.join(settings.data_dir, 'decrypt_function_cache.json'), 'w')
-    except FileNotFoundError:
-        os.makedirs(settings.data_dir)
-        f = open(os.path.join(settings.data_dir, 'decrypt_function_cache.json'), 'w')
-
-    f.write(json.dumps({'version': 1, 'decrypt_cache':decrypt_cache}, indent=4, sort_keys=True))
-    f.close()
-
-def decrypt_signatures(info, video_id):
-    '''return error string, or False if no errors'''
-    if not yt_data_extract.requires_decryption(info):
-        return False
-    if not info['player_name']:
-        return 'Could not find player name'
-
-    player_name = info['player_name']
-    if player_name in decrypt_cache:
-        print('Using cached decryption function for: ' + player_name)
-        info['decryption_function'] = decrypt_cache[player_name]
-    else:
-        base_js = util.fetch_url(info['base_js'], debug_name='base.js', report_text='Fetched player ' + player_name)
-        base_js = base_js.decode('utf-8')
-        err = yt_data_extract.extract_decryption_function(info, base_js)
-        if err:
-            return err
-        decrypt_cache[player_name] = info['decryption_function']
-        save_decrypt_cache()
-    err = yt_data_extract.decrypt_signatures(info)
-    return err
-
 def append_po_token(info):
     err = util.append_po_token(info)
     return err
@@ -383,10 +351,10 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
             player_response = fetch_player_response('tv_simply', video_id)
             yt_data_extract.update_with_new_urls(info, player_response)
 
-    # signature decryption
-    decryption_error = decrypt_signatures(info, video_id)
+    # n_sig/signature decryption
+    decryption_error = yt_data_extract.signature_solver(settings.signature_solver_id, info)
     if decryption_error:
-        decryption_error = 'Error decrypting url signatures: ' + decryption_error
+        decryption_error = 'Error decrypting n/s signatures: ' + decryption_error
         info['playability_error'] = decryption_error
 
     # append po_token
