@@ -731,6 +731,46 @@ Reload without invidious (for usage of new identity button).</a>
 
 					play_flg = true;
 				};
+
+				play_button1.onpause = function () {
+					clearInterval(window.refreshIntervalId);
+				}
+
+				// each playing makes by default a request
+				play_button1.onplaying = function () {
+					if (!getVideo().ended) {
+						clearInterval(window.refreshIntervalId);
+						window.refreshIntervalId = window.setInterval(check_video, 40000 / getVideo().playbackRate);
+					}
+				}
+
+				play_button1.onratechange = function () {
+					clearInterval(window.refreshIntervalId);
+					window.refreshIntervalId = window.setInterval(check_video, 40000 / getVideo().playbackRate);
+				}
+
+				play_button1.onended = function () {
+					clearInterval(window.refreshIntervalId);
+				}
+			} //else {
+				//window.onload = play_button_clicked;
+			//}
+		<!-- } -->
+		<!-- window.onload = addToHistory; -->
+
+			function getVideo() {
+				document._video = document.getElementsByClassName("video")[0];
+				return document._video;
+			}
+
+			// Will execute myCallback every 40 seconds
+			function check_video(){
+				zz = getVideo();
+				console.log(zz.currentTime, zz.duration);
+				if (!zz.paused) {
+					zz.pause();
+					zz.play();
+				}
 			};
 	</script>
 
