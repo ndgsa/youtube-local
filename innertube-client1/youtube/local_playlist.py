@@ -298,18 +298,38 @@ def path_edit_playlist(playlist_name):
         if fmt in ('ids', 'urls'):
             prefix = ''
             if fmt == 'urls':
-                prefix = 'https://www.youtube.com/watch?v='
+                prefix = 'https://www.youtube.com/watch?v=' if playlist_name not in ["related_hidden_channels", "search_hidden_channels"] else 'https://www.youtube.com/channel/'
             id_list = '\n'.join(prefix + v['id'] for v in videos)
             id_list += '\n'
             resp = flask.Response(id_list, mimetype='text/plain')
-            cd = 'attachment; filename="%s.txt"' % playlist_name
+            # cd = 'attachment; filename="%s.txt"' % playlist_name
+            cd = 'attachment; ' + 'filename*=' + "UTF-8''%s.txt" % urllib.parse.quote(playlist_name)
             resp.headers['Content-Disposition'] = cd
             return resp
         elif fmt == 'json':
             json_data = json.dumps({'videos': videos}, indent=2,
                                    sort_keys=True)
             resp = flask.Response(json_data, mimetype='text/json')
-            cd = 'attachment; filename="%s.json"' % playlist_name
+            # cd = 'attachment; filename="%s.json"' % playlist_name
+            cd = 'attachment; ' + 'filename*=' + "UTF-8''%s.json" % urllib.parse.quote(playlist_name)
+            resp.headers['Content-Disposition'] = cd
+            return resp
+        elif fmt == 'key_value_dict':
+            tmp = []
+            for item in videos:
+                video_info = {}
+                kz = []
+                if playlist_name not in ['related_hidden_channels', 'search_hidden_channels']: kz = ['id', 'title', 'author', 'author_id', 'duration']
+                else: kz = ['id', 'title', 'author', 'author_id', 'duration', 'approx_subscriber_count', 'short_description', 'channel_name', 'avatar']
+                for key in kz:
+                    try: video_info[key] = item[key]
+                    except KeyError: video_info[key] = None
+                tmp.append(json.dumps(video_info))
+            id_list = '\n'.join(f"{v}" for v in tmp)
+            id_list += '\n'
+            resp = flask.Response(id_list, mimetype='text/plain')
+            # cd = 'attachment; filename="%s.txt"' % playlist_name
+            cd = 'attachment; ' + 'filename*=' + "UTF-8''%s.txt" % urllib.parse.quote(playlist_name)
             resp.headers['Content-Disposition'] = cd
             return resp
         else:
