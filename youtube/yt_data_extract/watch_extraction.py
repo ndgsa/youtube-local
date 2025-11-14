@@ -9,6 +9,9 @@ import json
 import urllib.parse
 import traceback
 import re
+import os
+import settings
+from .. import util
 
 # from https://github.com/ytdl-org/youtube-dl/blob/master/youtube_dl/extractor/youtube.py
 _formats = {
@@ -685,13 +688,12 @@ def extract_watch_info(polymer_json):
     info['age_restricted'] = (info['playability_status'] == 'LOGIN_REQUIRED' and info['playability_error'] and ' age' in info['playability_error'])
 
     # base_js (for decryption of signatures)
+    video_id = deep_get(top_level, 'playerResponse', 'videoDetails', default={}).get('videoId')
     info['base_js'] = deep_get(top_level, 'player', 'assets', 'js')
-    if info['base_js']:
-        info['base_js'] = normalize_url(info['base_js'])
-        # must uniquely identify url
-        info['player_name'] = urllib.parse.urlparse(info['base_js']).path
-    else:
-        info['player_name'] = None
+    player_data = util.get_player_data(video_id=video_id, info_js=info['base_js'])
+    info['player_version'] = player_data['player_version']
+    info['base_js'] = player_data['player_url']
+    info['player_name'] = player_data['player_name']
 
     # extract stuff from visible parts of page
     mobile = 'singleColumnWatchNextResults' in deep_get(top_level, 'response', 'contents', default={})
