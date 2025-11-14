@@ -137,11 +137,16 @@ def get_playlist_page():
     if video_count is None:
         video_count = 1000
 
+    tmp = local_playlist.youtube_playlists_from_local()
+    is_bookmarked = 'false'
+    for t in tmp:
+        if playlist_id in t[1]: is_bookmarked = 'true'
+
     return flask.render_template('playlist.html',
         header_playlist_names = local_playlist.get_playlist_names(),
         video_list = info.get('items', []),
         num_pages = math.ceil(video_count/100),
         parameters_dictionary = request.args,
-
+        is_bookmarked = is_bookmarked,
         **info['metadata']
     ).encode('utf-8')
