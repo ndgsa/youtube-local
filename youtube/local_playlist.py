@@ -31,6 +31,12 @@ def add_to_playlist(name, video_info_list):
     with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
         for info in video_info_list:
             id = json.loads(info)['id']
+
+            # mine
+            # if video is deleted from youtube than extracted values will be null and will break the playlist
+            if id == None:
+                continue
+
             if id not in ids:
                 file.write(info + "\n")
                 missing_thumbnails.append(id)
@@ -68,6 +74,14 @@ def add_extra_info_to_videos(videos, playlist_name):
 def read_playlist(name):
     '''Returns a list of videos for the given playlist name'''
     playlist_path = os.path.join(playlists_directory, name + '.txt')
+
+    # mine
+    # need to create empty file if it not exist
+    if not os.path.isfile(playlist_path):
+        if not os.path.exists(playlists_directory):
+            os.makedirs(playlists_directory)
+        with open(playlist_path, 'a') as file: pass
+
     with open(playlist_path, 'r', encoding='utf-8') as f:
         data = f.read()
 
@@ -93,11 +107,16 @@ def get_playlist_names():
     try:
         items = os.listdir(playlists_directory)
     except FileNotFoundError:
-        return
+        return []
+
+    tmp = []
     for item in items:
         name, ext = os.path.splitext(item)
+        ## mine
         if ext == '.txt':
-            yield name
+            # yield name
+            tmp.append(name)
+    return tmp
 
 def remove_from_playlist(name, video_info_list):
     ids = [json.loads(video)['id'] for video in video_info_list]
@@ -119,6 +138,13 @@ def remove_from_playlist(name, video_info_list):
         to_delete = thumbnails & set(id + ".jpg" for id in ids)
         for file in to_delete:
             os.remove(os.path.join(thumbnails_directory, name, file))
+
+    # mine
+    # remove empty/blank lines from file becouse they cause errors
+    with open(os.path.join(playlists_directory, name + ".txt")) as reader, open(os.path.join(playlists_directory, name + ".txt"), 'r+') as writer:
+        for line in reader:
+            if line.strip(): writer.write(line)
+        writer.truncate()
 
     return len(videos_out)
 
