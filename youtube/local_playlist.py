@@ -655,3 +655,38 @@ def get_local_related_hidden_channels_page():
         display_as_grid = False,
     )
 
+
+@yt_app.route('/playlists1/<playlist_name>', methods=['GET'])
+def get_local_playlist_page1(playlist_name=None):
+        videos, num_videos = get_local_playlist_videos(playlist_name, offset=0, amount=1000)
+        response = yt_app.response_class(
+            response=json.dumps(videos),
+            mimetype='application/json'
+        )
+        return response
+
+    # for the request
+    # response1 = urllib.request.urlopen('http://127.0.0.1:8080/https://www.youtube.com/playlists1/123')
+    # data1 = json.load(response1)
+    # print(data1)
+
+def get_watch_page_local_playlist(playlist_local, video_id):
+    playlist_local_url = 'http://127.0.0.1:8080/https://www.youtube.com/playlists/' + playlist_local
+    data1, _ = get_local_playlist_videos(playlist_local, offset=0, amount=1000)
+    local_playlist = {}
+    local_playlist['title'] = playlist_local
+    local_playlist['author'] = ""
+    local_playlist['author_id'] = ""
+    local_playlist['author_url'] = playlist_local_url
+    local_playlist['id'] = playlist_local
+    local_playlist['url'] = playlist_local_url
+    local_playlist['video_count'] = len(data1)
+    local_playlist['current_index'] = 1
+    local_playlist['items'] = data1[:]
+
+    for item_index, item in enumerate(local_playlist['items']):
+        item['url'] += '&playlists1=' + playlist_local
+        if video_id == item['id']: local_playlist['current_index'] = item_index
+
+    return local_playlist
+
