@@ -701,6 +701,28 @@ def get_watch_page(video_id=None):
         )
 
 
+    if not settings.theater_mode:
+        if target_resolution in [240, 360, 480, 720, 1080, 1440, 2160]:
+            yt_resolutions = {
+            240:{"video_width": 426, "video_height": 240, "video_width_max_difference": 60},
+            360:{"video_width": 640, "video_height": 360, "video_width_max_difference": 90},
+            480:{"video_width": 854, "video_height": 480, "video_width_max_difference": 120},
+            720:{"video_width": 1280, "video_height": 720, "video_width_max_difference": 180},
+            1080:{"video_width": 1920, "video_height": 1080, "video_width_max_difference": 270},
+            1440:{"video_width": 2560, "video_height": 1440, "video_width_max_difference": 360},
+            2160:{"video_width": 3840, "video_height": 2160, "video_width_max_difference": 720},
+            }
+            # if inversed or equal correct them
+            if video_height > video_width and video_height > 360:
+                video_height, video_width = video_width, video_height
+            # if almost equal
+            if abs(video_height - video_width) < 40:
+                video_height, video_width = yt_resolutions[target_resolution]['video_height'], yt_resolutions[target_resolution]['video_width']
+            # if video_width differ from original resolution value
+            if yt_resolutions[target_resolution]['video_width'] - video_width > yt_resolutions[target_resolution]['video_width_max_difference']:
+                video_width = yt_resolutions[target_resolution]['video_width']
+
+
     referrer_url = request.referrer if request.referrer else ""
     if (referrer_url.endswith('/edit/') or referrer_url.endswith('/edit')) and (not referrer_url.endswith('/playlists/edit') or not referrer_url.endswith('/playlists/edit/')):
         referrer_url = referrer_url.replace('/edit/', '').replace('/edit', '')
@@ -716,6 +738,7 @@ def get_watch_page(video_id=None):
             info['playlist'] = local_playlist.get_watch_page_local_playlist(p_name, video_id)
     if "/embed/" in request.url and settings.embed_page_mode and info['playlist']:
         for item in info['playlist']['items']: item['url'] = item['url'].replace("watch?v=", "embed/")
+
 
     # 1 second per pixel, or the actual video width
     theater_video_target_width = max(640, info['duration'] or 0, video_width)
