@@ -4,6 +4,14 @@
 # Requirements: 7z, git
 # wine is required in order to build on Linux
 
+## examples of script arguments (python version) (32|64 bit)
+# python.exe generate_release.py oldwin
+# python.exe generate_release.py oldwin 32
+# python.exe generate_release.py oldwin 64
+# python.exe generate_release.py 3.9.13
+# python.exe generate_release.py 3.9.13 32
+# python.exe generate_release.py 3.9.13 64
+
 import sys
 import urllib
 import urllib.request
@@ -22,7 +30,7 @@ if python_version == 'oldwin':
     bitness = '32'
     python_version = '3.7.9'
     suffix = 'windows-vista-7-only'
-    requirements_txt = './requirements-py37.txt'
+    requirements_txt = './requirements.txt'
 else:
     suffix = 'windows'
     requirements_txt = './requirements.txt'
@@ -94,7 +102,7 @@ if os.path.exists('./youtube-local'):
 # confused with working directory. I'm calling it the same thing so it will
 # have that name when extracted from the final release zip archive)
 log('Making copy of youtube-local files')
-check(os.system('git archive --format tar master | 7z x -si -ttar -oyoutube-local'))
+check(os.system('git archive --format tar HEAD | 7z x -si -ttar -oyoutube-local'))
 
 if len(os.listdir('./youtube-local')) == 0:
     raise Exception('Failed to copy youtube-local files')
@@ -102,8 +110,11 @@ if len(os.listdir('./youtube-local')) == 0:
 
 # ----------- Generate embedded python distribution -----------
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'     # *.pyc files double the size of the distribution
-get_pip_url = 'https://bootstrap.pypa.io/pip/3.7/get-pip.py'
-get_pip_sha256 = '5b9e2f9bb476ce76f84942bb7247dec8d6c0bb9dbc8c62ba2543b81fd7a4243c'
+get_pip_url = 'https://bootstrap.pypa.io/get-pip.py'
+python_version_major, python_version_minor, python_version_micro = map(int, python_version.split('.'))
+if python_version_minor < 9:
+    get_pip_version = '.'.join(map(str,[ python_version_major, python_version_minor ]))
+    get_pip_url = f'https://bootstrap.pypa.io/pip/{get_pip_version}/get-pip.py'
 latest_dist_url = 'https://www.python.org/ftp/python/' + python_version + '/python-' + python_version
 if bitness == '32':
     latest_dist_url += '-embed-win32.zip'
@@ -124,7 +135,7 @@ else:
     visual_c_name = 'vc15_(14.10.25017.0)_2017_x64.7z'
     visual_c_path_to_dlls = 'runtime_minimum/System64'
 
-download_if_not_exists('get-pip.py', get_pip_url, sha256=get_pip_sha256)
+download_if_not_exists('get-pip.py', get_pip_url)
 
 python_dist_name = 'python-dist-' + python_version + '-' + bitness + '.zip'
 
@@ -142,7 +153,9 @@ log('Extracting python distribution')
 check(os.system(r'7z -y x -opython ' + python_dist_name))
 
 log('Executing get-pip.py')
-wine_run(['./python/python.exe', '-I', 'get-pip.py'])
+# workaround to avoid recent breaking changes
+pip_version = 'pip <= 25.2'
+wine_run(['./python/python.exe', '-I', 'get-pip.py', pip_version])
 
 r'''
 # Explanation of .pth, ._pth, and isolated mode
@@ -209,13 +222,14 @@ log('Installing dependencies')
 # Pip's isolated build environment can't import setuptools.build_meta while
 # building stem. Disabling build-isolation allows it to access the
 # setuptools that was installed by get-pip into the embedded directory
-wine_run([
-    './python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile',
-    '--no-build-isolation', '--require-hashes', '-r', requirements_txt
-])
+if python_version_minor > 8:
+    wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', 'wheel', 'setuptools'])
+if python_version_minor == 8:
+    wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', '--upgrade', 'wheel', 'setuptools'])
+    wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', 'zope.interface==6.3'])
+wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', '--no-build-isolation', '-r', requirements_txt])
 
 log('Uninstalling unnecessary gevent stuff')
-wine_run(['./python/python.exe', '-I', '-m', 'pip', 'uninstall', '--yes', 'cffi', 'pycparser'])
 shutil.rmtree(r'./python/Lib/site-packages/gevent/tests')
 shutil.rmtree(r'./python/Lib/site-packages/gevent/testing')
 remove_files_with_extensions(r'./python/Lib/site-packages/gevent', ['.html']) # bloated html documentation
@@ -226,10 +240,10 @@ wine_run(['./python/python.exe', '-I', '-m', 'pip', 'uninstall', '--yes', 'pip',
 log('Removing pyc files')   # Have to do this because get-pip and some packages don't respect --no-compile
 remove_files_with_extensions(r'./python', ['.pyc'])
 
-log('Removing dist-info and __pycache__')
+log('Removing __pycache__')
 for root, dirs, files in os.walk(r'./python'):
     for dir in dirs:
-        if dir == '__pycache__' or dir.endswith('.dist-info'):
+        if dir == '__pycache__':
             shutil.rmtree(os.path.join(root, dir))
 
 
@@ -245,12 +259,12 @@ log('Copying python distribution into release folder')
 shutil.copytree(r'./python', r'./youtube-local/python')
 
 # ----------- Create release zip -----------
-output_filename = 'youtube-local-' + release_tag + '-' + suffix + '.zip'
+output_filename = release_tag + '-' + suffix + '-' + bitness + '.zip'
 if os.path.exists('./' + output_filename):
     log('Removing previous zipped release')
     os.remove('./' + output_filename)
 log('Zipping release')
-check(os.system(r'7z -mx=9 a ' + output_filename + ' ./youtube-local'))
+check(os.system(r'7z -mx=9 a ' + output_filename + ' ./youtube-local' + ' -xr!"youtube-local/utils" -xr!"youtube-local/screenshots" -xr!"youtube-local/.github" -x!"youtube-local/.gitattributes" -x!"youtube-local/.gitignore" -x!"youtube-local/README.md" -x!"youtube-local/requirements_win7.txt" -x!"youtube-local/generate_release.py"')) # mine
 
 print('\n')
 log('Finished')
