@@ -1196,26 +1196,83 @@ def get_signature_timestamp(player_version, player_url, player_file, headers):
 def call_youtube_api(client, api, data):
     client_params = INNERTUBE_CLIENTS[client]
     context = client_params['INNERTUBE_CONTEXT']
-    key = client_params['INNERTUBE_API_KEY']
+    key = client_params.get('INNERTUBE_API_KEY') or None
     host = client_params.get('INNERTUBE_HOST') or 'www.youtube.com'
-    user_agent = context['client'].get('userAgent') or mobile_user_agent
-    visitor_data = get_visitor_data()
 
-    url = 'https://' + host + '/youtubei/v1/' + api + '?key=' + key
-    if visitor_data:
-        context['client'].update({'visitorData': visitor_data})
+    headers = generate_api_headers(client_name=client, use_visitor=True)
+
+    ytcfg = get_ytcfg(client)
+    po_token_data = { 'poToken': get_po_token_visitor_data(settings.use_po_token).get('poToken') }
+    if ytcfg:
+        # Needed to set correct client version obtained from ytcfg
+        context = ytcfg['INNERTUBE_CONTEXT']
+        print('Got client context from ytcfg')
+        key = ytcfg['INNERTUBE_API_KEY']
+        # Needed to use correct visitorData from yt_po_token_cache.txt
+        visitor_data = get_po_token_visitor_data(settings.use_po_token).get('visitorData')
+        if visitor_data: context['client']['visitorData'] = visitor_data
+
     data['context'] = context
+    require_js_player = client_params.get('REQUIRE_JS_PLAYER')
+    if require_js_player and data.get('videoId'):
+        print('js player is required for this client: ' + str(client))
+
+        player_data = get_player_data(
+            client=client,
+            video_id=data.get('videoId', ""),
+            headers=tuple(headers.items()),
+            ytcfg_player_version=ytcfg.get('player_version'))
+        print(f"Using player version: {player_data['player_version']}")
+        signature_timestamp = player_data['signature_timestamp']
+        print('Signature timestamp: ' + signature_timestamp)
+
+        if signature_timestamp:
+            data['playbackContext'] = {
+                    'contentPlaybackContext': {
+                      'html5Preference': 'HTML5_PREF_WANTS',
+                      'signatureTimestamp': signature_timestamp,
+                    }
+                }
+
+    if po_token_data and data.get('videoId'):
+        data['serviceIntegrityDimensions'] = po_token_data
+
+    url = 'https://' + host + '/youtubei/v1/' + api
+    if key:
+        url = url + '?key=' + key
 
     data = json.dumps(data)
-    headers = (('Content-Type', 'application/json'),('User-Agent', user_agent))
-    if visitor_data:
-        headers = ( *headers, ('X-Goog-Visitor-Id', visitor_data ))
     response = fetch_url(
         url, data=data, headers=headers,
         debug_name='youtubei_' + api + '_' + client,
         report_text='Fetched ' + client + ' youtubei ' + api
     ).decode('utf-8')
     return response
+
+
+# def call_youtube_api_old(client, api, data):
+    # client_params = INNERTUBE_CLIENTS[client]
+    # context = client_params['INNERTUBE_CONTEXT']
+    # key = client_params['INNERTUBE_API_KEY']
+    # host = client_params.get('INNERTUBE_HOST') or 'www.youtube.com'
+    # user_agent = context['client'].get('userAgent') or mobile_user_agent
+    # visitor_data = get_visitor_data()
+
+    # url = 'https://' + host + '/youtubei/v1/' + api + '?key=' + key
+    # if visitor_data:
+        # context['client'].update({'visitorData': visitor_data})
+    # data['context'] = context
+
+    # data = json.dumps(data)
+    # headers = (('Content-Type', 'application/json'),('User-Agent', user_agent))
+    # if visitor_data:
+        # headers = ( *headers, ('X-Goog-Visitor-Id', visitor_data ))
+    # response = fetch_url(
+        # url, data=data, headers=headers,
+        # debug_name='youtubei_' + api + '_' + client,
+        # report_text='Fetched ' + client + ' youtubei ' + api
+    # ).decode('utf-8')
+    # return response
 
 
 
