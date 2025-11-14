@@ -19,6 +19,8 @@ def video_ids_in_playlist(name):
     try:
         with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
             videos = file.read()
+            import sys
+        ## mine # gives error if History playlist is empty, to bypass error just delete History playlist
         return set(json.loads(video)['id'] for video in videos.splitlines())
     except FileNotFoundError:
         return set()
@@ -28,6 +30,29 @@ def add_to_playlist(name, video_info_list):
         os.makedirs(playlists_directory)
     ids = video_ids_in_playlist(name)
     missing_thumbnails = []
+
+    ################################################################## mine
+    # if video exist in history playlist, move it to start, so it will look as recent video
+    if name == "History":
+        for info in video_info_list:
+            id = json.loads(info)['id']
+
+            # if video is deleted from youtube than extracted values will be null and will break the playlist
+            if id == None:
+                continue
+
+            if id in ids:
+                with open(os.path.join(playlists_directory, name + ".txt"), "r+") as f:
+                    d = f.readlines()[:]
+                    f.seek(0)
+                    f.truncate()
+                    d.append(d.pop(d.index(info + "\n") ))
+                    for gg in d:
+                       f.write(gg)
+            break
+
+    ##################################################################
+
     with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
         for info in video_info_list:
             id = json.loads(info)['id']
@@ -99,6 +124,12 @@ def read_playlist(name):
 
 def get_local_playlist_videos(name, offset=0, amount=50):
     videos = read_playlist(name)
+
+    ## mine
+    # reverse list, last added will be recent
+    if name == "History":
+        videos = videos[::-1]
+
     add_extra_info_to_videos(videos, name)
     return videos[offset:offset+amount], len(videos)
 
@@ -113,7 +144,7 @@ def get_playlist_names():
     for item in items:
         name, ext = os.path.splitext(item)
         ## mine
-        if ext == '.txt':
+        if ext == '.txt' and (name not in ["History"]):
             # yield name
             tmp.append(name)
     return tmp
@@ -211,6 +242,12 @@ def path_edit_playlist(playlist_name):
 @yt_app.route('/edit_playlist', methods=['POST'])
 def edit_playlist():
     '''Called when adding videos to a playlist from elsewhere'''
+
+    #mine
+    if request.values['playlist_name'] == 'History' and settings.disable_history:
+        flask.abort(400)
+        return
+
     if request.values['action'] == 'add':
         add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
         return '', 204
@@ -221,3 +258,25 @@ def edit_playlist():
 def serve_thumbnail(playlist_name, thumbnail):
     # .. is necessary because flask always uses the application directory at ./youtube, not the working directory
     return flask.send_from_directory(os.path.join('..', thumbnails_directory, playlist_name), thumbnail)
+
+
+############################################################# mine
+
+@yt_app.route('/playlists/History', methods=['GET'])
+def get_local_history_page():
+    ##return flask.render_template('error.html')
+
+    page = int(request.args.get('page', 1))
+    offset = 50*(page - 1)
+    videos, num_videos = get_local_playlist_videos("History", offset=offset, amount=50)
+    return flask.render_template('local_playlist.html',
+        header_playlist_names = get_playlist_names(),
+        playlist_name = "History",
+        videos = videos,
+        num_pages = math.ceil(num_videos/50),
+        parameters_dictionary = request.args,
+        disable_history = settings.disable_history,
+    )
+
+#############################################################
+
