@@ -56,6 +56,24 @@
         }
     }
 
+    .playlist-metadata1{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin: 15px auto 7px auto;
+		/* margin: 10px auto; */
+        padding: 7px;
+        background-color: var(--interface-color);
+    }
+        .playlist-title{
+		font-size: 20px;
+        }
+
+	#playlist-browser-import-button, #submit_form_checkbox_label, #playlist-export-button {
+		font-size: 18px;
+	}
+
 	{% if display_as_grid %}
 		.playlist-metadata {
 			/*<!-- justify-content: space-between; --> */
@@ -90,6 +108,24 @@
 {% endblock style %}
 
 {% block main %}
+    <div class="playlist-metadata1">
+		<!-- <h2 class="playlist-title">{{ title }}</h2>		 -->
+
+        <div id="export-options">
+            <form id="playlist-export" method="post" action="/youtube.com/playlists/{{ title }}">
+                <select id="export-type" name="export_format">
+                    <option value="json">JSON</option>
+                    <option value="ids">Video id list (txt)</option>
+                    <option value="urls">Video url list (txt)</option>
+					<option value="key_value_dict">Video dict (txt)</option>
+                </select>
+				<input type="hidden" value="{{  parameters_dictionary.get('list', '') }}" name="playlist_id" />
+				<input type="hidden" value="true" name="export_youtube_playlist" />
+                <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
+            </form>
+        </div>
+    </div>
+
 	<details class="related-videos-outer" {{'open' if settings.related_videos_mode == 1 else ''}}>
 		<summary>{{ title }} (more info)</summary>
 		<div class="playlist-metadata">
