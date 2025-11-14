@@ -197,3 +197,63 @@ def _run_js_runtime_file(js_file, *args, js_format="file", response_format='json
 
     return output
 
+
+def check_requirements(info):
+    client, client_params = util.get_innertube_client(client_name=settings.innertube_client_name)
+
+    if not client_params.get('REQUIRE_JS_PLAYER'):
+        print("n_sig decryption is not needed for innertube client: " + client)
+        return False
+
+    player_name = info.get('player_name')
+    player_version = info.get('player_version')
+
+    if not player_name:
+        return "Could not find player name"
+    elif not player_version:
+        return "Unable to determine player version"
+
+    return None
+
+def extract_encrypted_n_s_signatures_from_info(info):
+    n_sig = None
+    n_sig_list = set()
+    s_sig_list = set()
+    for fmt in info['formats']:
+        # add 'n=' to n_sig_list
+        if fmt['url']:
+            for member in fmt['url'].split('&'):
+                if member.startswith('n='): n_sig_list.add(member.split('=')[1])
+        # # add 's' to s_sig_list
+        if fmt['s'] and fmt['sp'] and fmt['url']: s_sig_list.add(fmt['s'])
+
+    return (n_sig_list, s_sig_list)
+
+def replace_n_s_signatures(info, decrypted_nsig, decrypted_ssig):
+    n_sig = None
+    for fmt in info['formats']:
+        if fmt['url']:
+            media_url = fmt['url']
+            params = media_url.split('&')
+            for i, member in enumerate(params):
+                if member.startswith('n='):
+                    n_sig_index = i
+                    n_sig = member.split('=')[1]
+
+            if decrypted_nsig.get(n_sig):
+                n_sig_result = decrypted_nsig.get(n_sig)
+                params.pop(n_sig_index)
+                params.insert(n_sig_index, 'n=' + n_sig_result) # replace n signature
+                final_url = '&'.join(params)
+                fmt['url'] = final_url
+            else:
+                print("n_sig_decrypt: Warning nsig not available")
+
+        if fmt['s'] and fmt['sp'] and fmt['url']:
+            if decrypted_ssig.get(fmt['s']):
+                s_sig_result = decrypted_ssig.get(fmt['s'])
+                fmt['url'] += '&' + fmt['sp'] + '=' + urllib.parse.quote(s_sig_result) # replace s signature
+            else:
+                print("n_sig_decrypt: Warning ssig not available")
+    return False
+
