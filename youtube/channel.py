@@ -294,7 +294,10 @@ def set_cached_number_of_videos(channel_id, num_videos):
     dummy_func_using_same_cache(channel_id)
 
 
-channel_id_re = re.compile(r'videos\.xml\?channel_id=([a-zA-Z0-9_-]{24})"')
+channel_id_re_list = [
+    re.compile(r'videos\.xml\?channel_id=([a-zA-Z0-9_-]{24})"'),
+    re.compile(r'\"\/channel\/([a-zA-Z0-9_-]{24})\"'), # some have different response
+]
 @cachetools.func.lru_cache(maxsize=128)
 def get_channel_id(base_url):
     # method that gives the smallest possible response at ~4 kb
@@ -302,15 +305,16 @@ def get_channel_id(base_url):
     base_url = base_url.replace('https://www', 'https://m') # avoid redirect
     response = util.fetch_url(base_url + '/about?pbj=1', headers_mobile,
         debug_name='get_channel_id', report_text='Got channel id').decode('utf-8')
-    match = channel_id_re.search(response)
-    if match:
-        return match.group(1)
+    for channel_id_re in channel_id_re_list:
+        match = channel_id_re.search(response)
+        if match:
+            return match.group(1)
     return None
 
 
 metadata_cache = cachetools.LRUCache(128)
 @cachetools.cached(metadata_cache)
-def get_metadata(channel_id):
+def get_metadata(channel_id, if_error=None):
     base_url = 'https://www.youtube.com/channel/' + channel_id
     polymer_json = util.fetch_url(base_url + '/about?pbj=1',
                                   headers_desktop,
@@ -319,6 +323,11 @@ def get_metadata(channel_id):
     info = yt_data_extract.extract_channel_info(json.loads(polymer_json),
                                                 'about',
                                                 continuation=False)
+    if if_error != True and info.get("error") == 'Failure getting metadata':
+        channel_id = get_channel_id('https://www.youtube.com/channel/' + channel_id)
+        print("Failure getting metadata, retry with channel_id: " + channel_id)
+        return get_metadata(channel_id, if_error=True) # infinite loop
+
     return extract_metadata_for_caching(info)
 def set_cached_metadata(channel_id, metadata):
     @cachetools.cached(metadata_cache)
