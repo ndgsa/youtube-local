@@ -33,14 +33,14 @@ def playlist_first_page(playlist_id, report_text="Retrieved playlist",
     if use_mobile:
         url = 'https://m.youtube.com/playlist?list=' + playlist_id + '&pbj=1'
         content = util.fetch_url(
-            url, util.mobile_xhr_headers,
+            url, util.generate_api_headers(ua_platform='mobile'),
             report_text=report_text, debug_name='playlist_first_page'
         )
         content = json.loads(content.decode('utf-8'))
     else:
         url = 'https://www.youtube.com/playlist?list=' + playlist_id + '&pbj=1'
         content = util.fetch_url(
-            url, util.desktop_xhr_headers,
+            url, util.generate_api_headers(ua_platform='desktop'),
             report_text=report_text, debug_name='playlist_first_page'
         )
         content = json.loads(content.decode('utf-8'))
@@ -53,11 +53,11 @@ def get_videos(playlist_id, page, include_shorts=True, use_mobile=False,
     # mobile requests return 20 videos per page
     if use_mobile:
         page_size = 20
-        headers = util.mobile_xhr_headers
+        headers = util.generate_api_headers(ua_platform='mobile')
     # desktop requests return 100 videos per page
     else:
         page_size = 100
-        headers = util.desktop_xhr_headers
+        headers = util.generate_api_headers(ua_platform='desktop')
 
     url = "https://m.youtube.com/playlist?ctoken="
     url += playlist_ctoken(playlist_id, (int(page)-1)*page_size,
