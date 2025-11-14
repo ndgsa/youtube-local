@@ -472,6 +472,20 @@ def extract_item_info(item, additional_info={}):
     #########################################################################
 
 
+    ######################################################################### mine
+    if primary_type in ['video', 'channel']:
+        # some channels have shortcut channel id, so requesting it, it gives error
+        # if error on channels.py, then request username instead channel id
+        info['canonicalBaseUrl'] = multi_deep_get(item,
+            ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'canonicalBaseUrl'],
+            ['longBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'canonicalBaseUrl'],
+            ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'],
+            ['longBylineText', 'runs', 0, 'navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'],
+            default=None,
+        )
+    ######################################################################### mine
+
+
     info.update(additional_info)
 
     return info
