@@ -334,6 +334,9 @@ def path_edit_playlist(playlist_name):
             return resp
         else:
             flask.abort(400)
+    elif request.values['action'] == 'import':
+        import_videos_to_playlist(playlist_name, request)
+        return flask.redirect(util.URL_ORIGIN + '/playlists/'+ playlist_name, 303)
     else:
         flask.abort(400)
 
@@ -357,6 +360,153 @@ def serve_thumbnail(playlist_name, thumbnail):
     # .. is necessary because flask always uses the application directory at ./youtube, not the working directory
     return flask.send_from_directory(os.path.join('..', thumbnails_directory, playlist_name), thumbnail)
 
+
+def import_videos_to_playlist(playlist_name, request):
+
+    # check if the post request has the file part
+    if 'videos_file' not in request.files:
+        #flash('No file part')
+        return flask.redirect(util.URL_ORIGIN + request.full_path)
+    file = request.files['videos_file']
+    # if user does not select file, browser also
+    # submit an empty part without filename
+    if file.filename == '':
+        #flash('No selected file')
+        return flask.redirect(util.URL_ORIGIN + request.full_path)
+
+    mime_type = file.mimetype
+
+    if mime_type == 'text/plain':
+        list_video_ids = []
+        list_video_url = [line.decode('utf-8').rstrip() for line in file]
+
+        ids = video_ids_in_playlist(playlist_name)
+
+        import urllib.parse as urlparse
+
+        # if .txt contains dicts
+        if all(x in list_video_url[0] for x in ["id", "title", "author", "author_id", "duration"]):
+            add_to_playlist(playlist_name, list_video_url)
+            return
+
+        for url in list_video_url:
+            try:
+                query = urlparse.urlparse(url.strip())
+                if 'youtube' in query.hostname:
+                    if query.path == '/watch':
+                        video_id = urlparse.parse_qs(query.query)['v'][0]
+                    elif query.path.startswith(('/embed/', '/v/', '/channel/')):
+                        video_id = query.path.split('/')[2]
+                elif 'youtu.be' in query.hostname:
+                    video_id = query.path[1:]
+                else:
+                    video_id = None
+
+                if not video_id or len(video_id) < 11:
+                    print(f"Incorect videoid from url: {url.strip()}")
+                    continue
+
+                if video_id not in ids:
+                    list_video_ids.append(video_id)
+            except Exception as e:
+                if re.match(r"^[A-Za-z0-9_\-]{11}$", url) or re.match(r"^UC[A-Za-z0-9_\-]{22}$", url):
+                    video_id = url
+                    if video_id not in ids: list_video_ids.append(video_id)
+                else:
+                    print(f"Error on importing url videos from text file: {e}")
+
+        # import_slow(playlist_name, request, list_video_ids)
+        import_faster_with_ip_ban1(playlist_name, request, list_video_ids)
+
+    return
+
+
+def import_faster_with_ip_ban1(playlist_name, request, list_video_ids):
+
+    # if there are too many items to import google can ban ip
+    # so import elements by chunks of 50 items with delay 2-3 minutes
+
+    from youtube import channel
+    from time import sleep
+
+    def chunks(xs, n):
+        n = max(1, n)
+        return (xs[i:i+n] for i in range(0, len(xs), n))
+
+    list_video_ids_chunks = list(chunks(list_video_ids, 5)) # 5 elements per chunk
+
+    for list_chunk in list_video_ids_chunks:
+
+        tasks = []
+        for video_id in list_chunk:
+            use_invidious = bool(int(request.args.get('use_invidious', '1')))
+            if playlist_name in ['related_hidden_channels', 'search_hidden_channels']:
+                tasks.append(gevent.spawn(channel.get_metadata, video_id))
+            else:
+                tasks.append(gevent.spawn(extract_info_mini2, video_id, use_invidious, playlist_id=None, index=None),)
+
+        # only do 5 at a time
+        # do the n where n is divisible by 5
+        i = -1
+        for i in range(0, int(len(tasks)/5) - 1 ):
+            gevent.joinall([tasks[j] for j in range(i*5, i*5 + 5)])
+        # do the remainders (< 5)
+        gevent.joinall([tasks[j] for j in range(i*5 + 5, len(tasks))])
+        try: util.check_gevent_exceptions(tasks[0])
+        except: pass
+
+        tmp = []
+        for i, video_id in enumerate(list_chunk):
+            if tasks[i].value == None: continue
+            info = tasks[i].value
+            if playlist_name in ['related_hidden_channels', 'search_hidden_channels']:
+                info['id'] = video_id
+                info['author_id'] = video_id
+                info['error'] = None
+                info['duration'] = 0
+                info['title'] = None
+                info['author'] = info['channel_name']
+
+            if not info['error']:
+                video_info = {
+                    'duration':  util.seconds_to_timestamp(info['duration'] or 0),
+                    'id':        info['id'],
+                    'title':     info['title'],
+                    'author':    info['author'],
+                    'author_id': info['author_id'],
+                }
+
+                print(f"Add video '{video_id}' to playlist '{playlist_name}' with success.")
+                tmp.append(json.dumps(video_info))
+        add_to_playlist(playlist_name, tmp)
+
+        sleep(2)
+
+
+# i use methods from not innertube github fork and remove some lines to minimize amount of requests
+def extract_info_mini2(video_id, use_invidious, playlist_id=None, index=None):
+
+    def fetch_watch_page_info(video_id, playlist_id, index):
+        # bpctr=9999999999 will bypass are-you-sure dialogs for controversial
+        # videos
+        url = 'https://m.youtube.com/embed/' + video_id + '?bpctr=9999999999'
+        if playlist_id:
+            url += '&list=' + playlist_id
+        if index:
+            url += '&index=' + index
+
+        headers = util.generate_api_headers(ua_platform='mobile')
+
+        watch_page = util.fetch_url(url, headers=headers,
+                                    debug_name='watch')
+        watch_page = watch_page.decode('utf-8')
+        return yt_data_extract.extract_watch_info_from_html(watch_page)
+
+    tasks = (gevent.spawn(fetch_watch_page_info, video_id, playlist_id, index),)
+    gevent.joinall(tasks)
+    util.check_gevent_exceptions(*tasks)
+    info = tasks[0].value
+    return info
 
 
 @yt_app.route('/playlists/History', methods=['GET'])
