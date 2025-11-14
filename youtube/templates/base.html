@@ -106,11 +106,27 @@
                         <input type="radio" id="duration_short" name="duration" value="1">
                         <label for="duration_short">Short (&lt; 4 minutes)</label>
 
-                        <input type="radio" id="duration_long" name="duration" value="3">
-                        <label for="duration_long">Regular (&gt; 4 - 20 minutes)</label>
+                        <input type="radio" id="duration_medium" name="duration" value="3">
+                        <label for="duration_medium">Medium (4-20 minutes)</label>
 
                         <input type="radio" id="duration_long" name="duration" value="2">
                         <label for="duration_long">Long (&gt; 20 minutes)</label>
+
+                        <h3>Hide by duration</h3>
+                        <input type="radio" id="duration_any" name="duration1" value="0">
+                        <label for="duration_any">Any</label>
+
+                        <input type="radio" id="duration_short1" name="duration1" value="0:30">
+                        <label for="duration_short1">(&lt; 30 seconds)</label>
+
+                        <input type="radio" id="duration_medium1" name="duration1" value="1:00">
+                        <label for="duration_medium1">(&lt; 1 minute)</label>
+
+                        <input type="radio" id="duration_long1" name="duration1" value="4:00">
+                        <label for="duration_long1">(&lt; 4 minutes)</label>
+
+						<label for="duration_type"></label>
+						<input type="text" value="0" id="duration_long" name="duration2" style="width:100px"/>
 
                     </div>
                     {% if header_playlist_names is defined %}
