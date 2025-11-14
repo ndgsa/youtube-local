@@ -284,6 +284,15 @@ Defaults to -1, which means no default value is forced and the browser will set 
         'category': 'playback',
     }),
 
+    ('allow_age_restricted_content', {
+        'type': bool,
+        'label': 'Allow playback of age restricted videos',
+        'default': True,
+        'comment': '''Allow playback of age restricted videos.
+If set to True, the system will try reloading the video player when encountering age restricted content.''',
+        'category': 'playback',
+    }),
+
     ('default_comment_sorting', {
         'type': int,
         'default': 1,
