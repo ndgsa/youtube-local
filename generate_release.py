@@ -287,6 +287,19 @@ os.makedirs('./youtube-local/assets/other/js/_node/', exist_ok=True)
     # check_subp(subprocess.run([r'7z', '-y', 'e', '-o./youtube-local/assets/other/js/_node/', node_name, "node-*/node.exe"]))
 #### os.remove(node_name)
 
+# log('Installing node packages')
+# curdir = os.getcwd()
+# os.chdir(r'./youtube-local/assets/other/js/pot/')
+# check_subp(subprocess.run(['npm', 'i', '--cpu', 'x64', '--os', 'win32', '/home/runner/work/youtube-local/youtube-local/youtube-local/assets/other/js/pot/.']))
+# os.chdir(curdir)
+
+# os.makedirs('./youtube-local/assets/other/js/pot/botGuard/vm/', exist_ok=True)
+# botGuard_url = "https://github.com/JuanBindez/pytubefix/blob/main/pytubefix/botGuard/vm/botGuard.js?raw=true"
+# botGuard_name = "botGuard.js"
+# download_if_not_exists(botGuard_name, botGuard_url)
+# log('Copying botGuard.js file')
+# shutil.move(botGuard_name, r'./youtube-local/assets/other/js/pot/botGuard/vm/' + botGuard_name)
+
 os.makedirs('./youtube-local/assets/other/js/ejs/', exist_ok=True)
 ejs_version = '0.8.0'
 yt_solver_lib_url = f"https://github.com/yt-dlp/ejs/releases/download/{ejs_version}/yt.solver.lib.min.js"

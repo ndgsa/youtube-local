@@ -131,6 +131,20 @@ For security reasons, enabling this is not recommended.''',
         'category': 'client',
     }),
 
+    ('po_token_provider', {
+        'type': int,
+        'default': 4,
+        'label': 'po_token provider',
+        'comment': '''po_token provider. Works only with some clients.''',
+        'options': [
+            # (1, 'BgUtils'),                         # https://github.com/LuanRt/BgUtils
+            # (2, 'youtube-po-token-generator'),      # https://github.com/YunzheZJU/youtube-po-token-generator
+            # (3, 'botGuard.js'),                     # https://github.com/JuanBindez/pytubefix/tree/main/pytubefix/botGuard/vm/
+            (4, 'bgutil-ytdlp-pot-provider'),       # https://github.com/Brainicism/bgutil-ytdlp-pot-provider
+        ],
+        'category': 'client',
+    }),
+
     ('use_ytcfg', {
         'label': 'Use ytcfg for innertube api request',
         'type': bool,
