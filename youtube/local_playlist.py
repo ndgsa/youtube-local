@@ -127,8 +127,9 @@ def get_local_playlist_videos(name, offset=0, amount=50):
 
     ## mine
     # reverse list, last added will be recent
-    if name == "History":
-        videos = videos[::-1]
+    # if name == "History":
+        # videos = videos[::-1]
+    if settings.sort_playlist: videos = videos[::-1]
 
     add_extra_info_to_videos(videos, name)
     return videos[offset:offset+amount], len(videos)

@@ -214,6 +214,15 @@ For security reasons, enabling this is not recommended.''',
         'category': 'interface',
     }),
 
+    ## mine
+    ('sort_playlist', {
+        'label': 'Sort playlist by recently added',
+        'type': bool,
+        'default': True,
+        'comment': '',
+        'category': 'interface',
+    }),
+
     ('subtitles_mode', {
         'type': int,
         'default': 0,
