@@ -124,6 +124,14 @@ For security reasons, enabling this is not recommended.''',
         'category': 'client',
     }),
 
+    ('use_ytcfg', {
+        'label': 'Use ytcfg for innertube api request',
+        'type': bool,
+        'default': False,
+        'comment': '''Use ytcfg from yt_endpoint for innertube api client request''',
+        'category': 'client',
+    }),
+
     ('related_videos_mode', {
         'type': int,
         'default': 2,
