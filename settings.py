@@ -70,6 +70,13 @@ For security reasons, enabling this is not recommended.''',
         'category': 'network',
     }),
 
+    ('use_innertube_for_captions', {
+        'type': bool,
+        'default': True,
+        'comment': '''Use get_transcript api to get captions / subtitles. If set to False, use caption baseUrl from player api response.''',
+        'category': 'client',
+    }),
+
     ## mine
     ('use_visitor_data', {
         'label': 'Use visitor data',
