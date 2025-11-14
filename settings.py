@@ -479,6 +479,13 @@ If set to True, the system will try reloading the video player when encountering
         'comment': 'If enabled, no videos will be hidden from related/search.',
     }),
 
+    ('use_sqlite3_db_as_storage', {
+        'label': 'Store images, playlist data in database',
+        'type': bool,
+        'default': False,
+        'comment': '',
+    }),
+
     ('debugging_save_responses', {
         'type': bool,
         'default': False,
