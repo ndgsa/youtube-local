@@ -664,12 +664,12 @@ INNERTUBE_CLIENTS = {
                 'hl': 'en',
                 'gl': 'US',
                 'clientName': 'ANDROID',
-                'clientVersion': '19.09.36',
+                'clientVersion': '20.05.46',
                 'osName': 'Android',
                 'osVersion': '12',
                 'androidSdkVersion': 31,
                 'platform': 'MOBILE',
-                'userAgent': 'com.google.android.youtube/19.09.36 (Linux; U; Android 12; US) gzip'
+                'userAgent': 'com.google.android.youtube/20.05.46 (Linux; U; Android 12; US) gzip'
             },
             # https://github.com/yt-dlp/yt-dlp/pull/575#issuecomment-887739287
             #'thirdParty': {
@@ -707,14 +707,16 @@ INNERTUBE_CLIENTS = {
 
     'ios': {
         'INNERTUBE_API_KEY': 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
+        'INNERTUBE_HOST': 'youtubei.googleapis.com',
         'INNERTUBE_CONTEXT': {
             'client': {
-                'hl': 'en',
-                'gl': 'US',
                 'clientName': 'IOS',
-                'clientVersion': '19.09.3',
-                'deviceModel': 'iPhone14,3',
-                'userAgent': 'com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)'
+                'clientVersion': '19.45.4',
+                'deviceMake': 'Apple',
+                'deviceModel': 'iPhone16,2',
+                'userAgent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)',
+                'osName': 'iPhone',
+                'osVersion': '18.1.0.22B83',
             }
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 5,
@@ -735,7 +737,7 @@ INNERTUBE_CLIENTS = {
             },
             # https://github.com/yt-dlp/yt-dlp/pull/575#issuecomment-887739287
             'thirdParty': {
-                'embedUrl': 'https://google.com',  # Can be any valid URL
+                'embedUrl': 'https://www.google.com',  # Can be any valid URL
             }
 
         },
@@ -748,11 +750,51 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT': {
             'client': {
                 'clientName': 'WEB',
-                'clientVersion': '2.20220801.00.00',
+                'clientVersion': '2.20241126.01.00',
                 'userAgent': desktop_user_agent,
             }
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 1
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
+        'REQUIRE_JS_PLAYER': True,
+    },
+
+    'web_creator': {
+        'INNERTUBE_API_KEY': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'WEB_CREATOR',
+                'clientVersion': '1.20241203.01.00',
+                'userAgent': desktop_user_agent,
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 62,
+        'REQUIRE_JS_PLAYER': True,
+    },
+
+    # mweb has 'ultralow' formats
+    # See: https://github.com/yt-dlp/yt-dlp/pull/557
+    'mweb': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'MWEB',
+                'clientVersion': '2.20241202.07.00',
+                'userAgent': mobile_user_agent,
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 2,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'tv': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'TVHTML5',
+                'clientVersion': '7.20250126.17.00',
+                'userAgent': 'Mozilla/5.0 (PlayStation; PlayStation 4/10.50) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15,gzip(gfe)'
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
+        'REQUIRE_JS_PLAYER': True,
+        'AUTHENTICATED_USER_AGENT': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/25.lts.30.1034943-gold (unlike Gecko), Unknown_TV_Unknown_0/Unknown (Unknown, Unknown)',
     },
     'android_vr': {
         'INNERTUBE_API_KEY': 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w',
@@ -769,6 +811,157 @@ INNERTUBE_CLIENTS = {
             },
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 28,
+        'REQUIRE_JS_PLAYER': False,
+    },
+
+    'web': {
+        'INNERTUBE_API_KEY': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'WEB',
+                'clientVersion': '2.20250312.04.00',
+                'userAgent': mobile_user_agent,
+            }
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
+        'SUPPORTS_COOKIES': True,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'web_creator': {
+        'INNERTUBE_API_KEY': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'WEB_CREATOR',
+                'clientVersion': '1.20251227.00.00',
+                'userAgent': desktop_user_agent,
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 62,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    # Safari UA returns pre-merged video+audio 144p/240p/360p/720p/1080p HLS formats
+    'web_safari': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'WEB',
+                'clientVersion': '2.20250312.04.00',
+                'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
+        'SUPPORTS_COOKIES': True,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'web_embedded': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'WEB_EMBEDDED_PLAYER',
+                'clientVersion': '1.20250310.01.00',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 56,
+        'SUPPORTS_COOKIES': True,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'web_remix': {
+        'INNERTUBE_API_KEY': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'WEB_REMIX',
+                'clientVersion': '1.20251227.00.00',
+                'userAgent': desktop_user_agent,
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 67,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    # https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
+    'tv_simply': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'TVHTML5_SIMPLY',
+                'clientVersion': '1.0',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 75,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'tv_downgraded': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'TVHTML5',
+                'clientVersion': '4',
+                # 'userAgent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,',
+                'userAgent': 'Mozilla/5.0 (PlayStation; PlayStation 4/10.50) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15,gzip(gfe)',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
+        'SUPPORTS_COOKIES': True,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'ipados': {
+        'INNERTUBE_API_KEY': 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc',
+        'INNERTUBE_HOST': 'youtubei.googleapis.com',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'targetDomain': 'm.youtube.com',
+                'clientName': 'IOS',
+                'clientVersion': '21.03.3',
+                'deviceMake': 'Apple',
+                'deviceModel': 'iPad7,6',
+                'userAgent': 'com.google.ios.youtube/21.03.3 (iPad7,6; U; CPU iPadOS 17_7_10 like Mac OS X; en-US)',
+                'osName': 'iPadOS',
+                'osVersion': '17.7.10.21H450',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 5,
+        'REQUIRE_JS_PLAYER': False
+    },
+    'android_creator': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'ANDROID_CREATOR',
+                'clientVersion': '25.03.101',
+                'userAgent': 'com.google.android.apps.youtube.creator/25.03.101 (Linux; U; Android 15; en_US; Pixel 9 Pro Fold; Build/AP3A.241005.015.A2; Cronet/132.0.6779.0) gzip',
+                'osName': 'Android',
+                'osVersion': '15',
+                'deviceModel': 'Pixel 9 Pro Fold',
+                'deviceMake': 'Google',
+                'androidSdkVersion': 35,
+                # 'buildId': 'AP3A.241005.015.A2',
+                # 'cronetVersion': '132.0.6779.0',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 14,
+        'REQUIRE_JS_PLAYER': False,
+    },
+    # Doesn't require a PoToken for some reason
+    'android_sdkless': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'ANDROID',
+                'clientVersion': '20.10.38',
+                'userAgent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+                'osName': 'Android',
+                'osVersion': '11',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 3,
+        'REQUIRE_JS_PLAYER': False,
+    },
+    'visionos': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'targetDomain': 'm.youtube.com',
+                'clientName': 'VISIONOS',
+                'clientVersion': '0.1',
+                'deviceMake': 'Apple',
+                'deviceModel': 'RealityDevice14,1',
+                'osName': 'visionOS',
+                'osVersion': '1.3.21O771',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
         'REQUIRE_JS_PLAYER': False,
     },
 }
