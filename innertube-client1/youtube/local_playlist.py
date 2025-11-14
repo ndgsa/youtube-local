@@ -655,3 +655,54 @@ def get_local_related_hidden_channels_page():
         display_as_grid = False,
     )
 
+
+@yt_app.route('/playlists1/<playlist_name>', methods=['GET'])
+def get_local_playlist_page1(playlist_name=None):
+        videos, num_videos = get_local_playlist_videos(playlist_name, offset=0, amount=1000)
+        response = yt_app.response_class(
+            response=json.dumps(videos),
+            mimetype='application/json'
+        )
+        return response
+
+    # for the request
+    # response1 = urllib.request.urlopen(f'http://127.0.0.1:{settings.port_number}/https://www.youtube.com/playlists1/123')
+    # data1 = json.load(response1)
+    # print(data1)
+
+def get_watch_page_local_playlist(playlist_local, video_id, amount=301):
+    playlist_local_url = f'http://127.0.0.1:{settings.port_number}/https://www.youtube.com/playlists/' + playlist_local
+
+    ids = video_ids_in_playlist(playlist_local, 'id')
+    if len(ids) == 0: return None
+    else: ids.reverse()
+    total_ids = len(ids)
+    try: current_video_id_index = ids.index(video_id)
+    except: return None
+
+    if total_ids%amount == 0: ranges = [i for i in range(0, total_ids, amount - 1)]
+    else: ranges = [i for i in range(0, total_ids, amount - 1)] + [total_ids]
+    index = next(c for c, r in enumerate(ranges) if r > current_video_id_index)
+    start, end = ranges[index - 1], ranges[index]
+    if end - start > 1 and start > 1: start = start - 1
+
+    data1, _ = get_local_playlist_videos(playlist_local, offset=start, amount=amount)
+    local_playlist = {}
+    local_playlist['title'] = playlist_local
+    local_playlist['author'] = ""
+    local_playlist['author_id'] = ""
+    local_playlist['author_url'] = playlist_local_url
+    local_playlist['id'] = playlist_local
+    local_playlist['url'] = playlist_local_url
+    local_playlist['video_count'] = len(data1)
+    local_playlist['current_index'] = 1
+    local_playlist['items'] = data1[:]
+    local_playlist['total_videos'] = total_ids
+    local_playlist['current_video_id_index'] = current_video_id_index
+
+    for item_index, item in enumerate(local_playlist['items']):
+        item['url'] += '&playlists1=' + playlist_local
+        if video_id == item['id']: local_playlist['current_index'] = item_index
+
+    return local_playlist
+
