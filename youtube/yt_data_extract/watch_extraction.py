@@ -355,7 +355,7 @@ def _extract_watch_info_mobile(top_level):
 
     # comment section info
     items, _ = extract_items(response, item_types={
-        'commentSectionRenderer', 'commentsEntryPointHeaderRenderer'})
+        'commentSectionRenderer', 'commentsEntryPointHeaderRenderer', 'videoMetadataCarouselViewModel'}) # mine
     if items:
         header_type = list(items[0])[0]
         comment_info = items[0][header_type]
@@ -367,6 +367,11 @@ def _extract_watch_info_mobile(top_level):
         if header_type == 'commentsEntryPointHeaderRenderer':
             comment_count_text = extract_str(multi_get(
                 comment_info, 'commentCount', 'headerText'))
+
+        # mine
+        elif header_type == 'videoMetadataCarouselViewModel':
+            comment_count_text = extract_str(deep_get(comment_info, 'carouselTitles', 0, 'carouselTitleViewModel', 'subtitle'))
+
         else:
             comment_count_text = extract_str(deep_get(comment_info,
                 'header', 'commentSectionHeaderRenderer', 'countText'))
