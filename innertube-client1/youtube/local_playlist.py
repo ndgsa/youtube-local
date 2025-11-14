@@ -368,7 +368,16 @@ def edit_playlist():
             flask.abort(400)
 
     if request.values['action'] == 'add':
-        add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
+        if request.values.get('import_playlist', None) == 'true':
+            items = get_all_videos_from_playlist(request.values['playlist_id'])
+            items = items[::-1]  # items must be reversed
+            if request.values['playlist_name'] in get_playlist_names():
+                print(f'Playlist name {request.values["playlist_name"]} already exist, adding random value to playlist name.')
+                add_to_playlist(f"{request.values['playlist_name']}_{str(os.urandom(2).hex())}", items)
+            else:
+                add_to_playlist(request.values['playlist_name'], items)
+        else:
+            add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
         return '', 204
     else:
         flask.abort(400)
