@@ -70,6 +70,22 @@ For security reasons, enabling this is not recommended.''',
         'category': 'network',
     }),
 
+    ('innertube_client_name', {
+        'type': str,
+        'default': 'android',
+        'label': 'Innertube client',
+        'comment': '''innertube client to access YouTube API, i.e. fetching player data
+        Available clients: android, ios, android-test-suite, web
+        ''',
+        'options': [
+            ('android'),
+            ('ios'),
+            ('android-test-suite'),
+            ('web'),
+        ],
+        'category': 'client',
+    }),
+
     ('related_videos_mode', {
         'type': int,
         'default': 2,
