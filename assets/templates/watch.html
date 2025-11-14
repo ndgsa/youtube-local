@@ -692,4 +692,46 @@ Reload without invidious (for usage of new identity button).</a>
     {% if settings.use_video_hotkeys %} <script src="/youtube.com/static/js/hotkeys.js"></script> {% endif %}
     {% if settings.use_comments_js %} <script src="/youtube.com/static/js/comments.js"></script> {% endif %}
     {% if settings.use_sponsorblock_js %} <script src="/youtube.com/static/js/sponsorblock.js"></script> {% endif %}
+
+	<script type="text/javascript">
+
+			var play_flg = false
+			var lastTime = 0;
+
+		<!-- function addToHistory() { -->
+			function play_button_clicked() {
+				var XHR = new XMLHttpRequest();
+				var FD = new FormData();
+				FD.set('action', 'add');
+				FD.set('playlist_name', 'History');
+				FD.set('video_info_list', document.getElementsByName("video_info_list")[0].value);
+				if(FD.getAll('video_info_list').length === 0){return;}
+				XHR.open('POST', playlistAddForm.getAttribute('action'));
+				XHR.send(FD);
+			}
+
+			//var play_button = document.getElementsByClassName("plyr__control plyr__control--overlaid")[0];
+			var play_button = null;
+			var play_button1 = document.getElementsByClassName("video")[0];
+			//var play_button1 = document.querySelector("video").closest(".video")
+
+			if (play_button != null) {
+				<!-- play_button.addEventListener("click", play_button_clicked, {once : true}); --> <!-- works bad -->
+				play_button.addEventListener("mousedown", play_button_clicked, {once : true});
+			} else if (play_button1 != null) {
+				//play_button1.addEventListener("playing", play_button_clicked, {once : true});
+
+				play_button1.onplay = function () { // Possibility of no video loaded in DOM
+					//do something
+					//alert("IT works?");
+					if (play_flg == false){
+						play_button1.addEventListener("playing", play_button_clicked, {once : true});
+						//window.refreshIntervalId = window.setInterval(check_video, 40000);
+					}
+
+					play_flg = true;
+				};
+			};
+	</script>
+
 {% endblock main %}

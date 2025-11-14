@@ -58,7 +58,23 @@
     </div>
     <form id="playlist-remove" action="/youtube.com/edit_playlist" method="post" target="_self"></form>
     <div id="video-remove-container">
-        <button type="submit" name="action" value="remove_playlist" form="playlist-remove" formaction="" onclick="return confirm('You are about to permanently delete {{ playlist_name }}\n\nOnce a playlist is permanently deleted, it cannot be recovered.');">Remove playlist</button>
+
+		{% if playlist_name != 'History' %}
+			<button type="submit" name="action" value="remove_playlist" form="playlist-remove" formaction="" onclick="return confirm('You are about to permanently delete {{ playlist_name }}\n\nOnce a playlist is permanently deleted, it cannot be recovered.');">Remove playlist</button>
+		{% else %}
+
+			<form method="POST" class="settings-form" action="/youtube.com/settings">
+				{% if disable_history %}
+					<input type="checkbox" id="setting_disable_history" name="disable_history" checked="" hidden>
+					<input type="submit" value="Enable History">
+				{% else %}
+					<input type="checkbox" id="setting_disable_history" name="disable_history" hidden>
+					<input type="submit" value="Disable History">
+				{% endif %}
+			</form>
+
+		{% endif %}
+
         <input type="hidden" name="playlist_page" value="{{ playlist_name }}" form="playlist-edit">
         <button type="submit" id="playlist-remove-button" name="action" value="remove" form="playlist-edit" formaction="">Remove from playlist</button>
     </div>
