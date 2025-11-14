@@ -230,111 +230,22 @@ def extract_item_info(item, additional_info={}):
     if not item:
         return {'error': 'No item given'}
 
-    itype = get(list(item.keys()), 0)
-    if not itype:
+    type = get(list(item.keys()), 0)
+    if not type:
         return {'error': 'Could not find type'}
-    item = item[itype]
+    item = item[type]
 
     info = {'error': None}
-    if itype in ('itemSectionRenderer', 'compactAutoplayRenderer'):
+    if type in ('itemSectionRenderer', 'compactAutoplayRenderer'):
         return extract_item_info(deep_get(item, 'contents', 0), additional_info)
 
-    if itype in ('movieRenderer', 'clarificationRenderer'):
+    if type in ('movieRenderer', 'clarificationRenderer'):
         info['type'] = 'unsupported'
-        return info
-
-    # Special exception
-    if itype == 'lockupViewModel':
-        info['id'] = item.get('contentId')
-
-        lockup_type = item.get('contentType')
-        type_table = {
-            # type, playlist_type (if applicable)
-            'LOCKUP_CONTENT_TYPE_PLAYLIST': ('playlist', 'playlist'),
-            'LOCKUP_CONTENT_TYPE_PODCAST': ('playlist', 'podcast'),
-            'LOCKUP_CONTENT_TYPE_VIDEO': ('video', None),
-            'LOCKUP_CONTENT_TYPE_CHANNEL': ('channel', None),
-        }
-        info['type'], info['playlist_type'] = type_table.get(
-            lockup_type, ('unsupported', None)
-        )
-        primary_type = info['type']
-
-        info['title'] = deep_get(item,
-            'metadata', 'lockupMetadataViewModel', 'title', 'content'
-        )
-
-        metadata_rows = deep_get(item,
-            'metadata', 'lockupMetadataViewModel', 'metadata',
-            'contentMetadataViewModel', 'metadataRows', default={}
-        )
-        # Extract from metadata rows
-        info['author'] = None
-        info['author_id'] = None
-        info['time_published'] = None
-        info['approx_view_count'] = None
-        info['view_count'] = None
-        for row in metadata_rows:
-            for part in row.get('metadataParts', ()):
-                # Find the first channel and set that as the author
-                for run in deep_get(part, 'text', 'commandRuns', default=()):
-                    if deep_get(run,
-                        'onTap', 'innertubeCommand', 'commandMetadata',
-                        'webCommandMetadata', 'webPageType'
-                    ) == 'WEB_PAGE_TYPE_CHANNEL' and not info['author']:
-                        info['author'] = deep_get(part, 'text', 'content')
-                        info['author_id'] = deep_get(run,
-                            'onTap', 'innertubeCommand', 'browseEndpoint',
-                            'browseId'
-                        )
-                text = deep_get(part, 'text', 'content')
-                if text:
-                    # Extract views
-                    if 'view' in text.lower():
-                        info['approx_view_count'] = extract_approx_int(text)
-                    # Extract video count (for playlists)
-                    elif 'video' in text.lower():
-                        info['video_count'] = extract_int(text)
-                    # Extract time_published
-                    timestamp = re.search(r'(\d+ \w+ ago)', text.lower())
-                    if timestamp:
-                        info['time_published'] = timestamp.group(1)
-        # Extract thumbnail and metadata embedded in the thumbnail
-        thumbnail_view_model = multi_deep_get(item,
-            ['contentImage', 'collectionThumbnailViewModel',
-             'primaryThumbnail', 'thumbnailViewModel'],
-            ['contentImage', 'thumbnailViewModel'], {}
-        )
-        info['thumbnail'] = normalize_url(deep_get(thumbnail_view_model,
-            'image', 'sources' ,0, 'url'
-        ))
-        # Video duration
-        if primary_type == 'video':
-            info['duration'] = deep_get(thumbnail_view_model,
-                'overlays', 0, 'thumbnailBottomOverlayViewModel',
-                'badges', 0, 'thumbnailBadgeViewModel', 'text'
-            )
-        # Playlist video count
-        elif primary_type == 'playlist':
-            info['playlist_type'] = 'playlist'
-            liberal_update(info, 'video_count', extract_int(deep_get(
-                thumbnail_view_model,
-                'overlays', 0, 'thumbnailOverlayBadgeViewModel',
-                'thumbnailBadges', 0, 'thumbnailBadgeViewModel', 'text'
-            )))
-
-        # If it's a video in a playlist, extract its index
-        if primary_type == 'video':
-            info['index'] = deep_get(item,
-                'rendererContext', 'commandContext', 'onTap',
-                'innertubeCommand', 'watchEndpoint', 'index'
-            )
-        info.update(additional_info)
         return info
 
     # type looks like e.g. 'compactVideoRenderer' or 'gridVideoRenderer'
     # camelCase split, https://stackoverflow.com/a/37697078
-    type_parts = [s.lower() for s in re.sub(r'([A-Z][a-z]+)', r' \1', itype).split()]
+    type_parts = [s.lower() for s in re.sub(r'([A-Z][a-z]+)', r' \1', type).split()]
     if len(type_parts) < 2:
         info['type'] = 'unsupported'
         return
@@ -349,24 +260,21 @@ def extract_item_info(item, additional_info={}):
         info['playlist_type'] = primary_type
     elif primary_type == 'channel':
         info['type'] = 'channel'
-    elif itype == 'videoWithContextRenderer': # stupid exception
+    elif type == 'videoWithContextRenderer': # stupid exception
         info['type'] = 'video'
-        primary_type = 'video' 
+        primary_type = 'video'
     else:
         info['type'] = 'unsupported'
 
     # videoWithContextRenderer changes it to 'headline' just to be annoying
-    # shorts uses "overlayMetadata"
-    info['title'] = extract_str(multi_deep_get(
-        item, ['title'], ['headline'],
-        ['overlayMetadata', 'primaryText', 'content']
-    ))
+    info['title'] = extract_str(multi_get(item, 'title', 'headline'))
     if primary_type != 'channel':
         info['author'] = extract_str(multi_get(item, 'longBylineText', 'shortBylineText', 'ownerText'))
         info['author_id'] = extract_str(multi_deep_get(item,
             ['longBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'],
             ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'],
-            ['ownerText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId']
+            ['ownerText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'],
+            ['onTap', 'innertubeCommand', 'reelWatchEndpoint', 'playlistId'], # some shorts
         ))
         info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id']) if info['author_id'] else None
     info['description'] = extract_formatted_text(multi_deep_get(
@@ -376,9 +284,8 @@ def extract_item_info(item, additional_info={}):
     ))
     info['thumbnail'] = normalize_url(multi_deep_get(item,
         ['thumbnail', 'thumbnails', 0, 'url'],      # videos
-        ['thumbnail', 'sources', 0, 'url'], # shorts
         ['thumbnails', 0, 'thumbnails', 0, 'url'],  # playlists
-        ['thumbnailRenderer', 'showCustomThumbnailRenderer','thumbnail', 'thumbnails', 0, 'url'], # shows
+        ['thumbnailRenderer', 'showCustomThumbnailRenderer', 'thumbnail', 'thumbnails', 0, 'url'], # shows
     ))
 
     info['badges'] = []
@@ -398,9 +305,7 @@ def extract_item_info(item, additional_info={}):
         info['id'] = multi_deep_get(item,
             ['videoId'],
             ['navigationEndpoint', 'watchEndpoint', 'videoId'],
-            # shorts
-            ['navigationEndpoint', 'reelWatchEndpoint', 'videoId'],
-            ['onTap', 'innertubeCommand', 'reelWatchEndpoint', 'videoId'],
+            ['navigationEndpoint', 'reelWatchEndpoint', 'videoId'] # shorts
         )
         info['view_count'] = extract_int(item.get('viewCountText'))
 
@@ -424,28 +329,12 @@ def extract_item_info(item, additional_info={}):
                 'viewCountText' # shorts
             ))
 
-        # Have to use this for playlist videos. Lacks accessibility info
-        textual_metadata = extract_str(multi_deep_get(
-            item,
-            ['videoInfo'],
-            ['overlayMetadata', 'secondaryText', 'content'],
-        ), default='')
-        timestamp = re.search(r'(\d+ \w+ ago)', textual_metadata)
-        if timestamp:
-            conservative_update(info, 'time_published', timestamp.group(1))
-        approx_view_count = extract_approx_int(textual_metadata)
-        if approx_view_count:
-            conservative_update(info, 'approx_view_count', approx_view_count)
-
-
         # handle case where it is "No views"
         if not info['approx_view_count']:
-            if any('no views' in x.lower() for x in [
-                extract_str(item.get('shortViewCountText', '')),
-                accessibility_label,
-                extract_str(item.get('viewCountText', '')), # shorts
-                textual_metadata
-            ]):
+            if ('No views' in item.get('shortViewCountText', '')
+                    or 'no views' in accessibility_label.lower()
+                    or 'No views' in extract_str(item.get('viewCountText', '')) # shorts
+            ):
                 info['view_count'] = 0
                 info['approx_view_count'] = '0'
 
@@ -481,20 +370,22 @@ def extract_item_info(item, additional_info={}):
             info['index'] = None
 
     elif primary_type in ('playlist', 'radio'):
-        info['id'] = multi_get(item, 'playlistId', 'contentId')
+        info['id'] = item.get('playlistId')
         info['video_count'] = extract_int(item.get('videoCount'))
         info['first_video_id'] = deep_get(item, 'navigationEndpoint',
                                           'watchEndpoint', 'videoId')
     elif primary_type == 'channel':
         info['id'] = item.get('channelId')
-        info['approx_subscriber_count'] = extract_approx_int(item.get('subscriberCountText'))
+        info['approx_subscriber_count'] = extract_approx_int(multi_deep_get(item, ['videoCountText', 'simpleText']))
+
     elif primary_type == 'show':
         info['id'] = deep_get(item, 'navigationEndpoint', 'watchEndpoint', 'playlistId')
         info['first_video_id'] = deep_get(item, 'navigationEndpoint',
                                           'watchEndpoint', 'videoId')
 
     if primary_type in ('playlist', 'channel'):
-        conservative_update(info, 'video_count', extract_int(item.get('videoCountText')))
+        #conservative_update(info, 'video_count', extract_int(item.get('videoCountText')))
+        conservative_update(info, 'video_count', None) # response does not contain number of videos
 
     for overlay in item.get('thumbnailOverlays', []):
         conservative_update(info, 'duration', extract_str(deep_get(
@@ -504,6 +395,122 @@ def extract_item_info(item, additional_info={}):
         conservative_update(info, 'video_count', extract_int(deep_get(
             overlay, 'thumbnailOverlayBottomPanelRenderer', 'text'
         )))
+
+
+    if primary_type == 'video':
+        accessibility_label1 = multi_deep_get(item, ['videoInfo', 'runs'], ['overlayMetadata', 'secondaryText', 'content'], default='')
+
+        # for shorts
+        if isinstance(accessibility_label1, str) and ('view' in accessibility_label1):
+            accessibility_label1 = [{'text': accessibility_label1}, {'text': ''}, {'text': 'ago'},]
+
+        if not accessibility_label1:
+            accessibility_label2 = multi_deep_get(item, ['shortViewCountText', 'simpleText'], default='')
+            accessibility_label3 = multi_deep_get(item, ['publishedTimeText', 'simpleText'], default='')
+            accessibility_label1 = [{'text': accessibility_label2}, {'text': ''}, {'text': accessibility_label3},]
+
+        if len(accessibility_label1) == 3:
+            timestamp = re.search(r'(\d+ \w+ ago)', accessibility_label1[2]['text'])
+            if timestamp:
+                conservative_update(info, 'time_published', timestamp.group(1))
+
+            view_count_many = re.search(r'(\d+K{0,1}M{0,1}B{0,1}) views{0,1}', accessibility_label1[0]['text'])
+            if view_count_many:
+                info['approx_view_count'] = str(extract_approx_int(view_count_many.group(1)))
+            else:
+                view_count = re.search(r'(\d+) views{0,1}', accessibility_label1[0]['text'])
+                if view_count:
+                    conservative_update(info, 'view_count', int(view_count.group(1)))
+                    info['approx_view_count'] = info['view_count']
+                else:
+                    if ('No views' in item.get('shortViewCountText', '')
+                            or 'no views' in accessibility_label1[0]['text'].lower()
+                            or 'No views' in extract_str(item.get('viewCountText', '')) # shorts
+                    ):
+                        info['view_count'] = 0
+                        info['approx_view_count'] = '0'
+
+        if info.get('approx_view_count', None) == None:
+            # info['approx_view_count'] = '0'
+
+            if 'LIVE' == multi_deep_get(item, ['thumbnailOverlays', 0, 'thumbnailOverlayTimeStatusRenderer', 'text', 'accessibility', 'accessibilityData', 'label'], default=''):
+                info['approx_view_count'] = '0'
+            else:
+                # if type_parts[0] not in ('shorts'):
+                    # print(f"Not found 'approx_view_count' for id {info['id']}")
+                info['approx_view_count'] = '0'
+
+        # if more channels participate in video extract only first
+        if not info['author_id']:
+            info['author_id'] = extract_str(multi_deep_get(item,
+                ['longBylineText', 'runs', 0, 'navigationEndpoint', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                ['ownerText', 'runs', 0, 'navigationEndpoint', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                ['avatar', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                # related
+                ['shortBylineText', 'runs', 0, 'navigationEndpoint', 'showSheetCommand', 'panelLoadingStrategy', 'inlineContent', 'sheetViewModel', 'content', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                ['channelThumbnail', 'channelThumbnailWithLinkRenderer', 'navigationEndpoint', 'browseEndpoint', 'browseId'],
+                ))
+            info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id']) if info['author_id'] else None
+
+    if type == "lockupViewModel":
+        info['type'] = 'playlist'
+        info['playlist_type'] = "playlist"
+
+        info['title'] = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'title', 'content'])
+        info['id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'playlistId'], default='')
+        info['first_video_id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'videoId'], default='')
+        info['thumbnail'] = normalize_url(multi_deep_get(item, ['contentImage', 'collectionThumbnailViewModel', 'primaryThumbnail', 'thumbnailViewModel', 'image', 'sources', 0, 'url']))
+        info['video_count'] = extract_int(multi_deep_get(item, ['contentImage', 'collectionThumbnailViewModel', 'primaryThumbnail', 'thumbnailViewModel', 'overlays', 0, 'thumbnailOverlayBadgeViewModel', 'thumbnailBadges', 0, 'thumbnailBadgeViewModel', 'text']))
+
+        info['author'] = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'content'])
+        info['author_id'] = extract_str(multi_deep_get(item,['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId']))
+        info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id']) if info['author_id'] else None
+
+        # related videos for some clients u type lockupViewModel
+        _author_id_tmp = extract_str(multi_deep_get(item,
+            ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'canonicalBaseUrl'],
+            ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],))
+        if _author_id_tmp and (_author_id_tmp.startswith("/@") or _author_id_tmp.startswith("/channel/")):
+            info['type'] = 'video'
+            info['playlist_type'] = "video"
+
+            info['id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'videoId'], ['contentId'])
+            info['duration'] = multi_deep_get(item, ['contentImage', 'thumbnailViewModel', 'overlays', 0, 'thumbnailOverlayBadgeViewModel', 'thumbnailBadges', 0, 'thumbnailBadgeViewModel', 'text'])
+            if not info['thumbnail']:
+                info['thumbnail'] = normalize_url(multi_deep_get(item,['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],))
+
+            if _author_id_tmp.startswith("/@"):
+                info['author_url'] = ('https://www.youtube.com' + _author_id_tmp)
+            elif _author_id_tmp.startswith("/channel/"):
+                info['author_url'] = ('https://www.youtube.com/channel/' + _author_id_tmp.replace('/channel/', ''))
+
+            _time_published_tmp = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'], default='')
+            timestamp = re.search(r'(\d+ \w+ ago)', _time_published_tmp)
+            if timestamp: info['time_published'] = timestamp.group(1)
+
+            _views_tmp = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'], default='')
+            view_count_many = re.search(r'(\d+K{0,1}M{0,1}B{0,1}) views{0,1}', _views_tmp)
+            if view_count_many:
+                info['approx_view_count'] = str(extract_approx_int(view_count_many.group(1)))
+            else:
+                view_count = re.search(r'(\d+) views{0,1}', _views_tmp)
+                if view_count:
+                    conservative_update(info, 'view_count', int(view_count.group(1)))
+                    info['approx_view_count'] = info['view_count']
+                else:
+                    info['view_count'] = 0
+                    info['approx_view_count'] = '0'
+
+    if type_parts[0] in ('reel', 'shorts'): # shorts
+        info['type'] = 'video'
+        primary_type = 'video'
+
+        info['title'] = multi_deep_get(item, ['overlayMetadata', 'primaryText', 'content'], default='')
+        info['thumbnail'] = normalize_url(multi_deep_get(item, ['onTap', 'innertubeCommand', 'reelWatchEndpoint', 'thumbnail', 'thumbnails', 0, 'url'],))
+        info['id'] = multi_deep_get(item, ['onTap', 'innertubeCommand', 'reelWatchEndpoint', 'videoId'])
+        info['duration'] = extract_str(item.get('lengthText', ''))
+
 
     info.update(additional_info)
 
@@ -541,8 +548,6 @@ _item_types = {
     'videoWithContextRenderer',
     'gridVideoRenderer',
     'playlistVideoRenderer',
-    'shortsLockupViewModel',
-    'lockupViewModel',
 
     'reelItemRenderer',
 
@@ -562,6 +567,13 @@ _item_types = {
     'channelRenderer',
     'compactChannelRenderer',
     'gridChannelRenderer',
+
+    # for shorts
+    #'richItemRenderer',
+    'shortsLockupViewModel',
+
+    # for playlist
+    'lockupViewModel',
 }
 
 def _traverse_browse_renderer(renderer):
@@ -598,6 +610,7 @@ nested_renderer_list_dispatch = {
     'structuredDescriptionContentRenderer': _traverse_standard_list,
     'slimVideoMetadataSectionRenderer': _traverse_standard_list,
     'singleColumnWatchNextResults': lambda r: (deep_get(r, 'results', 'results', 'contents', default=[]), None),
+    'shelfRenderer': lambda r: (deep_get(r, 'content', 'horizontalListRenderer', 'items', default=()), None), # for topic playlist - need to test
 }
 def get_nested_renderer_list_function(key):
     if key in nested_renderer_list_dispatch:
