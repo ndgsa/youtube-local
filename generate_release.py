@@ -284,6 +284,17 @@ if os.path.exists('./' + node_name):
     check_subp(subprocess.run([r'7z', '-y', 'e', '-o./youtube-local/assets/other/js/_node/', node_name, "node-*/node.exe"]))
 #### os.remove(node_name)
 
+os.makedirs('./youtube-local/assets/other/js/ejs/', exist_ok=True)
+yt_solver_lib_url = "https://github.com/yt-dlp/ejs/releases/download/0.8.0/yt.solver.lib.min.js"
+yt_solver_lib_name = "yt.solver.lib.min.js"
+yt_solver_core_url = "https://github.com/yt-dlp/ejs/releases/download/0.8.0/yt.solver.core.min.js"
+yt_solver_core_name = "yt.solver.core.min.js"
+download_if_not_exists(yt_solver_lib_name, yt_solver_lib_url)
+download_if_not_exists(yt_solver_core_name, yt_solver_core_url)
+log('Copying yt_solver js files')
+shutil.move(yt_solver_lib_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_lib_name)
+shutil.move(yt_solver_core_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_core_name)
+
 # ----------- Create release zip -----------
 output_filename = release_tag + '-' + suffix + '-' + bitness + '.zip'
 if os.path.exists('./' + output_filename):
