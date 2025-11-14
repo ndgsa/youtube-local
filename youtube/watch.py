@@ -181,6 +181,23 @@ def get_video_sources(info, target_resolution):
     # try: _ = pair_sources[pair_idx]
     # except IndexError: pair_idx = pair_idx - 1
 
+    # Play audio track without video track if need low cpu usage.
+    # Use 'uni_sources' to store audio track,
+    # 'pair_sources' gives error if not have video track.
+    if True:
+        only_audio_source = []
+        for pair in pair_sources:
+            if pair['quality'] == target_resolution:
+                for a_track in pair['audios']:
+                    if a_track['type'] == 'audio/mp4':
+                        a_tmp = a_track
+                        a_tmp['height'] = target_resolution
+                        a_tmp['width'] = target_resolution
+                        a_tmp['quality_string'] += ' (integrated)' # required for plyr-start.js
+                        only_audio_source.append(a_tmp)
+        uni_sources = uni_sources + only_audio_source
+        if uni_idx == None: uni_idx = 0
+
     return {
         'uni_sources': uni_sources,
         'uni_idx': uni_idx,
