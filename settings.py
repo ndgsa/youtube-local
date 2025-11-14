@@ -286,6 +286,14 @@ Archive: https://archive.ph/OZQbN''',
         'category': 'interface',
     }),
 
+    ('disable_history', {
+        'label': 'Disable to add videos to history',
+        'type': bool,
+        'default': False,
+        'comment': '',
+        'category': 'interface',
+    }),
+
     ('subtitles_mode', {
         'type': int,
         'default': 0,
@@ -683,6 +691,23 @@ def settings_page():
             settings_by_category = settings_by_category,
         )
     elif request.method == 'POST':
+
+        if len(list(request.values.items())) == 0:
+            current_settings_dict['disable_history'] = True
+
+            globals().update(current_settings_dict)
+            save_settings(current_settings_dict)
+            return flask.redirect(util.URL_ORIGIN + '/playlists/History', 303)
+
+        elif len(list(request.values.items())) == 1:
+            for key, value in request.values.items():
+                if value == 'on':
+                    current_settings_dict['disable_history'] = False
+
+            globals().update(current_settings_dict)
+            save_settings(current_settings_dict)
+            return flask.redirect(util.URL_ORIGIN + '/playlists/History', 303)
+
         for key, value in request.values.items():
             if key in SETTINGS_INFO:
                 if SETTINGS_INFO[key]['type'] is bool and value == 'on':
