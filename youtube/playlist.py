@@ -152,5 +152,7 @@ def get_playlist_page():
         num_pages = math.ceil(video_count/100),
         parameters_dictionary = request.args,
         is_bookmarked = is_bookmarked, # mine
+        display_as_grid = settings.display_as_grid_youtube, # mine
+
         **info['metadata']
     ).encode('utf-8')

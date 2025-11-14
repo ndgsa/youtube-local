@@ -232,6 +232,15 @@ For security reasons, enabling this is not recommended.''',
         'category': 'interface',
     }),
 
+    ## mine
+    ('display_as_grid_youtube', {
+        'label': 'Display youtube playlist videos as grid',
+        'type': bool,
+        'default': False,
+        'comment': '',
+        'category': 'interface',
+    }),
+
     ('subtitles_mode', {
         'type': int,
         'default': 0,
