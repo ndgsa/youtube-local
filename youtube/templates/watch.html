@@ -655,7 +655,7 @@ Reload without invidious (for usage of new identity button).</a>
                 <summary>Related Videos</summary>
                 <nav class="related-videos-inner">
                     {% for info in related %}
-                        {{ common_elements.item(info, include_badges=false) }}
+                        {{ common_elements.item(info, include_badges=false, related=true) }}
                     {% endfor %}
                 </nav>
             </details>
@@ -770,7 +770,60 @@ Reload without invidious (for usage of new identity button).</a>
 					zz.pause();
 					zz.play();
 				}
-			};
+			}
+
+
+			function add_related_to_hidden(e, related_type) {
+				if (related_type === 'channel') {
+					<!-- get previous element -->
+					yt_id = JSON.parse(e.previousElementSibling.value).author_id;
+					<!-- check if id  -->
+					if (/^(UC[A-Za-z0-9_\-]{22})$/.test(yt_id)) {
+
+						<!-- add to related_hidden_channels playlist values of related item box -->
+						var XHR = new XMLHttpRequest();
+						var FD = new FormData();
+						FD.set('action', 'add');
+						FD.set('playlist_name', 'related_hidden_channels');
+						FD.set('video_info_list', e.previousElementSibling.value);
+						if(FD.getAll('video_info_list').length === 0){return;}
+						XHR.open('POST', playlistAddForm.getAttribute('action'));
+						XHR.onload = function () {
+							if (XHR.status == 204) {
+								<!-- remove parent element -->
+								e.parentNode.parentNode.parentNode.parentNode.removeChild(e.parentNode.parentNode.parentNode)
+								console.log("Added to related_hidden_channels playlist");
+							}
+						};
+						XHR.send(FD);
+					}
+				}
+
+				if (related_type === 'video') {
+					<!-- get previous element -->
+					yt_id = JSON.parse(e.previousElementSibling.value).id;
+					<!-- check if id  -->
+					if (/^([A-Za-z0-9_\-]{11})$/.test(yt_id)) {
+
+						<!-- add to related_hidden_videos playlist values of related item box -->
+						var XHR = new XMLHttpRequest();
+						var FD = new FormData();
+						FD.set('action', 'add');
+						FD.set('playlist_name', 'related_hidden_videos');
+						FD.set('video_info_list', e.previousElementSibling.value);
+						if(FD.getAll('video_info_list').length === 0){return;}
+						XHR.open('POST', playlistAddForm.getAttribute('action'));
+						XHR.onload = function () {
+							if (XHR.status == 204) {
+								<!-- remove parent element -->
+								e.parentNode.parentNode.removeChild(e.parentNode);
+								console.log("Added to related_hidden_videos playlist");
+							}
+						};
+						XHR.send(FD);
+					}
+				}
+			}
 	</script>
 
 {% endblock main %}

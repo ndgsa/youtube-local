@@ -32,6 +32,60 @@ def add_to_playlist(name, video_info_list):
     missing_thumbnails = []
 
     ################################################################## mine
+    if name in ["related_hidden_channels", "search_hidden_channels"]:
+        from youtube import channel
+
+        def video_authors_id_in_playlist(name):
+            try:
+                with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+                    videos = file.read()
+                    import sys
+                ## mine # gives error if History playlist is empty, to bypass error just delete History playlist
+                return set(json.loads(video)['author_id'] for video in videos.splitlines())
+            except FileNotFoundError:
+                return set()
+
+        authors_id = video_authors_id_in_playlist(name)
+
+        with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
+            for info in video_info_list:
+
+                # replace id with author_id becouse need avatar for channel not for video
+                tmp = json.loads(info)
+                author_id = tmp['author_id']
+                tmp['id'] = tmp['author_id']
+
+                # if video is deleted from youtube than extracted values will be null and will break the playlist
+                if author_id == None:
+                    continue
+
+                # get channel metadata that includes avatar url
+                tasks = (gevent.spawn(channel.get_metadata, author_id),)
+                gevent.joinall(tasks)
+                util.check_gevent_exceptions(*tasks)
+                tmp.update(tasks[0].value)
+
+                if author_id not in authors_id:
+                    info = json.dumps(tmp)
+                    file.write(info + "\n")
+
+                url = tmp['avatar']
+                save_location = os.path.join(os.path.join(thumbnails_directory, name), author_id + ".jpg")
+                try:
+                    thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + author_id)
+                except urllib.error.HTTPError as e:
+                    print("Failed to download thumbnail for " + author_id + ": " + str(e))
+                    continue
+                try:
+                    f = open(save_location, 'wb')
+                except FileNotFoundError:
+                    os.makedirs(os.path.join(thumbnails_directory, name), exist_ok = True)
+                    f = open(save_location, 'wb')
+                f.write(thumbnail)
+                f.close()
+
+        return
+
     # if video exist in history playlist, move it to start, so it will look as recent video
     if name == "History":
         for info in video_info_list:
@@ -87,6 +141,27 @@ def add_extra_info_to_videos(videos, playlist_name):
                 '/https://youtube.com/data/playlist_thumbnails/'
                 + playlist_name
                 + '/' + video['id'] + '.jpg')
+        # mine
+        elif playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
+                import re
+                url = re.sub(r'\=s(\d{3,4})-', '=s200-', video['avatar']) # 900px is too big
+                save_location = os.path.join(os.path.join(thumbnails_directory, playlist_name), video['author_id'] + ".jpg")
+                try:
+                    thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + video['author_id'])
+                except urllib.error.HTTPError as e:
+                    print("Failed to download thumbnail for " + video['author_id'] + ": " + str(e))
+                    continue
+                try:
+                    f = open(save_location, 'wb')
+                except FileNotFoundError:
+                    os.makedirs(os.path.join(thumbnails_directory, playlist_name), exist_ok = True)
+                    f = open(save_location, 'wb')
+                f.write(thumbnail)
+                f.close()
+                if video['id'] + '.jpg' in thumbnails:
+                    video['thumbnail'] = (
+                        '/https://youtube.com/data/playlist_thumbnails/'
+                        + playlist_name + '/' + video['id'] + '.jpg')
         else:
             video['thumbnail'] = util.get_thumbnail_url(video['id'])
             missing_thumbnails.append(video['id'])
@@ -184,8 +259,13 @@ def remove_from_playlist(name, video_info_list):
 @yt_app.route('/playlists', methods=['GET'])
 @yt_app.route('/playlists/<playlist_name>', methods=['GET'])
 def get_local_playlist_page(playlist_name=None):
+    # mine
+    if playlist_name == "hidden_videos_channels":
+        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]]
+        return flask.render_template('local_playlists_list.html', playlists=playlists)
+
     if playlist_name is None:
-        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names()]
+        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name not in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]] + [("hidden_videos_channels", util.URL_ORIGIN + '/playlists/' + "hidden_videos_channels")] # mine
         return flask.render_template('local_playlists_list.html', playlists=playlists)
     else:
         page = int(request.args.get('page', 1))
@@ -279,5 +359,23 @@ def get_local_history_page():
         disable_history = settings.disable_history,
     )
 
+
+@yt_app.route('/playlists/search_hidden_channels', methods=['GET'])
+@yt_app.route('/playlists/related_hidden_channels', methods=['GET'])
+def get_local_related_hidden_channels_page():
+    ##return flask.render_template('error.html')
+
+    playlist_name = request.path.replace('/playlists/', '')
+    page = int(request.args.get('page', 1))
+    offset = 50*(page - 1)
+    videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=50)
+    return flask.render_template('local_playlist_related_hidden_channels.html',
+        header_playlist_names = get_playlist_names(),
+        playlist_name = playlist_name,
+        videos = videos,
+        num_pages = math.ceil(num_videos/50),
+        parameters_dictionary = request.args,
+        display_as_grid = False,
+    )
 #############################################################
 

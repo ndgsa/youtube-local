@@ -589,6 +589,22 @@ def get_watch_page(video_id=None):
         'author_id': info['author_id'],
     }
 
+
+    ## mine
+    # first need to create playlist with name 'related_hidden_videos' and 'related_hidden_channels'
+    # remove video from related if is hidden or if channel is hidden
+    hidden_videos = [z['id'] for z in local_playlist.read_playlist('related_hidden_videos')]
+    hidden_channels = [z['author_id'] for z in local_playlist.read_playlist('related_hidden_channels')]
+    tmp_z = info['related_videos'][:]
+    for item in info['related_videos']:
+        try:
+            if (item['author_id'] in hidden_channels) or (item['id'] in hidden_videos):
+                tmp_z.remove(item)
+        except:
+            pass
+    info['related_videos'] = tmp_z[:]
+
+
     # prefix urls, and other post-processing not handled by yt_data_extract
     for item in info['related_videos']:
         util.prefix_urls(item)

@@ -95,6 +95,9 @@ def get_search_page():
         no_autocorrect_query_url = util.URL_ORIGIN + '/results?' + urllib.parse.urlencode(no_autocorrect_query_string, doseq=True)
         corrections['original_query_url'] = no_autocorrect_query_url
 
+    # mine
+    search_info['items'] = search_hidden_channels_hide(search_info['items'], request.args.get("duration1", "0"), request.args.get("duration2", "0"))
+
     return flask.render_template('search.html',
         header_playlist_names = local_playlist.get_playlist_names(),
         query = query,
@@ -111,3 +114,55 @@ def get_search_engine_xml():
         content = f.read().replace(b'$host_url',
                                    request.host_url.rstrip('/').encode())
         return flask.Response(content, mimetype='application/xml')
+
+
+######################################################################################### mine
+
+def timedelta_parse(value):
+    """
+    convert input string to timedelta
+    """
+
+    import re
+    from datetime import timedelta
+
+    value = re.sub(r"[^0-9:.]", "", value)
+    if not value:
+        return None
+
+    return timedelta(**{key:float(val) for val, key in zip(value.split(":")[::-1], ("seconds", "minutes", "hours", "days"))})
+
+def search_hidden_channels_hide(data, duration1, duration2):
+    '''return list without filtered items'''
+    tmp = data[:]
+    tmp_removed = []
+    hidden_videos = [z['id'] for z in local_playlist.read_playlist('search_hidden_videos')]
+    hidden_channels = [z['author_id'] for z in local_playlist.read_playlist('search_hidden_channels')]
+
+    for item in data:
+        try:
+            if (item['author_id'] in hidden_channels) or (item['id'] in hidden_videos):
+                tmp.remove(item)
+                tmp_removed.append({'id': item['id'], 'title': item['title']})
+                continue
+
+            if duration2 == '0' and duration1 == '0': continue
+            elif len(duration2.split(':')) == 1: duration2 = duration2 + ":00"
+
+            if duration1 != "0":
+                duration2 = duration1
+
+            video_duration = timedelta_parse(item['duration'])
+            user_duration = timedelta_parse(duration2)
+            if video_duration < user_duration:
+                tmp.remove(item)
+                tmp_removed.append({'id': item['id'], 'title': item['title']})
+            elif user_duration == None:
+                print(f"Bad input value {duration2} provided")
+        except Exception as e:
+            print(e)
+
+    print(f" *{len(data) - len(tmp)}* hidden videos: {tmp_removed}")
+    return tmp[:]
+
+#########################################################################################
