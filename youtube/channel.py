@@ -726,6 +726,9 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
 
     post_process_channel_info(info)
 
+    if request.args.get('sort1'):
+        info['items'] = sort_video_items_custom(info['items'], request.args.get('sort1'), request.args.get("sort1_reversed", "false")) # sorting
+
     return flask.render_template('channel.html',
         parameters_dictionary = request.args,
         **info
