@@ -107,6 +107,23 @@ For security reasons, enabling this is not recommended.''',
         'category': 'client',
     }),
 
+    ('use_visitor_data', {
+        'label': 'Use visitor data',
+        'type': bool,
+        'default': True,
+        'comment': '''Add X-Goog-Visitor-Id header to outgoing http requests''',
+        'category': 'client',
+        'hidden': True,
+    }),
+
+    ('use_po_token', {
+        'label': 'Use po_token',
+        'type': bool,
+        'default': False,
+        'comment': '''Use visitor_data and po_token using po-token-generator''',
+        'category': 'client',
+    }),
+
     ('related_videos_mode', {
         'type': int,
         'default': 2,
