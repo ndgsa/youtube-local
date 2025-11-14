@@ -17,14 +17,25 @@ main{
         li{
             margin-bottom: 10px;
         }
+
+#playlist-list-scroll {
+  height: 450px;
+  width: 450px;
+  overflow: auto;
+}
+
 {% endblock style %}
 
 {% block main %}
+
     <ul>
+	<div id="playlist-list-scroll">
         {% for playlist_name, playlist_url in playlists %}
             <li><a href="{{ playlist_url }}">{{ playlist_name }}</a></li>
         {% endfor %}
+		</div>
     </ul>
+
 {% endblock main %}
 
 
