@@ -18,6 +18,10 @@ import collections
 import stem
 import stem.control
 import traceback
+if settings.use_httpx:
+    import http.cookiejar
+    import httpx
+    import copy
 
 import cachetools.func
 import copy
@@ -59,6 +63,14 @@ import urllib3.contrib.socks
 URL_ORIGIN = "/https://www.youtube.com"
 
 connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED')
+if settings.use_httpx:
+    cookiejar_file = os.path.join(settings.data_dir, 'cookies.txt')
+    cookiejar = http.cookiejar.LWPCookieJar(filename=cookiejar_file)
+    if settings.route_tor == 0:
+        httpx_client = httpx.Client(http2=True, follow_redirects=True, max_redirects=10, cookies=cookiejar)
+    else:
+        httpx_client = httpx.Client(http2=True, follow_redirects=True, max_redirects=10, cookies=cookiejar, proxy=f'socks5://localhost:{settings.tor_port}')
+
 
 class TorManager:
     MAX_TRIES = 3
@@ -215,6 +227,29 @@ def decode_content(content, encoding_header):
             content = gzip.decompress(content)
     return content
 
+def save_cookies():
+    if not settings.use_httpx:
+        pass
+    else:
+        if not os.path.isdir(settings.data_dir):
+            os.makedirs(settings.data_dir)
+        try:
+            cookiejar.save(filename=cookiejar_file)
+        except Exception:
+            pass
+
+def load_cookies():
+    if not settings.use_httpx:
+        pass
+    else:
+        if not os.path.isdir(settings.data_dir):
+            os.makedirs(settings.data_dir)
+        try:
+            cookiejar.load(filename=cookiejar_file)
+            cookiejar.clear_expired_cookies()
+        except Exception:
+            pass
+
 def fetch_url_response(url, headers=(), timeout=15, data=None,
                        cookiejar_send=None, cookiejar_receive=None,
                        use_tor=True, max_redirects=None):
@@ -246,6 +281,30 @@ def fetch_url_response(url, headers=(), timeout=15, data=None,
         elif not isinstance(data, bytes):
             data = urllib.parse.urlencode(data).encode('utf-8')
 
+    if settings.use_httpx:
+        for key, value in headers.items():
+            if not isinstance(value, str):
+                headers[key] = str(value)
+        # Load cookies
+        load_cookies()
+
+        if data:
+            if isinstance(data, bytes):
+                request = httpx_client.build_request(method, url, content=data, headers=headers)
+            elif isinstance(data, str):
+                request = httpx_client.build_request(method, url, data=data, headers=headers)
+        else:
+            request = httpx_client.build_request(method, url, headers=headers)
+        response = httpx_client.send(request)
+        response.status = response.status_code
+        response.reason = response.reason_phrase
+        # Save response.cookies
+        if response.cookies:
+            print('Saving updated cookies')
+            save_cookies()
+        # response.getheader = (lambda name: response.headers.get(name))
+        cleanup_func = (lambda r: response.close())
+        return response, cleanup_func
 
     if cookiejar_send is not None or cookiejar_receive is not None:     # Use urllib
         req = urllib.request.Request(url, data=data, headers=headers)
@@ -313,9 +372,10 @@ def fetch_url(url, headers=(), timeout=15, report_text=None, data=None,
         read_finish = time.monotonic()
 
         cleanup_func(response)  # release_connection for urllib3
-        content = decode_content(
-            content,
-            response.headers.get('Content-Encoding', default='identity'))
+        if not settings.use_httpx:
+            content = decode_content(
+                content,
+                response.headers.get('Content-Encoding', default='identity'))
 
         if (settings.debugging_save_responses
                 and debug_name is not None
