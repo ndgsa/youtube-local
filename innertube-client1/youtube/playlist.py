@@ -109,6 +109,11 @@ def get_playlist_page():
         first_page_json, this_page_json = tasks[0].value, tasks[1].value
 
     info = yt_data_extract.extract_playlist_info(this_page_json)
+
+    # some playlist does not give items for first page
+    if page == '1' and len(info.get('items', [])) == 0:
+        info = yt_data_extract.extract_playlist_info(get_videos(playlist_id, page))
+
     if info['error']:
         return flask.render_template('error.html', error_message = info['error'])
 
