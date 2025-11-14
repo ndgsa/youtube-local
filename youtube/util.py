@@ -1024,20 +1024,53 @@ def get_visitor_data():
     visitor_data_dict = get_visitor_data_(visitor_type)
     return visitor_data_dict.get('visitorData')
 
-@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
-def get_po_token_visitor_data(c_p=settings.use_po_token):
-    po_token_dict = {}
-    if settings.use_po_token:
-        po_token_cache = os.path.join(settings.data_dir, 'po_token_cache.txt')
-        if os.path.isfile(po_token_cache):
-            with open(po_token_cache, 'r') as file:
-                print('Extracting po_token from po_token_cache')
-                po_token_dict = json.load(file)
-                # po_token = po_token_dict.get('poToken')
-        else:
-            print('po_token_cache.txt is not found.')
-    return po_token_dict
+@cachetools.func.ttl_cache(maxsize=2, ttl=2*3600)
+def generate_po_token(identifier=''):
+    print('Generating po_token_cache.txt')
+    po_token_cache = os.path.join(settings.data_dir, 'po_token_cache.txt')
+    player_token_cache = os.path.join(settings.data_dir, 'po_token_player_cache.txt')
+    js_dir = os.path.join(settings.other_dir, 'js')
+    js_extra_dir = os.path.join(js_dir, 'pot')
+    if not os.path.isdir(js_dir): os.makedirs(js_dir)
+    pot_generator_script = 'generate_po_token.js'
+    pot_generator_fullpath = os.path.join(js_extra_dir, pot_generator_script)
 
+    curdir = os.getcwd()
+    os.chdir(js_extra_dir)
+
+    from youtube.yt_data_extract import _run_js_runtime_file
+    if identifier == '': output = _run_js_runtime_file(pot_generator_fullpath, response_type='po_token')
+    else: output = _run_js_runtime_file(pot_generator_fullpath, identifier, response_type='po_token')
+
+    os.chdir(curdir)
+
+    if identifier:
+        output['identifier'] = identifier
+        with open(player_token_cache, 'w') as file: file.write(json.dumps(output))
+    else:
+        with open(po_token_cache, 'w') as file: file.write(json.dumps(output))
+    print(f"Got player_pot: { len(output['poToken']) }")
+
+    return output
+
+@cachetools.func.ttl_cache(maxsize=1, ttl=2*3600)
+def get_po_token_visitor_data(c_p=settings.use_po_token, identifier=''):
+    po_token_dict = {}
+    po_token_cache = None
+    if settings.use_po_token:
+        if identifier: po_token_cache = os.path.join(settings.data_dir, 'po_token_player_cache.txt')
+        else: po_token_cache = os.path.join(settings.data_dir, 'po_token_cache.txt')
+
+        if os.path.isfile(po_token_cache):
+            with open(po_token_cache, 'r') as file: po_token_dict = json.load(file)
+
+        if po_token_dict == {}:
+            po_token_dict = generate_po_token(identifier)
+
+        if identifier and po_token_dict == {}: print('Unable to get player bound po_token')
+        elif po_token_dict == {}: print('Unable to get po_token')
+
+    return po_token_dict
 
 def append_po_token(info):
     po_token = get_po_token_visitor_data().get('poToken')

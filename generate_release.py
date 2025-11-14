@@ -246,6 +246,12 @@ log('Extracting node.exe')
 check_subp(subprocess.run([r'7z', '-y', 'e', '-o./youtube-local/other/js/', node_name, "node-*/node.exe"]))
 # os.remove(node_name)
 
+# log('Installing node packages')
+# curdir = os.getcwd()
+# os.chdir(r'./youtube-local/other/js/pot/')
+# check_subp(subprocess.run(['npm', 'i', '--cpu', 'x64', '--os', 'win32', '/home/runner/work/youtube-local/youtube-local/youtube-local/other/js/pot/.']))
+# os.chdir(curdir)
+
 # ----------- Create release zip -----------
 output_filename = 'youtube-local-' + release_tag + '-' + suffix + '.zip'
 if os.path.exists('./' + output_filename):

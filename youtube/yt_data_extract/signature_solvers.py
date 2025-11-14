@@ -114,6 +114,15 @@ def validate_response_type(output, response_type):
         raise NotImplementedError('Request type not specified')
     elif response_type == 'pass': # in case dont require or is different
         pass
+    elif response_type == "po_token":
+        k = ['visitorData', 'placeholderPoToken', 'poToken', 'integrityTokenData']
+        k1 = ['integrityToken', 'estimatedTtlSecs', 'mintRefreshThreshold']
+        if set(k) != set(output.keys()) or set(k1) != set(output.get('integrityTokenData').keys()):
+            raise ValueError(f"Invalid response type '{response_type}'")
+    elif response_type == "po_token_2":
+        k = ['visitorData', 'poToken']
+        if set(k) != set(output.keys()):
+            raise ValueError(f"Invalid response type '{response_type}'")
 
 def _run_js_runtime_file(js_file, *args, js_format="file", response_format='json', response_type=None):
     if not g_js_runtime:
