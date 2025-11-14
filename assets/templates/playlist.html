@@ -56,6 +56,24 @@
         }
     }
 
+    .playlist-metadata1{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        margin: 15px auto 7px auto;
+		/* margin: 10px auto; */
+        padding: 7px;
+        background-color: var(--interface-color);
+    }
+        .playlist-title{
+		font-size: 20px;
+        }
+
+	#playlist-browser-import-button, #submit_form_checkbox_label, #playlist-export-button {
+		font-size: 18px;
+	}
+
 	{% if display_as_grid %}
 		.playlist-metadata {
 			/*<!-- justify-content: space-between; --> */
@@ -90,6 +108,25 @@
 {% endblock style %}
 
 {% block main %}
+    <div class="playlist-metadata1">
+		<!-- <h2 class="playlist-title">{{ title }}</h2>		 -->
+
+        <div id="export-options">
+			<form id="playlist-export" method="post" action="/youtube.com/playlists/{{ parameters_dictionary.get('list', '') if parameters_dictionary.get('list', '') else '' }}">
+                <select id="export-type" name="export_format">
+                    <option value="json">JSON</option>
+                    <option value="ids">Video id list (txt)</option>
+                    <option value="urls">Video url list (txt)</option>
+					<option value="key_value_dict">Video dict (txt)</option>
+                </select>
+				<input type="hidden" value="{{ title }}" name="playlist_name" />
+				<input type="hidden" value="{{  parameters_dictionary.get('list', '') }}" name="playlist_id" />
+				<input type="hidden" value="true" name="export_youtube_playlist" />
+                <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
+            </form>
+        </div>
+    </div>
+
 	<details class="related-videos-outer" {{'open' if settings.related_videos_mode == 1 else ''}}>
 		<summary>{{ title }} (more info)</summary>
 		<div class="playlist-metadata">
@@ -122,5 +159,28 @@
         {{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlist', parameters_dictionary) }}
     </nav>
 
+	<script>
+		function escape_playlist_name() {
+			var playlistExportForm = document.getElementById('playlist-export');
+			var playlistExportForm_action_value = playlistExportForm.getAttribute('action');
+			var playlist_new_name = playlistExportForm_action_value
+				.replace(/&amp;/g, '&')
+				.replace(/&lt;/g, '<')
+				.replace(/&gt;/g, '>')
+				.replace(/&quot;/g, '"')
+				.replace(/&#39;/g, "'")
+				.replace(/&#039;/g, "'")
+				.replace(/&ndash;/g, "-")
+				.replace(/#/g, "_")
+				.replace(/"/g, "_")
+				.replace(/'/g, "_")
+				.replace(/<br>/g, "")
+				.replace(/&nbsp;/g, "")
+				.replace(/%20/g, "")
+				.trim();
+			playlistExportForm.setAttribute("action", playlist_new_name);
+		}
+		<!-- escape_playlist_name(); -->
+	</script>
 {% endblock main %}
 
