@@ -274,6 +274,7 @@ def get_local_playlist_page(playlist_name=None):
             videos = videos,
             num_pages = math.ceil(num_videos/50),
             parameters_dictionary = request.args,
+            display_as_grid = settings.display_as_grid,
         )
 
 
@@ -351,6 +352,7 @@ def get_local_history_page():
         videos = videos,
         num_pages = math.ceil(num_videos/50),
         parameters_dictionary = request.args,
+        display_as_grid = settings.display_as_grid,
         disable_history = settings.disable_history,
     )
 
