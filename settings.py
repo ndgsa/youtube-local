@@ -89,6 +89,18 @@ For security reasons, enabling this is not recommended.''',
         'category': 'client',
     }),
 
+    ## mine
+    ('signature_solver_id', {
+        'type': int,
+        'default': 1,
+        'label': 'Signature solver',
+        'comment': '''Decrypt signatures method''',
+        'options': [
+            (1, 'old'),                     # not working
+        ],
+        'category': 'client',
+    }),
+
     ('related_videos_mode', {
         'type': int,
         'default': 2,
