@@ -671,6 +671,14 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
 
     post_process_channel_info(info)
 
+    order, order1 = (2,1) if request.args.get("sort1_reversed", "false") == 'true' else (1,2)
+    if request.args.get('sort1') == '1': info['items'] = sort_video_items(info['items'], sort_key='approx_view_count', order=order) # popular
+    elif request.args.get('sort1') == '2': info['items'] = sort_video_items(info['items'], sort_key='time_published', order=order) # oldest
+    elif request.args.get('sort1') == '3': info['items'] = sort_video_items(info['items'], sort_key='time_published', order=order1) # newest
+    elif request.args.get('sort1') == '4': info['items'] = sort_video_items(info['items'], sort_key='title', order=order1) # video title
+    elif request.args.get('sort1') == '5': info['items'] = sort_video_items(info['items'], sort_key='author', order=order1) # video author
+    elif request.args.get('sort1') == '6': info['items'] = sort_video_items(info['items'], sort_key='duration', order=order) # video duration
+
     return flask.render_template('channel.html',
         parameters_dictionary = request.args,
         **info
