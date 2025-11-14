@@ -286,7 +286,7 @@ def get_number_of_videos_channel(channel_id):
     if match:
         return int(match.group(1).replace(',',''))
     else:
-        return 0
+        return get_number_of_videos_channel_from_about_tab(channel_id)
 def set_cached_number_of_videos(channel_id, num_videos):
     @cachetools.cached(number_of_videos_cache)
     def dummy_func_using_same_cache(channel_id):
@@ -408,6 +408,7 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
     page_size = 30
     try_channel_api = True
     polymer_json = None
+    number_of_pages = None
 
     # Use the special UU playlist which contains all the channel's uploads
     if tab == 'videos' and sort in ('3', '4'):
@@ -461,6 +462,9 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         else:
             num_videos_call = (get_number_of_videos_general, base_url)
 
+        ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_json=None)
+        if isinstance(ctoken, flask.Response): return ctoken
+
         # Use ctoken method, which YouTube changes all the time
         if channel_id and not default_params:
             if sort == 4:
@@ -480,6 +484,8 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         gevent.joinall(tasks)
         util.check_gevent_exceptions(*tasks)
         number_of_videos, polymer_json = tasks[0].value, tasks[1].value
+
+        ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number + 1, view, polymer_json=polymer_json)
 
     elif tab == 'about':
         #polymer_json = util.fetch_url(base_url + '/about?pbj=1', headers_desktop, debug_name='gen_channel_about')
@@ -539,7 +545,7 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
 
     if tab in ('videos', 'shorts', 'streams'):
         info['number_of_videos'] = number_of_videos
-        info['number_of_pages'] = math.ceil(number_of_videos/page_size)
+        info['number_of_pages'] = number_of_pages if number_of_pages else math.ceil(number_of_videos/page_size)
         info['header_playlist_names'] = local_playlist.get_playlist_names()
     if tab in ('videos', 'shorts', 'streams', 'playlists'):
         info['current_sort'] = sort
@@ -576,4 +582,199 @@ def get_custom_c_page(custom, tab='videos'):
 @yt_app.route('/<custom>/<tab>')
 def get_toplevel_custom_page(custom, tab='videos'):
     return get_channel_page_general_url('https://www.youtube.com/' + custom, tab, request)
+
+
+
+def get_number_of_videos_channel_from_about_tab(channel_id):
+    '''get number of videos from about channel tab'''
+    response = util.fetch_url('https://m.youtube.com/channel/' + channel_id + '/about?pbj=1', headers_mobile).decode('utf-8')
+    # match = re.search(r'"videoCountText".*?([,\d]+)', response)
+    match = re.search(r'"videoCountText"\:"?([,\d]+)', response)
+    if match: return int(match.group(1).replace(',',''))
+    else: return 0
+
+def multi_deep_get(object, *key_sequences, default=None, types=()):
+    '''Like deep_get, but can try different key sequences in case one fails.
+       Return default if all of them fail. key_sequences is a list of lists'''
+    for key_sequence in key_sequences:
+        _object = object
+        try:
+            for key in key_sequence: _object = _object[key]
+        except (TypeError, IndexError, KeyError): pass
+        else:
+            if not types or isinstance(_object, types): return _object
+            else: continue
+    return default
+
+def get_path_of_keys(data_dict, key_name=None):
+    '''Generate all key paths that exists in nested dict (like binary tree)
+       and return as [[path1], [path1]]. If key_name exist then, it will find
+       and return only those paths that contains key_name with value
+       [([key1, key_name, key2], {value1}), ([key1, key2, key_name], {value2}),]'''
+
+    # https://www.reddit.com/r/learnpython/comments/9is7ve/comment/e6mbwg8/
+    # i convert to be generator
+    def get_paths(haystack, path=[]):
+        '''return list of keys'''
+        yield path
+        if isinstance(haystack, dict):
+            for k, v in haystack.items():
+                yield from get_paths(v, path + [k])
+        elif isinstance(haystack, list):
+            for idx, v in enumerate(haystack):
+                yield from get_paths(v, path + [idx])
+
+    def get_paths_v2(haystack, needle=None, path=[]):
+        '''return list of keys with last element needle
+           or all list of keys if needle is None'''
+        if (len(path) > 0 and needle == path[-1]) or needle == None: yield path
+        iterator = haystack.items() if isinstance(haystack, dict) else (enumerate(haystack) if isinstance(haystack, list) else {})
+        for k, v in iterator: yield from get_paths_v2(v, needle, path + [k])
+
+    generated_paths = list(get_paths_v2(data_dict, key_name))
+    # generated_paths = list(get_paths(data_dict))
+    if key_name: generated_paths = [(i, multi_deep_get(data_dict, i)) for i in generated_paths if i and key_name == i[-1]]
+    return generated_paths
+
+
+# this works only if accesing orderly each page one by one from first
+def extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_json=None):
+
+    # print(sort, page_number, tab)
+
+    # bug: if shorts is only tab, when opening second page will cause error
+    # to bypass this error need to comment line below
+    if sort in ['3', '4'] and tab in ["videos"]: return (None, False, None) # without sorting this works
+
+    # if no ctoken for first page but user access other page number redirect to first page
+    if page_number != 1:
+        try: ctoken = get_cached_next_page_ctoken(channel_id, tab, sort, 1)
+        except:
+            boldtext = f'''</br></br></br><h2>Unknown channel tab page number. Go to main channel page: &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;<a href="/{base_url}/{tab}">HERE</a></h2>'''
+            #flask.abort(flask.Response(boldtext, 404))
+            return (flask.redirect(f"/{base_url}/{tab}?sort={sort}&page=1", 302), None, None)
+
+    page_size = 48 if tab == "shorts" else 30
+    number_of_videos = page_size * page_number
+    number_of_pages = math.ceil(number_of_videos/page_size)
+
+    try: ctoken = get_cached_next_page_ctoken(channel_id, tab, sort, page_number)
+    except: ctoken = None
+    else: return (ctoken, True, number_of_pages)
+
+    # request first page where is located continuation token
+    if not polymer_json:
+        page_call = (get_channel_first_page, base_url, tab)
+        tasks = (gevent.spawn(*page_call),)
+        gevent.joinall(tasks)
+        util.check_gevent_exceptions(*tasks)
+        polymer_json = json.loads(tasks[0].value)
+        paths_list = get_path_of_keys(polymer_json)
+
+        if tab != 'streams':
+            # chipCloudChipRenderer - contains ctokens for different sorting
+            chipCloudChipRenderer = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'chipCloudChipRenderer' == i[-1]]
+            if chipCloudChipRenderer:
+                # 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipCloudChipRenderer' dict key
+                if sort in ['1', '2']: ctoken = chipCloudChipRenderer[int(sort)][1]['navigationEndpoint']['continuationCommand']['token']
+                elif int(sort) > 2: ctoken = chipCloudChipRenderer[0][1]['navigationEndpoint']['continuationCommand']['token']
+            else: # try other
+                chipBarViewModel = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'chipBarViewModel' == i[-1]]
+                if chipBarViewModel:
+                    ## 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
+                    if sort in ['1', '2']: ctoken = chipBarViewModel[0][1]['chips'][int(sort)]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
+                    elif int(sort) > 2: ctoken = chipBarViewModel[0][1]['chips'][0]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
+        else:
+            chipBarViewModel = multi_deep_get(polymer_json,
+            ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'content', 'richGridRenderer', 'header', 'chipBarViewModel', 'chips', 0, 'chipViewModel', 'tapCommand', 'innertubeCommand', 'showSheetCommand', 'panelLoadingStrategy', 'inlineContent', 'sheetViewModel', 'content', 'listViewModel', 'listItems'], default=None)
+            if chipBarViewModel:
+                ## 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
+                if sort in ['1', '2']: ctoken = chipBarViewModel[int(sort)]['listItemViewModel']['rendererContext']['commandContext']['onTap']['innertubeCommand']['commandExecutorCommand']['commands'][1]['continuationCommand']['token']
+                elif int(sort) > 2: ctoken = chipBarViewModel[0]['listItemViewModel']['rendererContext']['commandContext']['onTap']['innertubeCommand']['commandExecutorCommand']['commands'][1]['continuationCommand']['token']
+            else:
+                chipBarViewModel = multi_deep_get(polymer_json,
+                ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'content', 'richGridRenderer', 'header', 'chipBarViewModel'], default=None)
+                if chipBarViewModel:
+                    # 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
+                    if sort in ['1', '2']: ctoken = chipBarViewModel['chips'][int(sort)]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
+                    elif int(sort) > 2: ctoken = chipBarViewModel['chips'][0]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
+        if not ctoken:
+            ctoken = multi_deep_get(polymer_json,
+            # if number of streams is less than 30
+            ['response', 'header', 'pageHeaderRenderer', 'content', 'pageHeaderViewModel', 'description', 'descriptionPreviewViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+            # ['response', 'header', 'pageHeaderRenderer', 'content', 'pageHeaderViewModel', 'attribution', 'attributionViewModel', 'suffix', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+            )
+
+    else:
+        polymer_json = json.loads(polymer_json)
+        ctoken = multi_deep_get(polymer_json,
+
+        # videos - 30 items
+        ['onResponseReceivedActions', 1, 'reloadContinuationItemsCommand', 'continuationItems', 30, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems', 30, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 1, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 30, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+
+        # shorts - 48 items
+        ['onResponseReceivedActions', 1, 'reloadContinuationItemsCommand', 'continuationItems', 48, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems', 48, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        # if shorts are only tab
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 2, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 48, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 48, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 1, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 48, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 48, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+
+        # streams - 30 items
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 30, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+
+        # other cases for videos and streams
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 30, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 2, 'tabRenderer', 'content', 'richGridRenderer', 'contents', 30, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+
+        # other cases
+        ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],)
+
+        # some responses have different continuationItems size
+        if not ctoken:
+            continuationItemRenderer = get_path_of_keys(polymer_json, 'continuationItemRenderer')
+            if len(continuationItemRenderer) == 1:
+                ctoken = multi_deep_get(continuationItemRenderer[0][1], ['continuationEndpoint', 'continuationCommand', 'token'])
+            elif len(continuationItemRenderer) > 1:
+                print("many continuationItemRenderer", continuationItemRenderer)
+
+    if ctoken:
+        set_cached_next_page_ctoken(channel_id, tab, sort, page_number, ctoken)
+    else:
+        number_of_videos = page_size * (page_number - 1)
+
+    number_of_pages = math.ceil(number_of_videos/page_size)
+
+    try:
+        ctoken = get_cached_next_page_ctoken(channel_id, tab, sort, page_number)
+    except:
+        ctoken = None
+
+    # becouse there are different ctoken for sorting, they must be processed correctly
+    # response, err = yt_data_extract.extract_response(polymer_json)
+    # continuation = yt_data_extract.extract_items(response, item_types={'chipCloudChipRenderer'})
+
+    # can be used 'continuationItemRenderer' in common.py but token value extracted need to be insert into cache
+    # becouse there are no continuation token for previous pages. i will not use this way
+
+    return (ctoken, True, number_of_pages)
+
+
+# cache to store tokens for channel
+next_page_ctoken = cachetools.TTLCache(128, 30*60)
+@cachetools.cached(next_page_ctoken)
+def get_cached_next_page_ctoken(channel_id, tab, sort, page_number):
+    return ctoken
+def set_cached_next_page_ctoken(channel_id, tab, sort, page_number, ctoken):
+    @cachetools.cached(next_page_ctoken)
+    def dummy_func_using_same_cache(channel_id, tab, sort, page_number):
+        return ctoken
+    dummy_func_using_same_cache(channel_id, tab, sort, page_number)
+
+
+# remove cached value
+#get_number_of_videos_channel.cache.pop(get_number_of_videos_channel.cache_key(channel_id), None)
 
