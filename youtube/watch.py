@@ -702,6 +702,8 @@ def get_watch_page(video_id=None):
 
 
     referrer_url = request.referrer if request.referrer else ""
+    if (referrer_url.endswith('/edit/') or referrer_url.endswith('/edit')) and (not referrer_url.endswith('/playlists/edit') or not referrer_url.endswith('/playlists/edit/')):
+        referrer_url = referrer_url.replace('/edit/', '').replace('/edit', '')
     if ("youtube.com/playlists/" in referrer_url) or request.args.get('playlists1') or urllib.parse.parse_qs(request.path).get('playlists1'):
         if request.args.get('playlists1'):
             p_name = request.args.get('playlists1')
