@@ -1,0 +1,150 @@
+{% set page_title = playlist_name + ' - Local playlist' %}
+{% extends "base.html" %}
+{% import "common_elements.html" as common_elements %}
+{% block style %}
+    main > *{
+        width: 800px;
+        max-width: 100%;
+        margin: auto;
+    }
+
+    .playlist-metadata{
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+
+
+        margin: 15px auto;
+        padding: 7px;
+        background-color: var(--interface-color);
+    }
+        .playlist-title{
+        }
+        #export-options{
+            justify-self: end;
+        }
+
+    #video-remove-container{
+        display: flex;
+        justify-content: space-between;
+        margin: 0px auto 15px auto;
+    }
+        #playlist-remove-button{
+            white-space: nowrap;
+        }
+
+    #results{
+        display: grid;
+        grid-auto-rows: 0fr;
+        grid-row-gap: 10px;
+    }
+
+	.sortable-item {
+		cursor: grab;
+	}
+	.sortable-item:hover {
+		transform: scale(1.01);
+	}
+	.sortable-item.dragging {
+		opacity: 0.7;
+	}
+	.sortable-item.over {
+		<!-- border: 2px ridge #ff8c42; -->
+	}
+
+	#playlist-reorder-button {
+		font-size: 20px;
+		right: 20px;
+		position: relative;
+	}
+
+{% endblock style %}
+
+{% block main %}
+
+    <div class="playlist-metadata">
+        <h2 class="playlist-title">{{ playlist_name }}</h2>
+        <div id="reorder-options">
+            <form id="playlist-reorder" method="post" action="/youtube.com/playlists/{{ playlist_name }}/edit/">
+                <button type="submit" id="playlist-reorder-button" name="action" value="reorder">Reorder</button>
+            </form>
+        </div>
+    </div>
+
+	<div id="results" class="sortable-list">
+		{% for video_info in videos %}
+			{{ common_elements.item(video_info, draggable=true) }}
+		{% endfor %}
+	</div>
+
+   <script>
+		var playlistReorderForm = document.getElementById('playlist-reorder');
+		function sendData(event){
+			var clicked_button = document.activeElement;
+			if(clicked_button === null || clicked_button.getAttribute('type') !== 'submit' || clicked_button.parentElement != event.target){
+				console.log('ERROR: clicked_button not valid');
+				return;
+			};
+			event.preventDefault();
+			var XHR = new XMLHttpRequest();
+			var FD = new FormData(playlistReorderForm);
+
+			var results = document.getElementsByName("video_info_list");
+			for (let i = 0; i < results.length; i++) {
+				FD.append('video_info_list', results[i].value);
+			};
+
+			FD.append('action', 'reorder');
+			XHR.addEventListener('load', function(event){
+				if(event.target.status == 204){
+					displayMessage('Playlist reordered with success');
+				} else {displayMessage('Error!', true);}
+			});
+			XHR.open('POST', playlistReorderForm.getAttribute('action'));
+			XHR.send(FD);
+		};
+		playlistReorderForm.addEventListener('submit', sendData);
+	</script>
+
+    <script>
+        const list = document.querySelector('.sortable-list');
+        let draggingItem = null;
+        list.addEventListener('dragstart', (e) => {
+            draggingItem = e.target;
+            e.target.classList.add('dragging');
+        });
+        list.addEventListener('dragend', (e) => {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.sortable-item')
+                .forEach(item => item.classList.remove('over'));
+            draggingItem = null;
+        });
+        list.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const draggingOverItem = getDragAfterElement(list, e.clientY);
+            document.querySelectorAll('.sortable-item').forEach
+                (item => item.classList.remove('over'));
+            if (draggingOverItem) {
+                draggingOverItem.classList.add('over');
+                list.insertBefore(draggingItem, draggingOverItem);
+            } else {
+                list.appendChild(draggingItem);
+            }
+        });
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll
+                ('.sortable-item:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+    </script>
+
+{% endblock main %}
