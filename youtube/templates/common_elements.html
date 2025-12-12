@@ -14,17 +14,17 @@
     {%- endif -%}
 {% endmacro %}
 
-{% macro item(info, description=false, horizontal=true, include_author=true, include_badges=true, lazy_load=false, related=false) %}
-    <div class="item-box {{ info['type'] + '-item-box' }} {{'horizontal-item-box' if horizontal else 'vertical-item-box'}} {{'has-description' if description else 'no-description'}}">
+{% macro item(info, description=false, horizontal=true, include_author=true, include_badges=true, lazy_load=false, related=false, draggable=false) %}
+    <div class="item-box {{ info['type'] + '-item-box' }} {{'horizontal-item-box' if horizontal else 'vertical-item-box'}} {{'has-description' if description else 'no-description'}} sortable-item" draggable="{{ draggable }}">
         {% if info['error'] %}
             {{ info['error'] }}
         {% else %}
             <div class="item {{ info['type'] + '-item' }}">
-                <a class="thumbnail-box" href="{{ info['url'] }}" title="{{ info['title'] }}">
+                <a class="thumbnail-box" href="{{ info['url'] }}" title="{{ info['title'] }}" draggable="false">
                     {% if lazy_load %}
-                        <img class="thumbnail-img lazy" data-src="{{ info['thumbnail'] }}">
+                        <img class="thumbnail-img lazy" data-src="{{ info['thumbnail'] }}" draggable="false">
                     {% else %}
-                        <img class="thumbnail-img" src="{{ info['thumbnail'] }}">
+                        <img class="thumbnail-img" src="{{ info['thumbnail'] }}" draggable="false">
                     {% endif %}
                     {% if info['type'] != 'channel' %}
                         <div class="thumbnail-info">
@@ -33,11 +33,11 @@
                     {% endif %}
                 </a>
                 <div class="item-metadata">
-                    <div class="title"><a class="title" href="{{ info['url'] }}" title="{{ info['title'] }}">{{ info['title'] }}</a></div>
+                    <div class="title"><a class="title" href="{{ info['url'] }}" title="{{ info['title'] }}" draggable="false">{{ info['title'] }}</a></div>
 
                     {% if include_author %}
                         {% if info.get('author_url') %}
-                            <address title="{{ info['author'] }}"  style="display:inline-block;">By <a href="{{ info['author_url'] }}">{{ info['author'] }}</a></address>
+                            <address title="{{ info['author'] }}"  style="display:inline-block;">By <a href="{{ info['author_url'] }}" draggable="false">{{ info['author'] }}</a></address>
                         {% else %}
                             <address title="{{ info['author'] }}"><b>{{ info['author'] }}</b></address>
                         {% endif %}
