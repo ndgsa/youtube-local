@@ -224,7 +224,7 @@ def get_playlist_names():
             tmp.append(name)
     return tmp
 
-def remove_from_playlist(name, video_info_list):
+def remove_from_playlist(name, video_info_list, action=''):
     ids = [json.loads(video)['id'] for video in video_info_list]
     with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
         videos = file.read()
@@ -241,9 +241,10 @@ def remove_from_playlist(name, video_info_list):
     except FileNotFoundError:
         pass
     else:
-        to_delete = thumbnails & set(id + ".jpg" for id in ids)
-        for file in to_delete:
-            os.remove(os.path.join(thumbnails_directory, name, file))
+        if action != 'reorder':
+            to_delete = thumbnails & set(id + ".jpg" for id in ids)
+            for file in to_delete:
+                os.remove(os.path.join(thumbnails_directory, name, file))
 
     # remove empty/blank lines from file becouse they cause errors
     with open(os.path.join(playlists_directory, name + ".txt")) as reader, open(os.path.join(playlists_directory, name + ".txt"), 'r+') as writer:
@@ -635,6 +636,28 @@ def get_local_history_page():
         display_as_grid = settings.display_as_grid,
         disable_history = settings.disable_history,
     )
+
+
+@yt_app.route('/playlists/<playlist_name>/edit', methods=['GET'])
+def get_local_playlist_page_edit(playlist_name=None):
+    videos, num_videos = get_local_playlist_videos(playlist_name, offset=0, amount=10000)
+    return flask.render_template('local_playlist_edit.html',
+        header_playlist_names = get_playlist_names(),
+        playlist_name = playlist_name,
+        videos = videos,
+        parameters_dictionary = request.args,)
+
+@yt_app.route('/playlists/<playlist_name>/edit', methods=['POST'])
+def path_local_playlist_page_edit(playlist_name):
+    '''Called when edit playlist'''
+    if request.values['action'] == 'reorder':
+        video_info_list = request.values.getlist('video_info_list')
+        if settings.sort_playlist: video_info_list.reverse()
+        remove_from_playlist(playlist_name, video_info_list, 'reorder')
+        add_to_playlist(playlist_name, video_info_list)
+        return '', 204
+    else:
+        flask.abort(400)
 
 
 @yt_app.route('/playlists/search_hidden_channels', methods=['GET'])
