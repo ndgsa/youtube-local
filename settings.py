@@ -7,6 +7,8 @@ import collections
 import flask
 from flask import request
 
+import platform
+
 SETTINGS_INFO = collections.OrderedDict([
     ('route_tor', {
         'type': int,
