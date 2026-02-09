@@ -7,6 +7,8 @@ import collections
 import flask
 from flask import request
 
+import platform
+
 SETTINGS_INFO = collections.OrderedDict([
     ('route_tor', {
         'type': int,
@@ -643,12 +645,23 @@ else:
     else:
         # parse settings in a safe way, without exec
         current_settings_dict = {}
-        attributes = {
-            ast.Constant: 'value',
-            ast.NameConstant: 'value',
-            ast.Num: 'n',
-            ast.Str: 's',
-        }
+
+        python_version_tuple = list(map(int, platform.python_version_tuple()))
+        if python_version_tuple < [3, 14, 0]:
+            attributes = {
+                ast.Constant: 'value',
+                ast.NameConstant: 'value',
+                ast.Num: 'n',
+                ast.Str: 's',
+            }
+        else:
+            attributes = {
+                ast.Constant: 'value',
+                ast.Constant: 'value',
+                ast.Constant: 'value',
+                ast.Constant: 'value',
+            }
+
         module_node = ast.parse(settings_text)
         for node in module_node.body:
             if type(node) != ast.Assign:
