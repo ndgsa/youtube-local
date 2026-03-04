@@ -264,6 +264,7 @@ def get_subtitle_sources(info):
     native_video_lang = None
     if info['automatic_caption_languages']:
         native_video_lang = info['automatic_caption_languages'][0]
+        pref_lang = native_video_lang # pref_lang gives error
 
     highest_fidelity_is_manual = False
 
