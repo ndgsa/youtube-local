@@ -392,7 +392,7 @@ console.log(JSON.stringify(result));
 
 
 @cachetools.func.lru_cache(maxsize=1)
-def get_youtubei(youtubei_version='16.0.1', use_js_runtime=False):
+def get_youtubei(youtubei_version='17.0.1', use_js_runtime=False):
     '''Download youtubei.js library if not exists.'''
     youtubei_url = f"https://cdn.jsdelivr.net/npm/youtubei.js@{youtubei_version}/bundle/browser.min.js"
     if use_js_runtime: youtubei_name = 'youtubei_' + youtubei_version.replace('.', '') + '.js'
