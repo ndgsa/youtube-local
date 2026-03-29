@@ -215,6 +215,56 @@ def extract_date(date_text):
             return year + '-' + month + '-' + day
     return None
 
+_RELATIVE_TIME_UNIT_MAP = {
+    's': 'second', 'sec': 'second', #'second': 'second',
+    'm': 'minute', 'min': 'minute', #'minute': 'minute',
+    'h': 'hour', 'hr': 'hour', #'hour': 'hour',
+    'd': 'day', #'day': 'day',
+    'w': 'week', 'wk': 'week', #'week': 'week',
+    'mo': 'month', #'month': 'month',
+    'y': 'year', 'yr': 'year', #'year': 'year',
+}
+_RELATIVE_TIME_UNIT_MAP_string = '|'.join(map(re.escape, sorted(_RELATIVE_TIME_UNIT_MAP, key=len, reverse=True)))
+### rf"(?P<time>\d+)\s*(?P<unit>{units})s?\s*ago"
+TIME_STRING_RELATIVE_TIME_UNIT_MAP_RE = re.compile(rf"(?P<time>\d+)\s*(?P<unit>{_RELATIVE_TIME_UNIT_MAP_string})s?")
+def convert_trimmed_time_string(string):
+    '''replace trimmed time names with complete names'''
+    if (not string) or (not isinstance(string, str)): return None
+    elif string.count(' ') == 2 and string.split(' ')[1] in _RELATIVE_TIME_UNIT_MAP: pass
+    elif 'days' in string or 'day' in string: return string
+    # string have format '3 weeks ago', or  number + trimmed time string have max 4 characters
+    elif string.count(' ') > 1 or len(string[:-4]) > 4: return string
+
+    tmp_c_time_string = ""
+    tmp_c_time_number = ""
+    if string.endswith(' ago'): string = string[:-4] # string.replace(' ago', '')
+
+    for k,v in _RELATIVE_TIME_UNIT_MAP.items():
+        if string.endswith(k):
+            try:
+                tmp_c_time_string = v
+                if len(k) > 1 and k in ['sec', 'min', 'hr', 'wk', 'mo', 'yr']: tmp_c_time_number = string[:-len(k)].strip()
+                elif len(k) == 1 and k in ['s', 'm', 'h', 'd', 'w', 'y']: tmp_c_time_number = string[:-1].strip()
+                else: raise Exception('Not implemented time string')
+                if int(tmp_c_time_number) > 1: tmp_c_time_string = f"{tmp_c_time_string}s"
+                return f'{tmp_c_time_number} {tmp_c_time_string} ago'
+            except:
+                print('Warning! Invalid time string:', string)
+                return None
+
+    ## regex way
+    # mobj = re.search(TIME_STRING_RELATIVE_TIME_UNIT_MAP_RE, string)
+    # if mobj:
+        # try:
+            # tmp_c_time_string = _RELATIVE_TIME_UNIT_MAP[mobj.group('unit')]
+            # tmp_c_time_number = mobj.group("time")
+            # if int(tmp_c_time_number) > 1: tmp_c_time_string = f"{tmp_c_time_string}s"
+            # return f"{tmp_c_time_number} {tmp_c_time_string} ago"
+        # except ValueError:
+            # return None
+
+    return None
+
 def convert_duration_string(string, delimiter=','):
     string_list = string.split(delimiter)
     string_duration = ''
@@ -319,10 +369,10 @@ def extract_item_info(item, additional_info={}):
 
     if primary_type in ('video', 'playlist'):
         info['time_published'] = None
-        timestamp = re.search(r'(\d+ \w+ ago)',
+        timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))',
             extract_str(item.get('publishedTimeText'), default=''))
         if timestamp:
-            info['time_published'] = timestamp.group(1)
+            info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
 
     if primary_type == 'video':
         info['id'] = multi_deep_get(item,
@@ -337,9 +387,9 @@ def extract_item_info(item, additional_info={}):
             ['title', 'accessibility', 'accessibilityData', 'label'],
             ['headline', 'accessibility', 'accessibilityData', 'label'],
             default='')
-        timestamp = re.search(r'(\d+ \w+ ago)', accessibility_label)
+        timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', accessibility_label)
         if timestamp:
-            conservative_update(info, 'time_published', timestamp.group(1))
+            conservative_update(info, 'time_published', convert_trimmed_time_string(timestamp.group(1)))
         view_count = re.search(r'(\d+) views', accessibility_label.replace(',', ''))
         if view_count:
             conservative_update(info, 'view_count', int(view_count.group(1)))
@@ -433,25 +483,22 @@ def extract_item_info(item, additional_info={}):
             accessibility_label1 = [{'text': accessibility_label2}, {'text': ''}, {'text': accessibility_label3},]
 
         if len(accessibility_label1) == 3:
-            timestamp = re.search(r'(\d+ \w+ ago)', accessibility_label1[2]['text'])
+            timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', accessibility_label1[2]['text'])
             if timestamp:
-                conservative_update(info, 'time_published', timestamp.group(1))
+                conservative_update(info, 'time_published', convert_trimmed_time_string(timestamp.group(1)))
 
-            view_count_many = re.search(r'(\d+K{0,1}M{0,1}B{0,1}) views{0,1}', accessibility_label1[0]['text'])
+            view_count_many = re.search(r'(\d+[,.]*\d*K{0,1}M{0,1}B{0,1})(?: views{0,1})*', accessibility_label1[0]['text'])
             if view_count_many:
-                info['approx_view_count'] = str(extract_approx_int(view_count_many.group(1)))
+                view_count = str(extract_approx_int(view_count_many.group(1)))
+                if view_count.isdigit(): conservative_update(info, 'view_count', int(view_count))
+                info['approx_view_count'] = view_count
             else:
-                view_count = re.search(r'(\d+) views{0,1}', accessibility_label1[0]['text'])
-                if view_count:
-                    conservative_update(info, 'view_count', int(view_count.group(1)))
-                    info['approx_view_count'] = info['view_count']
-                else:
-                    if ('No views' in item.get('shortViewCountText', '')
-                            or 'no views' in accessibility_label1[0]['text'].lower()
-                            or 'No views' in extract_str(item.get('viewCountText', '')) # shorts
-                    ):
-                        info['view_count'] = 0
-                        info['approx_view_count'] = '0'
+                if ('No views' in item.get('shortViewCountText', '')
+                        or 'no views' in accessibility_label1[0]['text'].lower()
+                        or 'No views' in extract_str(item.get('viewCountText', '')) # shorts
+                ):
+                    info['view_count'] = 0
+                    info['approx_view_count'] = '0'
 
         if info.get('approx_view_count', None) == None:
             # info['approx_view_count'] = '0'
@@ -533,7 +580,7 @@ def extract_item_info(item, additional_info={}):
             ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 1, 'text', 'content'],
             default='')
             timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', _time_published_tmp)
-            if timestamp: info['time_published'] = timestamp.group(1)
+            if timestamp: info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
 
             _views_tmp = multi_deep_get(item,
             ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'],
@@ -541,15 +588,12 @@ def extract_item_info(item, additional_info={}):
             default='')
             view_count_many = re.search(r'(\d+[,.]*\d*K{0,1}M{0,1}B{0,1})(?: views{0,1})*', _views_tmp)
             if view_count_many:
-                info['approx_view_count'] = str(extract_approx_int(view_count_many.group(1)))
+                view_count = str(extract_approx_int(view_count_many.group(1)))
+                if view_count.isdigit(): conservative_update(info, 'view_count', int(view_count))
+                info['approx_view_count'] = view_count
             else:
-                view_count = re.search(r'(\d+) views{0,1}', _views_tmp)
-                if view_count:
-                    conservative_update(info, 'view_count', int(view_count.group(1)))
-                    info['approx_view_count'] = info['view_count']
-                else:
-                    info['view_count'] = 0
-                    info['approx_view_count'] = '0'
+                info['view_count'] = 0
+                info['approx_view_count'] = '0'
 
     if type_parts[0] in ('reel', 'shorts'): # shorts
         info['type'] = 'video'
