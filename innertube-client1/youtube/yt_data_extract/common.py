@@ -215,6 +215,27 @@ def extract_date(date_text):
             return year + '-' + month + '-' + day
     return None
 
+def convert_trimmed_time_string(string):
+    '''replace trimmed time names with complete names'''
+    if (not string) or (not isinstance(string, str)): return None
+    # string have format '3 weeks ago', or  number + trimmed time string have max 4 characters
+    elif string.count(' ') > 1 or len(string[:-4]) > 4: return string
+
+    time_string_pairs = {'s': 'second', 'm': 'minute', 'h': 'hour', 'd': 'day', 'w': 'week', 'mo': 'month', 'y': 'year'}
+    tmp_c_time_string = ""
+    tmp_c_time_number = ""
+    string = string[:-4] # string.replace(' ago', '')
+
+    for k,v in time_string_pairs.items():
+        if string.endswith(k):
+            tmp_c_time_string = v
+            if k == 'mo': tmp_c_time_number = string[:-2]
+            else: tmp_c_time_number = string[:-1]
+            if int(tmp_c_time_number) > 1: tmp_c_time_string = f"{tmp_c_time_string}s"
+            return f'{tmp_c_time_number} {tmp_c_time_string} ago'
+
+    return None
+
 def check_missing_keys(object, *key_sequences):
     for key_sequence in key_sequences:
         _object = object
@@ -296,10 +317,10 @@ def extract_item_info(item, additional_info={}):
 
     if primary_type in ('video', 'playlist'):
         info['time_published'] = None
-        timestamp = re.search(r'(\d+ \w+ ago)',
+        timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))',
             extract_str(item.get('publishedTimeText'), default=''))
         if timestamp:
-            info['time_published'] = timestamp.group(1)
+            info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
 
     if primary_type == 'video':
         info['id'] = multi_deep_get(item,
@@ -314,9 +335,9 @@ def extract_item_info(item, additional_info={}):
             ['title', 'accessibility', 'accessibilityData', 'label'],
             ['headline', 'accessibility', 'accessibilityData', 'label'],
             default='')
-        timestamp = re.search(r'(\d+ \w+ ago)', accessibility_label)
+        timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', accessibility_label)
         if timestamp:
-            conservative_update(info, 'time_published', timestamp.group(1))
+            conservative_update(info, 'time_published', convert_trimmed_time_string(timestamp.group(1)))
         view_count = re.search(r'(\d+) views', accessibility_label.replace(',', ''))
         if view_count:
             conservative_update(info, 'view_count', int(view_count.group(1)))
@@ -410,25 +431,22 @@ def extract_item_info(item, additional_info={}):
             accessibility_label1 = [{'text': accessibility_label2}, {'text': ''}, {'text': accessibility_label3},]
 
         if len(accessibility_label1) == 3:
-            timestamp = re.search(r'(\d+ \w+ ago)', accessibility_label1[2]['text'])
+            timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', accessibility_label1[2]['text'])
             if timestamp:
-                conservative_update(info, 'time_published', timestamp.group(1))
+                conservative_update(info, 'time_published', convert_trimmed_time_string(timestamp.group(1)))
 
-            view_count_many = re.search(r'(\d+K{0,1}M{0,1}B{0,1}) views{0,1}', accessibility_label1[0]['text'])
+            view_count_many = re.search(r'(\d+[,.]*\d*K{0,1}M{0,1}B{0,1})(?: views{0,1})*', accessibility_label1[0]['text'])
             if view_count_many:
-                info['approx_view_count'] = str(extract_approx_int(view_count_many.group(1)))
+                view_count = str(extract_approx_int(view_count_many.group(1)))
+                if view_count.isdigit(): conservative_update(info, 'view_count', int(view_count))
+                info['approx_view_count'] = view_count
             else:
-                view_count = re.search(r'(\d+) views{0,1}', accessibility_label1[0]['text'])
-                if view_count:
-                    conservative_update(info, 'view_count', int(view_count.group(1)))
-                    info['approx_view_count'] = info['view_count']
-                else:
-                    if ('No views' in item.get('shortViewCountText', '')
-                            or 'no views' in accessibility_label1[0]['text'].lower()
-                            or 'No views' in extract_str(item.get('viewCountText', '')) # shorts
-                    ):
-                        info['view_count'] = 0
-                        info['approx_view_count'] = '0'
+                if ('No views' in item.get('shortViewCountText', '')
+                        or 'no views' in accessibility_label1[0]['text'].lower()
+                        or 'No views' in extract_str(item.get('viewCountText', '')) # shorts
+                ):
+                    info['view_count'] = 0
+                    info['approx_view_count'] = '0'
 
         if info.get('approx_view_count', None) == None:
             # info['approx_view_count'] = '0'
@@ -486,21 +504,18 @@ def extract_item_info(item, additional_info={}):
                 info['author_url'] = ('https://www.youtube.com/channel/' + _author_id_tmp.replace('/channel/', ''))
 
             _time_published_tmp = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'], default='')
-            timestamp = re.search(r'(\d+ \w+ ago)', _time_published_tmp)
-            if timestamp: info['time_published'] = timestamp.group(1)
+            timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', _time_published_tmp)
+            if timestamp: info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
 
             _views_tmp = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'], default='')
-            view_count_many = re.search(r'(\d+K{0,1}M{0,1}B{0,1}) views{0,1}', _views_tmp)
+            view_count_many = re.search(r'(\d+[,.]*\d*K{0,1}M{0,1}B{0,1})(?: views{0,1})*', _views_tmp)
             if view_count_many:
-                info['approx_view_count'] = str(extract_approx_int(view_count_many.group(1)))
+                view_count = str(extract_approx_int(view_count_many.group(1)))
+                if view_count.isdigit(): conservative_update(info, 'view_count', int(view_count))
+                info['approx_view_count'] = view_count
             else:
-                view_count = re.search(r'(\d+) views{0,1}', _views_tmp)
-                if view_count:
-                    conservative_update(info, 'view_count', int(view_count.group(1)))
-                    info['approx_view_count'] = info['view_count']
-                else:
-                    info['view_count'] = 0
-                    info['approx_view_count'] = '0'
+                info['view_count'] = 0
+                info['approx_view_count'] = '0'
 
     if type_parts[0] in ('reel', 'shorts'): # shorts
         info['type'] = 'video'
