@@ -194,7 +194,12 @@ def _run_js_runtime_file(js_file, *args, js_format="file", response_format='json
     if not g_js_runtime:
         raise NameError('No js runtime is found. Install supported runtime [ node, deno, bun ]')
 
-    cmd = [g_js_runtime, js_file, *args]
+    js_runtime_name_from_path = os.path.basename(g_js_runtime).replace('.EXE', '') #os.path.splitext(os.path.basename(g_js_runtime))[0]
+    if 'deno' == js_runtime_name_from_path: cmd = [g_js_runtime, 'run', '--allow-run', '--allow-net', js_file, *args,]
+    elif 'node' == js_runtime_name_from_path: cmd = [g_js_runtime, js_file, *args]
+    elif 'bun' == js_runtime_name_from_path: raise NotImplementedError('Bun is not supported.')
+    else: raise NotImplementedError(f'No js runtime with name "{js_runtime_name_from_path}" available.')
+
     # process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # stdout, stderr = process.communicate()
     with Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as process:
