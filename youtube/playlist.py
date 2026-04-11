@@ -93,6 +93,10 @@ def get_playlist_page():
     playlist_id = request.args.get('list')
     page = request.args.get('page', '1')
 
+    # Radio/Mix playlists (RD...) only work as watch page, not playlist page
+    if playlist_id.startswith('RD'):
+        return flask.redirect(util.URL_ORIGIN + '/watch?v=' + playlist_id[2:] + '&list=' + playlist_id, 302)
+
     if page == '1':
         first_page_json = playlist_first_page(playlist_id)
         this_page_json = first_page_json
