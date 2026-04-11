@@ -350,23 +350,36 @@ def extract_playlist_metadata(polymer_json):
     metadata['video_count'] = extract_int(multi_deep_get(header, ['numVideosText']))
     if not metadata['video_count']:
         try:
-            metadata['video_count'] = int(deep_get(header, 'metadata', 'contentMetadataViewModel', 'metadataRows', default={})[1]['metadataParts'][1]['text']['content'].replace(' videos',''))
+            metadata['video_count'] = int(deep_get(header, 'metadata', 'contentMetadataViewModel', 'metadataRows', default={})[1]['metadataParts'][1]['text']['content'].replace(' videos','').replace(' episodes', ''))
         except:
             metadata['video_count'] = None
 
-
     if not metadata['video_count']:
-        metadata['video_count'] = extract_int("".join([i['text'] for i in multi_deep_get(header, ['stats', 0, 'runs'], default=[])]).replace(' videos',''))
+        metadata['video_count'] = extract_int("".join([i['text'] for i in multi_deep_get(header, ['stats', 0, 'runs'], default=[])]).replace(' videos','').replace(' episodes', ''))
 
-    metadata['view_count'] = extract_int(multi_deep_get(header,
-    ['metadata','contentMetadataViewModel','metadataRows', -1, 'metadataParts', -1, 'text', 'content'],
-    ['stats', 1, 'simpleText'],
-    ))
+    metadata['view_count'] = extract_int(multi_deep_get(header,['stats', 1, 'simpleText']))
+    if not metadata['view_count']:
+        for part in multi_deep_get(header, ['metadata','contentMetadataViewModel','metadataRows', -1, 'metadataParts'], default=[]):
+            text = part.get('text', {}).get('content', '')
+            if 'no views' in text.lower(): metadata['view_count'] = "0"
+            elif 'view' in text.lower(): metadata['view_count'] = extract_int(text)
+    if not metadata['view_count']:
+        for part in multi_deep_get(response, ['sidebar', 'playlistSidebarRenderer', 'items', 0, 'playlistSidebarPrimaryInfoRenderer', 'stats'], default=[]):
+            text = part.get('simpleText', '')
+            if 'view' in text.lower(): metadata['view_count'] = extract_int(text)
 
     try:
         time_published1 = multi_deep_get(header, ['stats', -1, 'runs'], default=[])
         if not time_published1:
             time_published1 = multi_deep_get(response, ['sidebar', 'playlistSidebarRenderer', 'items', 0, 'playlistSidebarPrimaryInfoRenderer', 'stats', -1, 'runs'], default=[])
+
+        if len(time_published1) == 1:
+            from time import strftime
+            if 'today' in time_published1[-1]['text'].lower():
+                time_published1[0]['text'] = strftime("%b %d, %Y")
+            elif 'yesterday' in time_published1[-1]['text'].lower():
+                time_published1[0]['text'] = strftime("%b %d, %Y")
+            else: print('Not implemented date string', time_published1)
 
         metadata['time_published'] = extract_date(time_published1[-1]['text'])
     except:
