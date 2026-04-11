@@ -76,7 +76,7 @@
                                 <input type="text" id="{{ 'setting_' + setting_name }}" name="{{ setting_name }}" value="{{ value }}">
                             {% endif %}
                         {% else %}
-                            <span>Error: Unknown setting type: setting_info['type'].__name__</span>
+                            <span>Error: Unknown setting type: {{ setting_info['type'].__name__ }}</span>
                         {% endif %}
                     </li>
                 {% endif %}
