@@ -111,12 +111,13 @@ def read_protobuf(data):
             length = read_varint(data)
             value = data.read(length)
         elif wire_type == 3:
-            end_bytes = encode_varint((field_number << 3) | 4)
+            end_bytes = varint_encode((field_number << 3) | 4)
             value = read_group(data, end_bytes)
         elif wire_type == 5:
             value = data.read(4)
         else:
-            raise Exception("Unknown wire type: " + str(wire_type) + ", Tag: " + bytes_to_hex(succinct_encode(tag)) + ", at position " + str(data.tell()))
+            # raise Exception("Unknown wire type: " + str(wire_type) + ", Tag: " + bytes_to_hex(succinct_encode(tag)) + ", at position " + str(data.tell()))
+            raise Exception("Unknown wire type: " + str(wire_type) + " at position " + str(data.tell()))
         yield (wire_type, field_number, value)
 
 def parse(data, include_wire_type=False):
