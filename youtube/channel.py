@@ -446,11 +446,11 @@ def post_process_channel_info(info):
                 info['links'][i] = (text, util.prefix_url(url))
 
 
-def get_channel_first_page(base_url=None, tab='videos', channel_id=None):
-    if channel_id:
-        base_url = 'https://www.youtube.com/channel/' + channel_id
-    return util.fetch_url(base_url + '/' + tab + '?pbj=1&view=0',
-                          headers_desktop, debug_name='gen_channel_' + tab)
+def get_channel_first_page(base_url=None, tab='videos', channel_id=None, sort=None):
+    if channel_id: base_url = 'https://www.youtube.com/channel/' + channel_id
+    url = base_url + '/' + tab + '?pbj=1&view=0'
+    if sort: url += '&sort=' + playlist_sort_codes.get(sort, 'dd') # default by newest
+    return util.fetch_url(url, headers_desktop, debug_name='gen_channel_' + tab)
 
 
 playlist_sort_codes = {'2': "da", '3': "dd", '4': "lad"}
