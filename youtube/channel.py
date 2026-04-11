@@ -26,6 +26,24 @@ headers_mobile = util.generate_api_headers(ua_platform='mobile')
 real_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=8XihrAcN1l4'),)
 generic_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=ST1Ti53r4fU'),)
 
+g_tab_params = {
+    'home': 'EghmZWF0dXJlZPIGBAoCMgA%3D',
+    'featured': 'EghmZWF0dXJlZPIGBAoCMgA%3D',
+    'videos': 'EgZ2aWRlb3PyBgQKAjoA',
+    'shorts': 'EgZzaG9ydHPyBgUKA5oBAA%3D%3D',
+    'streams': 'EgdzdHJlYW1z8gYECgJ6AA%3D%3D',
+    'live': 'EgdzdHJlYW1z8gYECgJ6AA%3D%3D',
+    'playlists': 'EglwbGF5bGlzdHPyBgQKAkIA',
+    'releases': 'EghyZWxlYXNlc_IGBQoDsgEA',
+    'albums': 'EghyZWxlYXNlc_IGBQoDsgEA',
+    'podcasts': 'Eghwb2RjYXN0c_IGBQoDugEA',
+    'courses': 'Egdjb3Vyc2Vz8gYFCgPCAQA%3D',
+    'community': 'Egljb21tdW5pdHnyBgQKAkoA',
+    'search': 'EgZzZWFyY2jyBgQKAloA',
+    'channels': 'EghjaGFubmVscw%3D%3D',
+    'about': 'EgVhYm91dA%3D%3D',
+}
+
 # https://git.sr.ht/~heckyel/yt-local/commit/a374f90f6e6d3544d759d206a154a51d213c0574
 # Sort values for YouTube API (from Invidious): 2=popular, 4=newest, 5=oldest
 # include_shorts only applies to tab='videos'; tab='shorts'/'streams' always include their own content.
@@ -311,6 +329,7 @@ def get_channel_tab(channel_id, page="1", sort=3, tab='videos', view=1,
             },
         },
         'continuation': ctoken,
+        'params': g_tab_params[tab],
     }
 
     content = util.fetch_url(
@@ -609,10 +628,15 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         })
         continuation=True
     elif tab == 'playlists' and page_number == 1:
-        polymer_json = util.fetch_url(base_url+ '/playlists?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_playlists')
+        # polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_{tab}'))
+        try:
+            if not channel_id: channel_id = get_channel_id(base_url)
+            polymer_json = get_channel_tab(channel_id, '1', sort, tab, view)
+        except:
+            polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_{tab}')
+        continuation = True
     elif tab == 'playlists':
-        polymer_json = get_channel_tab(channel_id, page_number, sort,
-                                       'playlists', view)
+        polymer_json = get_channel_tab(channel_id, page_number, sort, tab, view)
         continuation = True
     elif tab == 'search' and channel_id:
         polymer_json = get_channel_search_json(channel_id, query, page_number)
