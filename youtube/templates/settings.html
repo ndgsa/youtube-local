@@ -64,7 +64,7 @@
                                 <input type="number" id="{{ 'setting_' + setting_name }}" name="{{ setting_name }}" value="{{ value }}" step="1">
                             {% endif %}
                         {% elif setting_info['type'].__name__ == 'float' %}
-
+							<input type="number" id="{{ 'setting_' + setting_name }}" name="{{ setting_name }}" value="{{ value }}" step="0.01">
                         {% elif setting_info['type'].__name__ == 'str' %}
 							{% if 'options' is in(setting_info) %}
                                 <select id="{{ 'setting_' + setting_name }}" name="{{ setting_name }}">
