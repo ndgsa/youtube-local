@@ -1081,7 +1081,7 @@ def serve_subscription_thumbnail(thumbnail):
         image = util.fetch_url(url, report_text="Saved thumbnail: " + video_id)
     except urllib.error.HTTPError as e:
         print("Failed to download thumbnail for " + video_id + ": " + str(e))
-        abort(e.code)
+        flask.abort(e.code)
     try:
         f = open(thumbnail_path, 'wb')
     except FileNotFoundError:
