@@ -170,7 +170,7 @@
                     {% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'), ('4', 'newest - no shorts'),] %}
                     <div id="number-of-results">{{ number_of_videos }} videos</div>
                 {% elif current_tab == 'playlists' %}
-                    {% set sorts = [('2', 'oldest'), ('3', 'newest'), ('4', 'last video added')] %}
+                    {% set sorts = [('3', 'newest'), ('4', 'last video added')] %}
                     {% if items %}
                         <h2 class="page-number">Page {{ page_number }}</h2>
                     {% else %}
