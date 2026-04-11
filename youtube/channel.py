@@ -23,6 +23,56 @@ headers_mobile = util.generate_api_headers(ua_platform='mobile', update_headers_
 real_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=8XihrAcN1l4'),)
 generic_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=ST1Ti53r4fU'),)
 
+# https://git.sr.ht/~heckyel/yt-local/commit/a374f90f6e6d3544d759d206a154a51d213c0574
+# Sort values for YouTube API (from Invidious): 2=popular, 4=newest, 5=oldest
+def channel_ctoken_v6(channel_id, page, sort, tab, view=1):
+    # Tab-specific protobuf field numbers (from Invidious source)
+    # Each tab uses different field numbers in the protobuf structure:
+    #   videos:  110 -> 3 -> 15 -> { 2:{1:UUID}, 4:sort, 8:{1:UUID, 3:sort} }
+    #   shorts:  110 -> 3 -> 10 -> { 2:{1:UUID}, 4:sort, 7:{1:UUID, 3:sort} }
+    #   streams: 110 -> 3 -> 14 -> { 2:{1:UUID}, 5:sort, 8:{1:UUID, 3:sort} }
+    tab_config = {
+        'videos':  {'tab_field': 15, 'sort_field': 4, 'embedded_field': 8},
+        'shorts':  {'tab_field': 10, 'sort_field': 4, 'embedded_field': 7},
+        'streams': {'tab_field': 14, 'sort_field': 5, 'embedded_field': 8},
+    }
+    config = tab_config.get(tab, tab_config['videos'])
+    tab_field = config['tab_field']
+    sort_field = config['sort_field']
+    embedded_field = config['embedded_field']
+
+    # Map sort values to YouTube API values
+    if tab == 'streams':
+        sort_mapping = {'1': 14, '2': 13, '3': 12, '4': 12}
+    else:
+        sort_mapping = {'1': 2, '2': 5, '3': 4, '4': 4}
+    new_sort = sort_mapping.get(sort, sort_mapping['3'])
+
+    # UUID placeholder (field 1)
+    uuid_str = "00000000-0000-0000-0000-000000000000"
+
+    # Build the tab-level object matching Invidious structure exactly:
+    # { 2: embedded{1: UUID}, sort_field: sort_val, embedded_field: embedded{1: UUID, 3: sort_val} }
+    tab_content = (
+        proto.string(2, proto.string(1, uuid_str))
+        + proto.uint(sort_field, new_sort)
+        + proto.string(embedded_field,
+            proto.string(1, uuid_str) + proto.uint(3, new_sort))
+    )
+
+    tab_wrapper = proto.string(tab_field, tab_content)
+    inner_container = proto.string(3, tab_wrapper)
+    outer_container = proto.string(110, inner_container)
+
+    encoded_inner = proto.percent_b64encode(outer_container)
+
+    pointless_nest = proto.string(80226972,
+        proto.string(2, channel_id)
+        + proto.string(3, encoded_inner)
+    )
+
+    return base64.urlsafe_b64encode(pointless_nest).decode('ascii')
+
 # added an extra nesting under the 2nd base64 compared to v4
 # added tab support
 # changed offset field to uint id 1
@@ -231,7 +281,7 @@ def get_channel_tab(channel_id, page="1", sort=3, tab='videos', view=1,
 
     if not ctoken:
         if tab in ('videos', 'shorts', 'streams'):
-            ctoken = channel_ctoken_v5(channel_id, page, sort, tab, view)
+            ctoken = channel_ctoken_v6(channel_id, page, sort, tab, view)
         else:
             ctoken = channel_ctoken_v3(channel_id, page, sort, tab, view)
         ctoken = ctoken.replace('=', '%3D')
