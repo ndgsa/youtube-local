@@ -30,59 +30,55 @@ def playlist_ctoken(playlist_id, offset, include_shorts=True):
     return base64.urlsafe_b64encode(pointless_nest).decode('ascii')
 
 
-def playlist_first_page(playlist_id, report_text='Retrieved playlist'):
+def playlist_first_page(playlist_id, report_text="Retrieved playlist",
+                        use_mobile=False):
     # Use innertube API (pbj=1 no longer works for many playlists)
     key = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
     url = 'https://www.youtube.com/youtubei/v1/browse?key=' + key
-
     data = {
         'context': {
             'client': {
                 'hl': 'en',
                 'gl': 'US',
                 'clientName': 'WEB',
-                'clientVersion': '2.20240327.00.00',
+                'clientVersion': '2.20180830', # 2.20240327.00.00
             },
         },
         'browseId': 'VL' + playlist_id,
     }
-
-    content_type_header = (('Content-Type', 'application/json'),)
+    headers_desktop = util.generate_api_headers(ua_platform='desktop', update_headers_with=(('X-YouTube-Client-Version', '2.20180830'),))
     content = util.fetch_url(
-        url, util.desktop_xhr_headers + content_type_header,
-        data=json.dumps(data),
-        report_text=report_text, debug_name='playlist_first_page'
-    )
-    return json.loads(content.decode('utf-8'))
+        url, util.merge_dicts(headers_desktop, {'Content-Type': 'application/json'}),
+        data=json.dumps(data), report_text=report_text, debug_name='playlist_first_page')
+    content = json.loads(content.decode('utf-8'))
+
+    return content
 
 
 def get_videos(playlist_id, page, include_shorts=True, page_size=100,
                report_text='Retrieved playlist'):
-    key = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
-    url = 'https://www.youtube.com/youtubei/v1/browse?key=' + key
-
     ctoken = playlist_ctoken(playlist_id, (int(page)-1)*page_size,
                              include_shorts=include_shorts)
-
+    key = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
+    url = 'https://www.youtube.com/youtubei/v1/browse?key=' + key
     data = {
         'context': {
             'client': {
                 'hl': 'en',
                 'gl': 'US',
                 'clientName': 'WEB',
-                'clientVersion': '2.20240327.00.00',
+                'clientVersion': '2.20180830', # 2.20240327.00.00
             },
         },
         'continuation': ctoken,
     }
-
-    content_type_header = (('Content-Type', 'application/json'),)
+    headers_desktop = util.generate_api_headers(ua_platform='desktop', update_headers_with=(('X-YouTube-Client-Version', '2.20180830'),))
     content = util.fetch_url(
-        url, util.desktop_xhr_headers + content_type_header,
-        data=json.dumps(data),
-        report_text=report_text, debug_name='playlist_videos'
-    )
-    return json.loads(content.decode('utf-8'))
+        url, util.merge_dicts(headers_desktop, {'Content-Type': 'application/json'}),
+        data=json.dumps(data), report_text=report_text, debug_name='playlist_videos')
+    info = json.loads(content.decode('utf-8'))
+
+    return info
 
 
 @yt_app.route('/playlist')
@@ -104,7 +100,7 @@ def get_playlist_page():
         tasks = (
             gevent.spawn(
                 playlist_first_page, playlist_id,
-                report_text='Retrieved playlist info'
+                report_text='Retrieved playlist info', use_mobile=True
             ),
             gevent.spawn(get_videos, playlist_id, page)
         )
