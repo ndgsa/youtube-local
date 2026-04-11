@@ -19,8 +19,9 @@ function changeQuality(selection) {
     var videoPaused = video.paused;
     var videoSpeed = video.playbackRate;
     var srcInfo;
-    if (avMerge)
+    if (avMerge && typeof avMerge.close === 'function'){
         avMerge.close();
+    }
     if (selection.type == 'uni'){
         srcInfo = data['uni_sources'][selection.index];
         video.src = srcInfo.url;
