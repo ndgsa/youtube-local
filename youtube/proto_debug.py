@@ -97,6 +97,7 @@ import re
 import time
 import json
 import os
+import traceback
 import pprint
 
 
@@ -339,7 +340,7 @@ def parse_protobuf(data, mutable=False, spec=()):
             break
         wire_type = tag & 7
         field_number = tag >> 3
-        
+
         if wire_type == 0:
             value = read_varint(data)
         elif wire_type == 1:
@@ -520,7 +521,7 @@ def recursive_pb(data):
         return data
 
     try:
-        result = pb(data, mutable=True) 
+        result = pb(data, mutable=True)
     except Exception as e:
         return data
 
