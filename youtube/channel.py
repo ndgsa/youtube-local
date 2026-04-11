@@ -371,11 +371,15 @@ def get_channel_id(base_url):
 metadata_cache = cachetools.LRUCache(128)
 @cachetools.cached(metadata_cache)
 def get_metadata(channel_id, if_error=None):
-    base_url = 'https://www.youtube.com/channel/' + channel_id
-    polymer_json = util.fetch_url(base_url + '/about?pbj=1',
-                                  headers_desktop,
-                                  debug_name='gen_channel_about',
-                                  report_text='Retrieved channel metadata')
+    # base_url = 'https://www.youtube.com/channel/' + channel_id
+    # polymer_json = util.fetch_url(base_url + '/about?pbj=1',
+                                  # headers_desktop,
+                                  # debug_name='gen_channel_about',
+                                  # report_text='Retrieved channel metadata')
+    # Use youtubei browse API to get channel metadata
+    polymer_json = util.call_youtube_api('web', 'browse', {
+        'browseId': channel_id,
+    })
     info = yt_data_extract.extract_channel_info(json.loads(polymer_json),
                                                 'about',
                                                 continuation=False)
