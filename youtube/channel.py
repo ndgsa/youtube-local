@@ -568,7 +568,13 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         })
         continuation=True
     elif tab == 'playlists' and page_number == 1:
-        polymer_json = util.fetch_url(base_url+ '/playlists?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_playlists')
+        # polymer_json = util.fetch_url(base_url+ '/playlists?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_playlists')
+        if not channel_id: channel_id = get_channel_id(base_url)
+        ctoken = channel_ctoken_v3(channel_id, page='1', sort=sort, tab='playlists', view=view)
+        polymer_json = util.call_youtube_api('web', 'browse', {
+            'continuation': ctoken,
+        })
+        continuation = True
     elif tab == 'playlists':
         polymer_json = get_channel_tab(channel_id, page_number, sort,
                                        'playlists', view)
