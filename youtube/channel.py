@@ -520,35 +520,42 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
 
     # Use the regular channel API
     if tab in ('shorts', 'streams') or (tab=='videos' and try_channel_api):
-        if channel_id:
-            num_videos_call = (get_number_of_videos_channel, channel_id)
-        else:
-            num_videos_call = (get_number_of_videos_general, base_url)
+        if int(sort) != 4 or tab in ('shorts', 'streams'):
+            ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_json=None)
+            if isinstance(ctoken, flask.Response): return ctoken
 
-        ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_json=None)
-        if isinstance(ctoken, flask.Response): return ctoken
-
-        # Use ctoken method, which YouTube changes all the time
         if channel_id and not default_params:
-            if sort == 4:
-                _sort = 3
-            else:
-                _sort = sort
-            page_call = (get_channel_tab, channel_id, page_number, _sort,
-                         tab, view, ctoken)
-        # Use the first-page method, which won't break
+            if not channel_id: channel_id = get_channel_id(base_url)
+            if channel_id: num_videos_call = (get_number_of_videos_channel, channel_id) # only regular uploads
+            else: num_videos_call = (get_number_of_videos_general, base_url)
+
+            # Use ctoken method, which YouTube changes all the time
+            page_call = (get_channel_tab, channel_id, str(page_number), sort, tab, int(view), ctoken)
+            continuation = True
+
+            # video count required only for the videos tab
+            if tab == 'videos': tasks = (gevent.spawn(*num_videos_call), gevent.spawn(*page_call),)
+            else: tasks = (gevent.spawn(lambda: 0), gevent.spawn(*page_call),) # number_of_videos will be changed later
+            gevent.joinall(tasks)
+            util.check_gevent_exceptions(*tasks)
+            number_of_videos, polymer_json = tasks[0].value, tasks[1].value
         else:
+            # ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_json=None)
+            # if isinstance(ctoken, flask.Response): return ctoken
+
+            if channel_id: num_videos_call = (get_number_of_videos_channel, channel_id)
+            else: num_videos_call = (get_number_of_videos_general, base_url)
+
+            # Use the first-page method, which won't break
             page_call = (get_channel_first_page, base_url, tab)
 
-        tasks = (
-            gevent.spawn(*num_videos_call),
-            gevent.spawn(*page_call),
-        )
-        gevent.joinall(tasks)
-        util.check_gevent_exceptions(*tasks)
-        number_of_videos, polymer_json = tasks[0].value, tasks[1].value
+            tasks = (gevent.spawn(*num_videos_call), gevent.spawn(*page_call),)
+            gevent.joinall(tasks)
+            util.check_gevent_exceptions(*tasks)
+            number_of_videos, polymer_json = tasks[0].value, tasks[1].value
 
-        ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number + 1, view, polymer_json=polymer_json)
+        if int(sort) != 4 or tab in ('shorts', 'streams'):
+            ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number + 1, view, polymer_json=polymer_json)
 
     elif tab == 'about':
         #polymer_json = util.fetch_url(base_url + '/about?pbj=1', headers_desktop, debug_name='gen_channel_about')
@@ -595,7 +602,8 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         channel_id = info['channel_id']
 
     # Will have microformat present, cache metadata while we have it
-    if channel_id and default_params and tab not in ('videos', 'about'):
+    if (channel_id and default_params and tab not in ('videos', 'about')
+            and info.get('channel_name') is not None):
         metadata = extract_metadata_for_caching(info)
         set_cached_metadata(channel_id, metadata)
     # Otherwise, populate with our (hopefully cached) metadata
@@ -613,8 +621,13 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             item.update(additional_info)
 
     if tab in ('videos', 'shorts', 'streams'):
+        if tab in ('shorts', 'streams'):
+            number_of_videos = len(info.get('items', [])) # use actual item count
+            if number_of_videos == 0: number_of_pages = 1
+        if number_of_pages: info['number_of_pages'] = number_of_pages
+        elif number_of_videos: info['number_of_pages'] = math.ceil(number_of_videos/page_size)
+        else: info['number_of_pages'] = 1
         info['number_of_videos'] = number_of_videos
-        info['number_of_pages'] = number_of_pages if number_of_pages else math.ceil(number_of_videos/page_size)
         info['header_playlist_names'] = local_playlist.get_playlist_names()
     if tab in ('videos', 'shorts', 'streams', 'playlists'):
         info['current_sort'] = sort
