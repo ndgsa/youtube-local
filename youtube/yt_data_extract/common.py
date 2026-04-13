@@ -558,6 +558,13 @@ def extract_item_info(item, additional_info={}):
             if not info['thumbnail']:
                 info['thumbnail'] = normalize_url(multi_deep_get(item,['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],))
 
+        # WEB_PAGE_TYPE = multi_deep_get(item,
+            # ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
+            # ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],) #WEB_PAGE_TYPE_PLAYLIST
+        # LOCKUP_CONTENT_TYPE = multi_deep_get(item, ['contentType']) # LOCKUP_CONTENT_TYPE_ 'UNSPECIFIED' | 'VIDEO' | 'PLAYLIST' | 'SHORT' | 'CHANNEL' | 'ALBUM' | 'PRODUCT' | 'GAME' | 'CLIP' | 'PODCAST' | 'SOURCE' | 'SHOPPING_COLLECTION' | 'MOVIE'
+        # contentId = multi_deep_get(item, ['contentId'])
+        # content_text = multi_deep_get(item,['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 1, 'text', 'content']) # Album
+
         # related videos for some clients u type lockupViewModel
         _author_id_tmp = extract_str(multi_deep_get(item,
             ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'canonicalBaseUrl'],
