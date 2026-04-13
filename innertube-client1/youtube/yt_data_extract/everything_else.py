@@ -74,20 +74,48 @@ def extract_channel_info(polymer_json, tab, continuation=False):
     #    return info
 
     if tab in ('videos', 'shorts', 'streams', 'playlists', 'search'):
-        is_video = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'selected'],) # True
-        is_video_title = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'title'],) # Videos
+        tab_is_type, tab_is_selected = None, None
+        for t in multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'], default=[]):
+            t_tab_is_type = t.get('tabRenderer', {}).get('title')
+            t_tab_is_selected = t.get('tabRenderer', {}).get('selected')
+            if t_tab_is_selected == True and t_tab_is_type:
+                if t_tab_is_type == 'Live': tab_is_type = 'Streams'
+                elif t_tab_is_type == 'Home': tab_is_type = 'Videos'
+                else: tab_is_type = t_tab_is_type
+                tab_is_selected = t_tab_is_selected
+                break
 
-        if tab == 'streams':
-            is_stream = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'selected'],) # True
-            is_stream_title = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'title'],) # 'Live'
-            # ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'selected'] # videos tab
-            if is_stream == True and is_stream_title == 'Live': items, ctoken = extract_items(response, item_types={'videoRenderer'})
-            elif is_video == True and is_video_title in ['Videos', 'Home']: items, ctoken = [], None
+        custom_type = multi_deep_get(response,['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'text'])
+        if tab in ['videos', 'shorts', 'streams'] and custom_type in ['Albums & Singles']:
+            tab_is_type = 'Playlists'
+
+        # use first if available
+        # if tab_is_type == None and tab_is_selected == None:
+            # tab_is_selected = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'selected'],) # True
+            # tab_is_type = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'title'],) # Videos
+
+        # case when playlist/shorts is only available tab
+        if tab_is_type and tab != tab_is_type.lower():
+            print(f"Warning: {tab} tab have different response tab name: {tab_is_type}")
+
+        if tab == 'videos':
+            if tab_is_type not in ['Videos', 'Home', None]: items, ctoken = [], None
             else: items, ctoken = extract_items(response)
         elif tab == 'shorts':
-            if is_video == True and is_video_title in ['Videos', 'Home']: items, ctoken = [], None
+            if tab_is_type not in ['Shorts', None]: items, ctoken = [], None
             else: items, ctoken = extract_items(response)
-        elif tab == 'playlists': items, ctoken = extract_items(response, item_types={'lockupViewModel'})
+        elif tab == 'streams':
+            if tab_is_type not in ['Streams', 'Live', None]: items, ctoken = [], None
+            elif tab_is_type in ['Streams', 'Live']: items, ctoken = extract_items(response, item_types={'videoRenderer', 'lockupViewModel'})
+            else: items, ctoken = extract_items(response)
+        elif tab == 'playlists':
+            if multi_deep_get(response, ['continuationContents', 'itemSectionContinuation', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'text']) not in ['Videos', 'Shorts', 'Streams', 'Music videos', 'Popular videos']:
+                if tab_is_type in ['Videos'] and tab_is_selected == True and custom_type not in ['Albums & Singles']:
+                    if custom_type: print(f"'{custom_type}' is not playlist type")
+                    items, ctoken = [], None
+                else: items, ctoken = extract_items(response, item_types={'lockupViewModel'})
+            else:
+                items, ctoken = [], None
         else: items, ctoken = extract_items(response)
 
         additional_info = {
