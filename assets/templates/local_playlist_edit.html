@@ -20,10 +20,18 @@
         background-color: var(--interface-color);
     }
         .playlist-title{
+			overflow: hidden;
+			<!-- flex-basis: 100%; -->
         }
-        #export-options{
+        #reorder-options{
             justify-self: end;
         }
+		#playlist-reorder-button {
+			font-size: 20px;
+			<!-- right: 20px; -->
+			position: relative;
+			float: right;
+		}
 
     #video-remove-container{
         display: flex;
@@ -51,12 +59,6 @@
 	}
 	.sortable-item.over {
 		<!-- border: 2px ridge #ff8c42; -->
-	}
-
-	#playlist-reorder-button {
-		font-size: 20px;
-		right: 20px;
-		position: relative;
 	}
 
 {% endblock style %}
