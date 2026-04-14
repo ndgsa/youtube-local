@@ -828,6 +828,10 @@ def extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_j
             # ['response', 'header', 'pageHeaderRenderer', 'content', 'pageHeaderViewModel', 'attribution', 'attributionViewModel', 'suffix', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
             )
 
+            # if number of items on first page is less than default
+            if (page_number == 1 or ctoken) and tab in ('videos', 'shorts', 'streams'):
+                ctoken = channel_ctoken_v6(channel_id, page_number, sort, tab, view)
+
     else:
         polymer_json = json.loads(polymer_json)
         ctoken = multi_deep_get(polymer_json,
