@@ -822,6 +822,7 @@ def get_watch_page(video_id=None):
             p_name = urllib.parse.parse_qs(request.path).get('playlists1')[0]
         else:
             p_name = referrer_url.rsplit('/', 1)[-1].rsplit('?', 1)[0]
+            p_name = urllib.parse.unquote(p_name)
         info['playlist'] = local_playlist.get_watch_page_local_playlist(p_name, video_id)
     if "/embed/" in request.url and settings.embed_page_mode and info['playlist']:
         for item in info['playlist']['items']: item['url'] = item['url'].replace("watch?v=", "embed/")
