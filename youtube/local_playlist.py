@@ -716,6 +716,13 @@ def get_playlist_column_sqlite_db(cursor, table, name, column):
     return 0
 
 @db_connect_sqlite_db
+def update_playlist_name_sqlite_db(cursor, table, name, new_name):
+    cursor.execute(f'''UPDATE {table}
+                            SET playlist_name = ?
+                            WHERE playlist_name="{name}"
+                        ''', [new_name])
+
+@db_connect_sqlite_db
 def get_playlists_sqlite_db(cursor, table, column):
     rows = cursor.execute(f'''SELECT {column}
                               FROM {table}
@@ -1301,6 +1308,51 @@ def check_playlist_name_invalid_symbols(string, replacement=None):
     return string
 
 
+def update_playlist_name(name, new_name):
+
+    if use_sqlite3_db_as_storage():
+        update_playlist_name_sqlite_db('playlists', name, new_name)
+        if get_playlist_column_sqlite_db('playlists', new_name, 'playlist_name') != 0:
+            return ('', 204)
+        else:
+            print("Updating playlist name failed.")
+            return ('', 500)
+
+    playlist_path = _find_playlist_path(name)
+    playlist_path_new = _find_playlist_path(new_name)
+    thumbnails_folder_path = _find_thumbnails_folder_path(name)
+    thumbnails_folder_path_new = _find_thumbnails_folder_path(new_name)
+
+    os.makedirs(thumbnails_folder_path, exist_ok = True)
+
+    from pathlib import Path
+
+    status = (None, None)
+    if (Path(playlists_directory).is_dir()
+        and Path(thumbnails_folder_path).is_dir()
+        and Path(playlist_path).is_file()):
+        try:
+            Path(playlist_path).rename(playlist_path_new)
+            Path(thumbnails_folder_path).rename(thumbnails_folder_path_new)
+        except FileNotFoundError:
+            print("The playlist file/folder does not exist.")
+            status = ('', 500)
+        except PermissionError:
+            print("You do not have permission to rename the file/folder.")
+            status = ('', 500)
+        except:
+            print('Renaming playlist failed.')
+            status = ('', 500)
+
+    if (Path(playlists_directory).is_dir()
+        and Path(thumbnails_folder_path_new).is_dir()
+        and Path(playlist_path_new).is_file()
+        and status == (None, None)):
+        status = ('', 204)
+
+    return status
+
+
 @yt_app.route('/data/playlist_thumbnails/<thumbnail>')
 def serve_thumbnail_sqlite_db(thumbnail):
     # .. is necessary because flask always uses the application directory at ./youtube, not the working directory
@@ -1350,6 +1402,26 @@ def path_local_playlist_page_edit(playlist_name):
         remove_from_playlist(playlist_name, video_info_list, 'reorder')
         add_to_playlist(playlist_name, video_info_list)
         return '', 204
+    elif request.values['action'] == 'rename':
+        import html
+        playlist_new_name = urllib.parse.unquote(html.unescape(request.values['playlist_new_name'])) or ''
+        playlist_new_name = check_playlist_name_invalid_symbols(playlist_new_name.strip(), '')
+
+        if not playlist_new_name:
+            return 'Invalid playlist name!', 400
+        if (len(playlist_new_name) == 0
+            or playlist_new_name.lower() in ['', 'none', 'null', 'undefined', 'true', 'false']):
+            return 'Invalid playlist name!', 400
+
+        if playlist_name not in get_playlist_names():
+            return f'Playlist "{playlist_name}" does not exist!', 400
+        if playlist_new_name in get_playlist_names():
+            return 'Playlist already exist!', 400
+        if playlist_name in ['related_hidden_channels', 'search_hidden_channels', 'related_hidden_videos', 'search_hidden_videos']:
+            return 'This playlist not allowed to update!', 400
+
+        status = update_playlist_name(playlist_name, playlist_new_name)
+        return status
     else:
         flask.abort(400)
 
