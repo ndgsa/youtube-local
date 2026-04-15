@@ -16,6 +16,7 @@ import re
 import sqlite3
 import contextlib
 from io import BytesIO
+import glob
 
 playlists_directory = os.path.join(settings.data_dir, "playlists")
 thumbnails_directory = os.path.join(settings.data_dir, "playlist_thumbnails")
@@ -23,29 +24,73 @@ thumbnails_directory = os.path.join(settings.data_dir, "playlist_thumbnails")
 thumbnails_sqlite_database_path = os.path.join(settings.data_dir, 'db', "thumbnails.sqlite")
 playlists_sqlite_database_path = os.path.join(settings.data_dir, 'db', "playlists.sqlite")
 
+
+# Whitelist accepted playlist names so user input cannot escape
+# Allow letters, digits, spaces, dot, dash and underscore.
+_PLAYLIST_NAME_RE = re.compile(r'^[\w .\-]{1,128}$')
+def _validate_playlist_name(name):
+    '''Return the stripped name if safe, otherwise abort with 400.'''
+    if (name is None) or (not _PLAYLIST_NAME_RE.match(name.strip())):
+        if util.to_valid_filename(name.strip()) == name.strip() and len(name) < 128:
+            return name.strip()
+        print("Invalid path string")
+        flask.abort(400)
+    return name.strip()
+
+def _find_playlist_path(name):
+    '''Find playlist file robustly, handling trailing spaces in filenames'''
+    if not os.path.exists(playlists_directory):
+        os.makedirs(playlists_directory)
+    p_path = os.path.join(playlists_directory, name + '.txt')
+    if not os.path.isfile(p_path):
+        return p_path
+    name = _validate_playlist_name(name)
+    pattern = os.path.join(playlists_directory, name + '*.txt')
+    files = glob.glob(pattern)
+    return files[0] if files else p_path
+
+def _find_thumbnails_folder_path(name):
+    '''Find thumbnails folder robustly, handling trailing spaces in folder names'''
+    if not os.path.exists(thumbnails_directory):
+        os.makedirs(thumbnails_directory)
+    name = _validate_playlist_name(name)
+    pattern = os.path.join(thumbnails_directory, name)
+    files = glob.glob(pattern)
+    if files and not os.path.isdir(files[0]):
+        raise Exception(fr"'{pattern}' is not a folder")
+    return files[0] if files else os.path.join(thumbnails_directory, name)
+
+
 def video_ids_in_playlist(name, column=None):
 
     if use_sqlite3_db_as_storage(): return video_ids_in_playlist_sqlite_db(name, column)
 
     try:
-        with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+        playlist_path = _find_playlist_path(name)
+        with open(playlist_path, 'r', encoding='utf-8') as file:
             videos = file.read()
             import sys
         ## gives error if History playlist is empty, to bypass error just delete History playlist
-        return set(json.loads(video)['id'] for video in videos.splitlines())
+        return set(json.loads(video.strip())['id'] for video in videos.splitlines() if video.strip())
     except FileNotFoundError:
         return set()
 
 def add_to_playlist(name, video_info_list):
 
+    if not check_playlist_name_invalid_symbols(name.strip(), ''):
+        raise Exception("Invalid playlist name provided!")
+
     if use_sqlite3_db_as_storage(): return add_to_playlist_sqlite_db(name, video_info_list)
+
+    playlist_path = _find_playlist_path(name)
+    thumbnails_folder_path = _find_thumbnails_folder_path(name)
 
     if not os.path.exists(playlists_directory):
         os.makedirs(playlists_directory)
     ids = video_ids_in_playlist(name)
     missing_thumbnails = []
 
-    try: thumbnails_id = set(os.listdir(os.path.join(thumbnails_directory, name)))
+    try: thumbnails_id = set(os.listdir(thumbnails_folder_path))
     except FileNotFoundError: thumbnails_id = set()
 
     if name in ["related_hidden_channels", "search_hidden_channels"]:
@@ -53,21 +98,21 @@ def add_to_playlist(name, video_info_list):
 
         def video_authors_id_in_playlist(name):
             try:
-                with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+                with open(_find_playlist_path(name), 'r', encoding='utf-8') as file:
                     videos = file.read()
                     import sys
                 ## gives error if History playlist is empty, to bypass error just delete History playlist
-                return set(json.loads(video)['author_id'] for video in videos.splitlines())
+                return set(json.loads(video.strip())['author_id'] for video in videos.splitlines() if video.strip())
             except FileNotFoundError:
                 return set()
 
         authors_id = video_authors_id_in_playlist(name)
 
-        with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
+        with open(playlist_path, "a", encoding='utf-8') as file:
             for info in video_info_list:
 
                 # replace id with author_id becouse need avatar for channel not for video
-                tmp = json.loads(info)
+                tmp = json.loads(info.strip())
                 author_id = tmp['author_id']
                 tmp['id'] = tmp['author_id']
 
@@ -83,13 +128,13 @@ def add_to_playlist(name, video_info_list):
 
                 if author_id not in authors_id:
                     info = json.dumps(tmp)
-                    file.write(info + "\n")
+                    file.write(info.strip() + "\n")
 
                 tmp['avatar'] = re.sub(r'\=s(\d{3,4})-', '=s200-', tmp['avatar']) # 900px is too big
 
                 if author_id + '.jpg' not in thumbnails_id:
                     url = tmp['avatar']
-                    save_location = os.path.join(os.path.join(thumbnails_directory, name), author_id + ".jpg")
+                    save_location = os.path.join(thumbnails_folder_path, author_id + ".jpg")
                     try:
                         thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + author_id)
                     except Exception as e: # util.FetchError
@@ -98,7 +143,7 @@ def add_to_playlist(name, video_info_list):
                     try:
                         f = open(save_location, 'wb')
                     except FileNotFoundError:
-                        os.makedirs(os.path.join(thumbnails_directory, name), exist_ok = True)
+                        os.makedirs(thumbnails_folder_path, exist_ok = True)
                         f = open(save_location, 'wb')
                     f.write(thumbnail)
                     f.close()
@@ -108,34 +153,34 @@ def add_to_playlist(name, video_info_list):
     # if video exist in history playlist, move it to start, so it will look as recent video
     if name == "History":
         for info in video_info_list:
-            id = json.loads(info)['id']
+            id = json.loads(info.strip())['id']
 
             # if video is deleted from youtube than extracted values will be null and will break the playlist
             if id == None:
                 continue
 
             if id in ids:
-                with open(os.path.join(playlists_directory, name + ".txt"), "r+") as f:
+                with open(playlist_path, "r+") as f:
                     d = f.readlines()[:]
                     f.seek(0)
                     f.truncate()
-                    d.append(d.pop(d.index(info + "\n") ))
+                    d.append(d.pop(d.index(info.strip() + "\n") ))
                     for gg in d:
                        f.write(gg)
             break
 
-    with open(os.path.join(playlists_directory, name + ".txt"), "a", encoding='utf-8') as file:
+    with open(playlist_path, "a", encoding='utf-8') as file:
         for info in video_info_list:
-            id = json.loads(info)['id']
+            id = json.loads(info.strip())['id']
 
             # if video is deleted from youtube than extracted values will be null and will break the playlist
             if id == None:
                 continue
 
             if id not in ids:
-                file.write(info + "\n")
+                file.write(info.strip() + "\n")
                 if id + '.jpg' not in thumbnails_id: missing_thumbnails.append(id)
-    gevent.spawn(util.download_thumbnails, os.path.join(thumbnails_directory, name), missing_thumbnails)
+    gevent.spawn(util.download_thumbnails, thumbnails_folder_path, missing_thumbnails)
 
 
 def add_extra_info_to_videos(videos, playlist_name):
@@ -145,9 +190,10 @@ def add_extra_info_to_videos(videos, playlist_name):
 
     if use_sqlite3_db_as_storage(): return add_extra_info_to_videos_sqlite_db(videos, playlist_name)
 
+    thumbnails_folder_path = _find_thumbnails_folder_path(playlist_name)
+
     try:
-        thumbnails = set(os.listdir(os.path.join(thumbnails_directory,
-                                                 playlist_name)))
+        thumbnails = set(os.listdir(thumbnails_folder_path))
     except FileNotFoundError:
         thumbnails = set()
     missing_thumbnails = []
@@ -162,7 +208,7 @@ def add_extra_info_to_videos(videos, playlist_name):
                 + '/' + video['id'] + '.jpg')
         elif playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
                 url = re.sub(r'\=s(\d{3,4})-', '=s200-', video['avatar']) # 900px is too big
-                save_location = os.path.join(os.path.join(thumbnails_directory, playlist_name), video['author_id'] + ".jpg")
+                save_location = os.path.join(thumbnails_folder_path, video['author_id'] + ".jpg")
                 try:
                     thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + video['author_id'])
                 except Exception as e:
@@ -171,7 +217,7 @@ def add_extra_info_to_videos(videos, playlist_name):
                 try:
                     f = open(save_location, 'wb')
                 except FileNotFoundError:
-                    os.makedirs(os.path.join(thumbnails_directory, playlist_name), exist_ok = True)
+                    os.makedirs(thumbnails_folder_path, exist_ok = True)
                     f = open(save_location, 'wb')
                 f.write(thumbnail)
                 f.close()
@@ -183,9 +229,7 @@ def add_extra_info_to_videos(videos, playlist_name):
             video['thumbnail'] = util.get_thumbnail_url(video['id'])
             missing_thumbnails.append(video['id'])
 
-    gevent.spawn(util.download_thumbnails,
-                 os.path.join(thumbnails_directory, playlist_name),
-                 missing_thumbnails)
+    gevent.spawn(util.download_thumbnails, thumbnails_folder_path, missing_thumbnails)
 
 
 def read_playlist(name):
@@ -193,7 +237,7 @@ def read_playlist(name):
 
     if use_sqlite3_db_as_storage(): return read_playlist_sqlite_db(name)
 
-    playlist_path = os.path.join(playlists_directory, name + '.txt')
+    playlist_path = _find_playlist_path(name)
 
     # need to create empty file if it not exist
     if not os.path.isfile(playlist_path):
@@ -207,12 +251,13 @@ def read_playlist(name):
     videos = []
     videos_json = data.splitlines()
     for video_json in videos_json:
+        video_line = video_json.strip()
+        if not video_line: continue
         try:
-            info = json.loads(video_json)
+            info = json.loads(video_line)
             videos.append(info)
         except json.decoder.JSONDecodeError:
-            if not video_json.strip() == '':
-                print('Corrupt playlist video entry: ' + video_json)
+            print('Corrupt playlist video entry: ' + video_line)
     return videos
 
 
@@ -251,31 +296,37 @@ def get_playlist_names():
 
 def remove_from_playlist(name, video_info_list, action=''):
 
+    if not check_playlist_name_invalid_symbols(name.strip(), ''):
+        raise Exception("Invalid playlist name provided!")
+
     if use_sqlite3_db_as_storage(): return remove_from_playlist_sqlite_db(name, video_info_list)
 
-    ids = [json.loads(video)['id'] for video in video_info_list]
-    with open(os.path.join(playlists_directory, name + ".txt"), 'r', encoding='utf-8') as file:
+    playlist_path = _find_playlist_path(name)
+    thumbnails_folder_path = _find_thumbnails_folder_path(name)
+
+    ids = [json.loads(video.strip())['id'] for video in video_info_list]
+    with open(playlist_path, 'r', encoding='utf-8') as file:
         videos = file.read()
     videos_in = videos.splitlines()
     videos_out = []
     for video in videos_in:
-        if json.loads(video)['id'] not in ids:
-            videos_out.append(video)
-    with open(os.path.join(playlists_directory, name + ".txt"), 'w', encoding='utf-8') as file:
+        if json.loads(video.strip())['id'] not in ids:
+            videos_out.append(video.strip())
+    with open(playlist_path, 'w', encoding='utf-8') as file:
         file.write("\n".join(videos_out) + "\n")
 
     try:
-        thumbnails = set(os.listdir(os.path.join(thumbnails_directory, name)))
+        thumbnails = set(os.listdir(thumbnails_folder_path))
     except FileNotFoundError:
         pass
     else:
         if action != 'reorder':
             to_delete = thumbnails & set(id + ".jpg" for id in ids)
             for file in to_delete:
-                os.remove(os.path.join(thumbnails_directory, name, file))
+                os.remove(os.path.join(thumbnails_folder_path, file))
 
     # remove empty/blank lines from file becouse they cause errors
-    with open(os.path.join(playlists_directory, name + ".txt")) as reader, open(os.path.join(playlists_directory, name + ".txt"), 'r+') as writer:
+    with open(playlist_path) as reader, open(playlist_path, 'r+') as writer:
         for line in reader:
             if line.strip(): writer.write(line)
         writer.truncate()
@@ -319,16 +370,21 @@ def path_edit_playlist(playlist_name):
 
         if use_sqlite3_db_as_storage(): remove_playlist_sqlite_db('playlists', playlist_name)
         else:
-            try:
-                os.remove(os.path.join(playlists_directory, playlist_name + ".txt"))
-            except OSError:
-                pass
+            playlist_path = _find_playlist_path(playlist_name)
+            if os.path.join(playlists_directory, playlist_name + '.txt') == playlist_path:
+                try: os.remove(playlist_path)
+                except OSError: pass
+            else:
+                print(f"Cannot remove playlist {playlist_name}! Do it manually.")
+                flask.abort(400)
 
         return flask.redirect(util.URL_ORIGIN + '/playlists')
     elif request.values['action'] == 'export':
 
         if request.values.get('export_youtube_playlist', None) == 'true':
-            videos = [json.loads(v) for v in get_all_videos_from_playlist(request.values['playlist_id'])]
+            videos = [json.loads(v.strip()) for v in get_all_videos_from_playlist(request.values['playlist_id'])]
+            if request.values.get('playlist_name') and request.values.get('playlist_name', '').strip():
+                playlist_name = check_playlist_name_invalid_symbols(request.values['playlist_name'].strip(), '_')
         else: videos = read_playlist(playlist_name)
 
         fmt = request.values['export_format']
@@ -401,22 +457,28 @@ def edit_playlist():
             flask.abort(400)
 
     if request.values['action'] == 'add':
+        playlist_name = request.values['playlist_name']
+        playlist_name = check_playlist_name_invalid_symbols(playlist_name.strip(), '_')
         if request.values.get('import_playlist', None) == 'true':
             items = get_all_videos_from_playlist(request.values['playlist_id'])
             items = items[::-1]  # items must be reversed
-            if request.values['playlist_name'] in get_playlist_names():
-                print(f'Playlist name {request.values["playlist_name"]} already exist, adding random value to playlist name.')
-                add_to_playlist(f"{request.values['playlist_name']}_{str(os.urandom(2).hex())}", items)
+            if playlist_name in get_playlist_names():
+                print(f'Playlist name {playlist_name} already exist, adding random value to playlist name.')
+                add_to_playlist(f"{playlist_name}_{str(os.urandom(2).hex())}", items)
             else:
-                add_to_playlist(request.values['playlist_name'], items)
+                add_to_playlist(playlist_name, items)
         else:
-            add_to_playlist(request.values['playlist_name'], request.values.getlist('video_info_list'))
+            add_to_playlist(playlist_name, request.values.getlist('video_info_list'))
         return '', 204
     else:
         flask.abort(400)
 
+# _THUMBNAIL_RE = re.compile(r'^[A-Za-z0-9_-]{11}\.jpg$')
+
 @yt_app.route('/data/playlist_thumbnails/<playlist_name>/<thumbnail>')
 def serve_thumbnail(playlist_name, thumbnail):
+    # playlist_name = _validate_playlist_name(playlist_name)
+    # if not _THUMBNAIL_RE.match(thumbnail): flask.abort(400)
     # .. is necessary because flask always uses the application directory at ./youtube, not the working directory
     return flask.send_from_directory(os.path.join('..', thumbnails_directory, playlist_name), thumbnail)
 
@@ -715,13 +777,17 @@ def video_ids_in_playlist_sqlite_db(name, column):
 
 
 def add_to_playlist_sqlite_db(name, video_info_list):
+
+    if not check_playlist_name_invalid_symbols(name.strip(), ''):
+        raise Exception("Invalid playlist name provided!")
+
     if not os.path.exists(playlists_directory):
         os.makedirs(playlists_directory)
     ids = video_ids_in_playlist_sqlite_db(name, 'id')
     thumbnails_id = get_images_sqlite_db('id')
     missing_thumbnails = []
 
-    video_info_list = [json.loads(info) for info in video_info_list]
+    video_info_list = [json.loads(info.strip()) for info in video_info_list]
 
     if name in ["related_hidden_channels", 'search_hidden_channels']:
         from youtube import channel
@@ -816,7 +882,7 @@ def get_playlist_names_sqlite_db():
     return tmp
 
 def remove_from_playlist_sqlite_db(name, video_info_list):
-    video_info_list = [json.loads(video) for video in video_info_list]
+    video_info_list = [json.loads(video.strip()) for video in video_info_list]
     ids = video_ids_in_playlist_sqlite_db(name, 'id')
     video_ids = [v['id'] for v in video_info_list if (v['id'] in ids) and v['id'] != None]
     remove_videos_sqlite_db(name, video_ids)
@@ -1052,36 +1118,49 @@ def youtube_playlists_from_local(playlist_name='0youtube_playlist_list', action=
     if not os.path.exists(playlists_directory):
         os.makedirs(playlists_directory)
 
+    playlist_path = _find_playlist_path(playlist_name)
+
     playlist_list = []
     playlist_list_formated = []
 
     try:
-        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'r', encoding='utf-8') as file: yt_playlists = file.read()
+        with open(playlist_path, 'r', encoding='utf-8') as file: yt_playlists = file.read()
         for yt_playlist in yt_playlists.splitlines():
             if yt_playlist.strip():
-                playlist = json.loads(yt_playlist)
+                playlist = json.loads(yt_playlist.strip())
                 playlist_list.append(playlist)
                 playlist_list_formated.append(('(*) ' + playlist['playlist_name'], '/' + playlist['playlist_url']))
     except FileNotFoundError:
-        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'a') as file: pass
+        with open(playlist_path, 'a') as file: pass
         return []
 
     if action == 'get': return playlist_list_formated
     elif action == 'add' and data != {}:
         if data not in playlist_list:
-            with open(os.path.join(playlists_directory, playlist_name + ".txt"), "a", encoding='utf-8') as file:
+            with open(playlist_path, "a", encoding='utf-8') as file:
                 file.write(json.dumps(data) + "\n")
     elif action == 'remove' and data != {}:
         try: playlist_list.remove(data)
         except ValueError: pass
 
-        with open(os.path.join(playlists_directory, playlist_name + ".txt"), 'w', encoding='utf-8') as file:
+        with open(playlist_path, 'w', encoding='utf-8') as file:
             for i in playlist_list: file.write(json.dumps(i) + "\n")
 
-        with open(os.path.join(playlists_directory, playlist_name + ".txt")) as reader, open(os.path.join(playlists_directory, playlist_name + ".txt"), 'r+') as writer:
+        with open(playlist_path) as reader, open(playlist_path, 'r+') as writer:
             for line in reader:
                 if line.strip(): writer.write(line)
             writer.truncate()
+
+
+def check_playlist_name_invalid_symbols(string, replacement=None):
+    if not string: raise Exception("Empty string provided!")
+    if re.findall(r'[<>:/\\|?*\"\'#%]+', replacement.strip() or ''): raise Exception('Bad replacement character!')
+    fail_string = util.to_valid_filename(string)
+    fail_string = re.sub(r'[\'#%]+', replacement, fail_string)
+    if fail_string != string:
+        if replacement: return fail_string
+        else: return None
+    return string
 
 
 @yt_app.route('/data/playlist_thumbnails/<thumbnail>')
@@ -1115,6 +1194,8 @@ def get_local_history_page():
 
 @yt_app.route('/playlists/<playlist_name>/edit', methods=['GET'])
 def get_local_playlist_page_edit(playlist_name=None):
+    if playlist_name not in get_playlist_names():
+        return flask.redirect(util.URL_ORIGIN + '/playlists')
     videos, num_videos = get_local_playlist_videos(playlist_name, offset=0, amount=10000)
     return flask.render_template('local_playlist_edit.html',
         header_playlist_names = get_playlist_names(),
@@ -1218,7 +1299,7 @@ def export_from_txt_to_sqlite3_e():
         for playlist_name in playlist_names.iterdir():
             if playlist_name.is_file() and playlist_name.suffix == '.txt':
                 videos = playlist_name.read_text()
-                video_info_list = [json.loads(video) for video in videos.splitlines()]
+                video_info_list = [json.loads(video.strip()) for video in videos.splitlines()]
 
                 if playlist_name.stem == '0youtube_playlist_list':
                     playlists_youtube = get_playlists_sqlite_db('playlists_youtube', '*') # need before change global variable
@@ -1325,6 +1406,8 @@ def export_from_sqlite3_to_txt_e():
         os.makedirs(os.path.join(settings.data_dir, 'export', 'subscription_thumbnails'))
 
     for i in results:
+        _validate_playlist_name(i['playlist_name'])
+
         if i['playlist_name'] == 'subscription_thumbnails':
             folder_path = os.path.join(settings.data_dir, 'export', 'subscription_thumbnails')
         else:
