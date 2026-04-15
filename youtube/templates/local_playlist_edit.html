@@ -66,13 +66,16 @@
 {% block main %}
 
     <div class="playlist-metadata">
-        <h2 class="playlist-title">{{ playlist_name }}</h2>
+        <h2 class="playlist-title" contenteditable="true">{{ playlist_name }}</h2>
         <div id="reorder-options">
             <form id="playlist-reorder" method="post" action="/youtube.com/playlists/{{ playlist_name }}/edit/">
                 <button type="submit" id="playlist-reorder-button" name="action" value="reorder">Reorder</button>
             </form>
         </div>
     </div>
+
+	<form id="playlist-rename" action="/youtube.com/playlists/{{ playlist_name }}/edit/" method="post" target="_self">
+	</form>
 
 	<div id="results" class="sortable-list">
 		{% for video_info in videos %}
@@ -148,5 +151,90 @@
             }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
     </script>
+
+	<script>
+		function changeURL(original_p_name, new_p_name) {
+			var editUrl = window.location.pathname;
+			return editUrl.replace("/"+original_p_name+"/", "/"+new_p_name+"/");
+		}
+
+		<!-- const original_playlist_name = JSON.parse('{{ playlist_name | tojson }}'); -->
+		const original_playlist_name = document.getElementsByClassName("playlist-title")[0].innerHTML;
+		var playlist_new_name = ''
+		var playlistRenameForm = document.getElementById('playlist-rename');
+		let shouldFireChange = false;
+		const playlist_title = document.getElementsByClassName("playlist-title")[0];
+		if(playlist_title) {
+			playlist_title.addEventListener("input", function() {shouldFireChange = true;}, { once: false });
+			playlist_title.addEventListener("focusout", function() {
+				if(shouldFireChange) {
+					shouldFireChange = false;
+
+					if(this.getAttribute("contenteditable") === 'true') {
+						<!-- console.log(this.getAttribute("contenteditable")); -->
+					} else if(this.getAttribute("contenteditable") === 'false') {
+						<!-- console.log(this.getAttribute("contenteditable")); -->
+					}
+					<!-- this.setAttribute("contenteditable", false); -->
+
+					playlist_new_name = this.innerHTML;
+					<!-- console.log(playlist_new_name) -->
+
+					playlist_new_name = playlist_new_name
+						.replace(/&amp;/g, '&')
+						.replace(/&lt;/g, '<')
+						.replace(/&gt;/g, '>')
+						.replace(/&quot;/g, '"')
+						.replace(/&#39;/g, "'")
+						.replace(/&#039;/g, "'")
+						.replace(/&ndash;/g, "-")
+						<!-- .replace(/#/g, "") -->
+						<!-- .replace(/"/g, "") -->
+						<!-- .replace(/'/g, "") -->
+						.replace(/<br>/g, "")
+						.replace(/&nbsp;/g, "")
+						.replace(/%20/g, "")
+						.trim();
+
+					if(original_playlist_name === "" || playlist_new_name === "") {
+						displayMessage('Error: No playlist available', true);
+						return;
+					}
+
+					if(original_playlist_name === playlist_new_name) {
+						this.innerHTML = original_playlist_name;
+						return;
+					}
+
+					var XHR = new XMLHttpRequest();
+					var FD = new FormData();
+
+					FD.set('action', 'rename');
+					FD.set('playlist_new_name', playlist_new_name);
+
+					XHR.addEventListener('load', function(event){
+						if(event.target.status == 204){
+							displayMessage('Playlist "' + original_playlist_name + '"' + 'renamed to"' + FD.get('playlist_new_name') + '"');
+							setTimeout(function(){window.location.pathname = changeURL(original_playlist_name, playlist_new_name);}, 3000);
+						} else {
+							displayMessage(event.target.status.toString() + ' ' +  'Error renamig playlist: ' + event.target.responseText, true);
+							document.getElementsByClassName("playlist-title")[0].innerHTML = original_playlist_name;
+						}
+					});
+
+					XHR.addEventListener('error', function(event){
+						if(event.target.status == 0){
+							displayMessage('XHR failed: Check that XHR requests are allowed', true);
+						} else {
+							displayMessage('XHR failed: Unknown error', true);
+						}
+					});
+
+					XHR.open('POST', playlistRenameForm.getAttribute('action'));
+					XHR.send(FD);
+				}}
+			);
+		}
+	</script>
 
 {% endblock main %}
