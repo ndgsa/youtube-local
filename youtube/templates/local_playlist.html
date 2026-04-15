@@ -20,6 +20,7 @@
         background-color: var(--interface-color);
     }
         .playlist-title{
+			flex-basis: 100%;
         }
         #export-options{
             justify-self: end;
@@ -63,11 +64,15 @@
         }
 	{% endif %}
 
+	#playlist-import-button, #playlist-export-button, #playlist-edit-button {
+		<!-- font-size: 18px; -->
+	}
+
 {% endblock style %}
 
 {% block main %}
     <div class="playlist-metadata">
-        <h2 class="playlist-title">{{ playlist_name }}</h2>
+        <h2 class="playlist-title">{{ playlist_name | truncate(67) }}</h2>
         <div id="export-options">
             <form id="playlist-export" method="post">
                 <select id="export-type" name="export_format">
