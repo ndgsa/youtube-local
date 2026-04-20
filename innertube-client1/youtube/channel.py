@@ -25,7 +25,8 @@ generic_cookie = (('Cookie', 'VISITOR_INFO1_LIVE=ST1Ti53r4fU'),)
 
 # https://git.sr.ht/~heckyel/yt-local/commit/a374f90f6e6d3544d759d206a154a51d213c0574
 # Sort values for YouTube API (from Invidious): 2=popular, 4=newest, 5=oldest
-def channel_ctoken_v6(channel_id, page, sort, tab, view=1):
+# include_shorts only applies to tab='videos'; tab='shorts'/'streams' always include their own content.
+def channel_ctoken_v6(channel_id, page, sort, tab, view=1, include_shorts=True):
     # Tab-specific protobuf field numbers (from Invidious source)
     # Each tab uses different field numbers in the protobuf structure:
     #   videos:  110 -> 3 -> 15 -> { 2:{1:UUID}, 4:sort, 8:{1:UUID, 3:sort} }
@@ -63,6 +64,11 @@ def channel_ctoken_v6(channel_id, page, sort, tab, view=1):
     tab_wrapper = proto.string(tab_field, tab_content)
     inner_container = proto.string(3, tab_wrapper)
     outer_container = proto.string(110, inner_container)
+
+    # Add shorts filter when include_shorts=False (field 104, same as playlist.py)
+    # This tells YouTube to exclude shorts from the results
+    if not include_shorts:
+        outer_container += proto.string(104, proto.uint(2, 1))
 
     encoded_inner = proto.percent_b64encode(outer_container)
 
@@ -276,12 +282,12 @@ def channel_about_ctoken(channel_id):
     )
 
 def get_channel_tab(channel_id, page="1", sort=3, tab='videos', view=1,
-                    ctoken=None, print_status=True):
+                    ctoken=None, print_status=True, include_shorts=True):
     message = 'Got channel tab' if print_status else None
 
     if not ctoken:
         if tab in ('videos', 'shorts', 'streams'):
-            ctoken = channel_ctoken_v6(channel_id, page, sort, tab, view)
+            ctoken = channel_ctoken_v6(channel_id, page, sort, tab, view, include_shorts)
         else:
             ctoken = channel_ctoken_v3(channel_id, page, sort, tab, view)
         ctoken = ctoken.replace('=', '%3D')
