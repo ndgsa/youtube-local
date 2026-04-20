@@ -642,6 +642,8 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         if tab in ('shorts', 'streams'):
             number_of_videos = len(info.get('items', [])) # use actual item count
             if number_of_videos == 0: number_of_pages = 1
+            else: number_of_videos = (page_number - 1) * page_size + number_of_videos
+            info['is_last_page'] = (info.get('ctoken') is None)
         if number_of_pages: info['number_of_pages'] = number_of_pages
         elif number_of_videos: info['number_of_pages'] = math.ceil(number_of_videos/page_size)
         else: info['number_of_pages'] = 1
