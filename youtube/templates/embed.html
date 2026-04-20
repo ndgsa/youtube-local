@@ -213,7 +213,10 @@
             <script src="/youtube.com/static/js/plyr-start.js"></script>
             <!-- /plyr -->
         {% endif %}
-
+		{% if settings.video_player == 0 and settings.native_player_storyboard %}
+		  <script>var storyboard_url = {{ storyboard_url | tojson }}</script>
+		  <script src="/youtube.com/static/js/storyboard-preview.js"></script>
+		{% endif %}
         {% if settings.use_video_hotkeys %}
             <script src="/youtube.com/static/js/common.js"></script>
             <script src="/youtube.com/static/js/hotkeys.js"></script>
