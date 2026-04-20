@@ -334,6 +334,17 @@ Archive: https://archive.ph/OZQbN''',
         'category': 'interface',
     }),
 
+    ('native_player_storyboard', {
+        'type': bool,
+        'default': False,
+        'label': 'Storyboard preview (native)',
+        'comment': '''Show thumbnail preview on hover (native player modes).
+    Positioning is heuristic; may misalign in Firefox/Safari.
+    Works best on Chromium browsers.
+    No effect in Plyr.''',
+        'category': 'interface',
+    }),
+
     ('subtitles_mode', {
         'type': int,
         'default': 0,
