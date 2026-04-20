@@ -337,10 +337,22 @@ def get_number_of_videos_channel(channel_id):
 
     response = response.decode('utf-8')
 
+    match = None
+    for pattern in (
+        r'"numVideosText".*?"text":\s*"([\d,]+)"',
+        r'"numVideosText".*?([\d,]+)\s*videos?',
+        r'"numVideosText".*?([,\d]+)',
+        r'([\d,]+)\s*videos?\s*</span>',
+    ):
+        tmp_match = re.search(pattern, response)
+        if tmp_match:
+            try: match = int(tmp_match.group(1).replace(',', ''))
+            except ValueError: continue
+
     # match = re.search(r'"numVideosText":\s*{\s*"runs":\s*\[{"text":\s*"([\d,]*) videos"', response)
-    match = re.search(r'"numVideosText".*?([,\d]+)', response)
+    # match = re.search(r'"numVideosText".*?([,\d]+)', response)
     if match:
-        return int(match.group(1).replace(',',''))
+        return match
     else:
         return get_number_of_videos_channel_from_about_tab(channel_id)
 def set_cached_number_of_videos(channel_id, num_videos):
