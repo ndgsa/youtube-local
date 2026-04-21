@@ -23,11 +23,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Setting up latest python
         id: python-setup
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
       - name: Setting up nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
       # - name: Download and cache nodejs for windows 7
@@ -51,7 +51,7 @@ jobs:
         id: generating-release-64
         run: |
           cd ${{ github.workspace }}
-          python generate_release.py 3.13.12
+          python generate_release.py 3.13.13
           mkdir -p D:\\tmp\\output\\
           mv -v v*zip D:\\tmp\\output\\
       - name: Runtime test (64 bit)
@@ -60,7 +60,7 @@ jobs:
           cd ${{ github.workspace }}\\innertube-client1
           ..\\python\\python.exe -c "import server; from youtube import util; url = 'https://cloudflare.com/cdn-cgi/trace'; resp = util.fetch_url(url, report_text='Fetching CF trace report') ; print(resp.decode())"
       - name: Uploading build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zip-package-64
           path: /tmp/output/
@@ -90,11 +90,11 @@ jobs:
         uses: actions/checkout@v4
       - name: Setting up latest python
         id: python-setup
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
       - name: Setting up nodejs
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
       # - name: Download and cache nodejs for windows 7
@@ -127,7 +127,7 @@ jobs:
           cd ${{ github.workspace }}\\innertube-client1
           ..\\python\\python.exe -c "import server; from youtube import util; url = 'https://cloudflare.com/cdn-cgi/trace'; resp = util.fetch_url(url, report_text='Fetching CF trace report') ; print(resp.decode())"
       - name: Uploading build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zip-package-32
           path: /tmp/output/
