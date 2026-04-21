@@ -1495,36 +1495,62 @@ def generate_po_token(po_token_provider, identifier=''):
     js_extra_dir = os.path.join(js_dir, 'pot')
     if not os.path.isdir(js_dir): os.makedirs(js_dir)
 
-    if po_token_provider == 1:
-        pot_generator_script = 'generate_po_token.js'
-        response_type = 'po_token'
-    elif po_token_provider == 2:
-        pot_generator_script = 'generate_po_token_2.js'
-        response_type = 'po_token_2'
-    elif po_token_provider == 3:
-        pot_generator_script = 'botGuard/vm/botGuard1.js'
-        response_type = 'po_token_3'
+    if po_token_provider < 4:
 
-    pot_generator_fullpath = os.path.join(js_extra_dir, pot_generator_script)
-    if not os.path.isfile(pot_generator_fullpath):
-        print("pot_generator_script unavailable")
-        get_visitor_data_(settings.innertube_client_name, 'homepage') # create new visitordata file
-        return {}
+        if po_token_provider == 1:
+            pot_generator_script = 'generate_po_token.js'
+            response_type = 'po_token'
+        elif po_token_provider == 2:
+            pot_generator_script = 'generate_po_token_2.js'
+            response_type = 'po_token_2'
+        elif po_token_provider == 3:
+            pot_generator_script = 'botGuard/vm/botGuard1.js'
+            response_type = 'po_token_3'
 
-    curdir = os.getcwd()
-    os.chdir(js_extra_dir)
+        pot_generator_fullpath = os.path.join(js_extra_dir, pot_generator_script)
+        if not os.path.isfile(pot_generator_fullpath):
+            print("pot_generator_script unavailable")
+            get_visitor_data_(settings.innertube_client_name, 'homepage') # create new visitordata file
+            return {}
 
-    print('po_token generation starts. Please wait until it finishes... (30 seconds)')
-    from youtube.yt_data_extract import _run_js_runtime_file
-    if identifier == '': output = _run_js_runtime_file(pot_generator_fullpath, response_type=response_type)
-    else: output = _run_js_runtime_file(pot_generator_fullpath, identifier, response_type=response_type)
+        curdir = os.getcwd()
+        os.chdir(js_extra_dir)
 
-    if po_token_provider == 3: # botGuard do not retrieve visitorData so use homepage visitorData
-        visitor_data_dict = get_visitor_data_(settings.innertube_client_name, 'homepage')
-        visitor_data = visitor_data_dict.get('visitorData')
-        output['visitorData'] = visitor_data
+        print('po_token generation starts. Please wait until it finishes... (30 seconds)')
+        from youtube.yt_data_extract import _run_js_runtime_file
+        if identifier == '': output = _run_js_runtime_file(pot_generator_fullpath, response_type=response_type)
+        else: output = _run_js_runtime_file(pot_generator_fullpath, identifier, response_type=response_type)
 
-    os.chdir(curdir)
+        if po_token_provider == 3: # botGuard do not retrieve visitorData so use homepage visitorData
+            visitor_data_dict = get_visitor_data_(settings.innertube_client_name, 'homepage')
+            visitor_data = visitor_data_dict.get('visitorData')
+            output['visitorData'] = visitor_data
+
+        os.chdir(curdir)
+
+    elif po_token_provider == 4:
+
+        client, client_params = get_innertube_client(client_name='web') # other clients not working
+        context = client_params['INNERTUBE_CONTEXT']
+        payload = {'bypass_cache': True, 'innertube_context': context}
+        visitor_data = get_visitor_data_(settings.innertube_client_name, 'homepage').get('visitorData')
+        if not identifier: payload['content_binding'] = visitor_data
+        else: payload['content_binding'] = identifier
+        try:
+            ping_result = json.loads(fetch_url('http://localhost:4416/ping').decode())
+            print(f"Using bgutil server {ping_result['version']}")
+            response = fetch_url('http://localhost:4416/get_pot',
+                report_text=f'Getting po_token via bgutil server',
+                headers={'Content-Type': 'application/json'},
+                data=json.dumps(payload))
+            output = json.loads(response.decode())
+            output['visitorData'] = visitor_data
+        except Exception as err:
+            print(err)
+            print('''Unable to generate po_token.
+                Make sure that bgutil server is running on localhost:4416.
+                Refer to https://github.com/Brainicism/bgutil-ytdlp-pot-provider for more detils.''')
+            return {}
 
     if identifier:
         output['identifier'] = identifier

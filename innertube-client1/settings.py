@@ -159,6 +159,7 @@ For security reasons, enabling this is not recommended.''',
             (1, 'BgUtils'),                         # https://github.com/LuanRt/BgUtils
             (2, 'youtube-po-token-generator'),      # https://github.com/YunzheZJU/youtube-po-token-generator
             (3, 'botGuard.js'),                     # https://github.com/JuanBindez/pytubefix/tree/main/pytubefix/botGuard/vm/
+            (4, 'bgutil-ytdlp-pot-provider'),       # https://github.com/Brainicism/bgutil-ytdlp-pot-provider
         ],
         'category': 'client',
     }),
