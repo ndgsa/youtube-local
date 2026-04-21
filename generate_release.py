@@ -52,6 +52,8 @@ def remove_files_with_extensions(path, extensions):
 
 def download_if_not_exists(file_name, url, sha256=None):
     if not os.path.exists('./' + file_name):
+        if not url.startswith('https://'):
+            raise Exception('Refusing to download over non-https URL: ' + url)
         log('Downloading ' + file_name + '..')
         data = urllib.request.urlopen(url).read()
         log('Finished downloading ' + file_name)
@@ -67,11 +69,12 @@ def download_if_not_exists(file_name, url, sha256=None):
 
 def wine_run_shell(command):
     if os.name == 'posix':
-        check(os.system('wine ' + command.replace('\\', '/')))
+        parts = ['wine'] + command.replace('\\', '/').split()
     elif os.name == 'nt':
-        check(os.system(command))
+        parts = command.split()
     else:
         raise Exception('Unsupported OS')
+    check(subprocess.run(parts).returncode)
 
 def wine_run(command_parts):
     if os.name == 'posix':
@@ -100,7 +103,19 @@ if os.path.exists('./youtube-local'):
 # confused with working directory. I'm calling it the same thing so it will
 # have that name when extracted from the final release zip archive)
 log('Making copy of youtube-local files')
-check(os.system('git archive --format tar HEAD | 7z x -si -ttar -oyoutube-local'))
+_git_archive = subprocess.Popen(
+    ['git', 'archive', '--format', 'tar', 'HEAD'],
+    stdout=subprocess.PIPE,
+)
+_sevenz = subprocess.Popen(
+    ['7z', 'x', '-si', '-ttar', '-oyoutube-local'],
+    stdin=_git_archive.stdout,
+)
+_git_archive.stdout.close()
+_sevenz.wait()
+_git_archive.wait()
+check(_sevenz.returncode)
+check(_git_archive.returncode)
 
 if len(os.listdir('./youtube-local')) == 0:
     raise Exception('Failed to copy youtube-local files')
@@ -147,13 +162,13 @@ if os.path.exists('./python'):
 
 
 log('Extracting python distribution')
-
-check(os.system(r'7z -y x -opython ' + python_dist_name))
+check_subp(subprocess.run(['7z', '-y', 'x', '-opython', python_dist_name]))
 
 log('Executing get-pip.py')
 # workaround to avoid recent breaking changes
-pip_version = 'pip <= 25.2'
-wine_run(['./python/python.exe', '-I', 'get-pip.py', pip_version])
+# pip_version = 'pip <= 25.2'
+# wine_run(['./python/python.exe', '-I', 'get-pip.py', pip_version])
+wine_run(['./python/python.exe', '-I', 'get-pip.py'])
 
 '''
 # Explanation of .pth, ._pth, and isolated mode
@@ -217,12 +232,14 @@ log('Inserting Microsoft C Runtime')
 check_subp(subprocess.run([r'7z', '-y', 'e', '-opython', visual_c_name, visual_c_path_to_dlls]))
 
 log('Installing dependencies')
-if python_version_minor > 8:
-    wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', 'wheel', 'setuptools'])
-if python_version_minor == 8:
-    wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', '--upgrade', 'wheel', 'setuptools'])
-    wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', 'zope.interface==6.3'])
-wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', '-r', './requirements.txt'])
+# if python_version_minor > 8:
+    # wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', 'wheel', 'setuptools'])
+# if python_version_minor == 8:
+    # wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', '--upgrade', 'wheel', 'setuptools'])
+    # wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', 'zope.interface==6.3'])
+# wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', '--no-compile', '-r', './requirements.txt'])
+wine_run(['./python/python.exe', '-I', '-m', 'pip', 'install', 'uv'])
+wine_run(['./python/python.exe', '-I', '-m', 'uv', 'pip', 'install', '-r', 'requirements.txt'])
 
 log('Uninstalling unnecessary gevent stuff')
 shutil.rmtree(r'./python/Lib/site-packages/gevent/tests')
@@ -230,15 +247,16 @@ shutil.rmtree(r'./python/Lib/site-packages/gevent/testing')
 remove_files_with_extensions(r'./python/Lib/site-packages/gevent', ['.html']) # bloated html documentation
 
 log('Uninstalling pip and others')
-wine_run(['./python/python.exe', '-I', '-m', 'pip', 'uninstall', '--yes', 'pip', 'wheel'])
+wine_run(['./python/python.exe', '-I', '-m', 'pip', 'uninstall', '--yes', 'cffi', 'pycparser'])
+wine_run(['./python/python.exe', '-I', '-m', 'pip', 'uninstall', '--yes', 'pip', 'wheel', 'uv'])
 
 log('Removing pyc files')   # Have to do this because get-pip and some packages don't respect --no-compile
 remove_files_with_extensions(r'./python', ['.pyc'])
 
-log('Removing __pycache__')
+log('Removing dist-info and __pycache__')
 for root, dirs, files in os.walk(r'./python'):
     for dir in dirs:
-        if dir == '__pycache__':
+        if dir == '__pycache__' or dir.endswith('.dist-info'):
             shutil.rmtree(os.path.join(root, dir))
 
 
@@ -259,7 +277,7 @@ if os.path.exists('./' + output_filename):
     log('Removing previous zipped release')
     os.remove('./' + output_filename)
 log('Zipping release')
-check(os.system(r'7z -mx=9 a ' + output_filename + ' ./youtube-local' + ' -xr!"youtube-local/utils" -xr!"youtube-local/screenshots" -xr!"youtube-local/.github" -x!"youtube-local/.gitattributes" -x!"youtube-local/.gitignore" -x!"youtube-local/README.md" -x!"youtube-local/requirements_win7.txt" -x!"youtube-local/generate_release.py"')) # mine
+check_subp(subprocess.run(['7z', '-mx=9', 'a', output_filename, './youtube-local', '-xr!youtube-local/utils', '-xr!youtube-local/screenshots', '-xr!youtube-local/.github', '-x!youtube-local/.gitattributes', '-x!youtube-local/.gitignore', '-x!youtube-local/README.md', '-x!youtube-local/requirements_win7.txt', '-x!youtube-local/generate_release.py']))
 
 print('\n')
 log('Finished')
