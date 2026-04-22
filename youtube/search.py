@@ -307,6 +307,7 @@ def get_many_pages_as_one(query, page, autocorrect, sort, filters, page_multipli
     '''return a number of search results'''
     pages_list = list(range((int(page) * page_multiplier) - page_multiplier + 1, (int(page) * page_multiplier) + 1))
     search_info_tmp = {'error': None, 'estimated_results': 0, 'estimated_pages': 0, 'corrections': {'type': None}, 'items': []}
+    estimated_results_list = []
 
     # if dont want to use greenlets
     # for p in pages_list:
@@ -335,6 +336,13 @@ def get_many_pages_as_one(query, page, autocorrect, sort, filters, page_multipli
         for k,v in search_info.items():
             if k != 'items': search_info_tmp[k] = v
             else: search_info_tmp['items'].extend(v)
+
+        estimated_results_list.append(search_info['estimated_results'])
+
+    # case wheen last page return 0 estimated results
+    estimated_results_list = list(dict.fromkeys(estimated_results_list))
+    if len(estimated_results_list) > 1 and estimated_results_list[-1] == 0 and len(search_info_tmp['items']) != 0:
+        search_info_tmp['estimated_results'] = estimated_results_list[-2]
 
     search_info = search_info_tmp
     search_info['estimated_pages'] = ceil(search_info['estimated_results']/(page_multiplier*20))
