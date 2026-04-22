@@ -91,7 +91,7 @@ def get_search_page():
 
     query_orig = query
     query = use_yt_search_operators(query, request.args, sort, filters)
-    page_multiplier = 1
+    page_multiplier = settings.search_request_page_multiplier
 
     if True:
         if filters['reversed_order']:

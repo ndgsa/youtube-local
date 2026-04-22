@@ -516,6 +516,15 @@ If set to True, the system will try reloading the video player when encountering
         'comment': 'If enabled, no videos will be hidden from related/search.',
     }),
 
+    ('search_request_page_multiplier', {
+        'label': 'Search page multiplier',
+        'type': int,
+        'default': 2,
+        'max': 5,
+        'min': 1,
+        'comment': '''Sets a default search page multiplier. Request multiple pages at once, helpful if need more than 20 videos.''',
+    }),
+
     ('use_sqlite3_db_as_storage', {
         'label': 'Store images, playlist data in database',
         'type': bool,
