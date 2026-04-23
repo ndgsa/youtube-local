@@ -215,6 +215,29 @@ def extract_date(date_text):
             return year + '-' + month + '-' + day
     return None
 
+def convert_duration_string(string, delimiter=','):
+    string_list = string.split(delimiter)
+    string_duration = ''
+    for i in string_list:
+        if 'second' in i:
+            i = i.replace('seconds', '').replace('second', '').strip()
+            if len(i) == 1: i = '0' + i
+            string_duration = string_duration + i
+            if len(string_list) == 1: string_duration = '00:' + string_duration
+        elif 'minute' in i:
+            i = i.replace('minutes', '').replace('minute', '').strip()
+            if len(string_list) == 3 and len(i) == 1: i = '0' + i
+            string_duration = string_duration + i
+            if len(string_list) == 1: string_duration = string_duration + ':00'
+            else: string_duration = string_duration + ':'
+        elif 'hour' in i:
+            i = i.replace('hours', '').replace('hour', '').strip()
+            string_duration = string_duration + i
+            if len(string_list) == 1: string_duration = string_duration + ':00:00'
+            else: string_duration = string_duration + ':'
+        else: print('Unknown duration string', i)
+    return string_duration
+
 def check_missing_keys(object, *key_sequences):
     for key_sequence in key_sequences:
         _object = object
@@ -467,16 +490,30 @@ def extract_item_info(item, additional_info={}):
         info['author_id'] = extract_str(multi_deep_get(item,['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId']))
         info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id']) if info['author_id'] else None
 
+        if info['id'] and len(info['id']) == 13 and info['id'].startswith('RD') and info['author_url'] == None:
+            info['author_id'] = extract_str(multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'], ['metadata', 'lockupMetadataViewModel', 'image', 'avatarStackViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId']))
+            # ['metadata', 'lockupMetadataViewModel', 'image', 'avatarStackViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'] # '/channel/UC................',
+            info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id']) if info['author_id'] else None
+
+            if not info['thumbnail']:
+                info['thumbnail'] = normalize_url(multi_deep_get(item,['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],))
+
         # related videos for some clients u type lockupViewModel
         _author_id_tmp = extract_str(multi_deep_get(item,
             ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'canonicalBaseUrl'],
             ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],))
+        if info['author_id'] == None and _author_id_tmp == None:
+            _author_id_tmp = extract_str(multi_deep_get(item,
+                ['metadata', 'lockupMetadataViewModel', 'image', 'avatarStackViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],))
         if _author_id_tmp and (_author_id_tmp.startswith("/@") or _author_id_tmp.startswith("/channel/")):
             info['type'] = 'video'
             info['playlist_type'] = "video"
 
             info['id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'videoId'], ['contentId'])
-            info['duration'] = multi_deep_get(item, ['contentImage', 'thumbnailViewModel', 'overlays', 0, 'thumbnailOverlayBadgeViewModel', 'thumbnailBadges', 0, 'thumbnailBadgeViewModel', 'text'])
+            info['duration'] = multi_deep_get(item, ['contentImage', 'thumbnailViewModel', 'overlays', 0, 'thumbnailOverlayBadgeViewModel', 'thumbnailBadges', 0, 'thumbnailBadgeViewModel', 'text'], ['contentImage', 'thumbnailViewModel', 'overlays', 0, 'thumbnailBottomOverlayViewModel', 'badges', 0, 'thumbnailBadgeViewModel', 'rendererContext', 'accessibilityContext', 'label'])
+            if info['duration'] and info['duration'].strip() and ':' not in info['duration']:
+                info['duration'] = convert_duration_string(info['duration'])
+
             if not info['thumbnail']:
                 info['thumbnail'] = normalize_url(multi_deep_get(item,['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],))
 
