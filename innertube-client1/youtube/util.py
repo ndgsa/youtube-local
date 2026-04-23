@@ -881,7 +881,7 @@ INNERTUBE_CLIENTS = {
             'client': {
                 'clientName': 'WEB',
                 'clientVersion': '2.20250312.04.00',
-                'userAgent': mobile_user_agent,
+                'userAgent': desktop_user_agent,
             }
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
@@ -1013,7 +1013,7 @@ INNERTUBE_CLIENTS = {
     'visionos': {
         'INNERTUBE_CONTEXT': {
             'client': {
-                'targetDomain': 'm.youtube.com',
+                'targetDomain': 'youtubei.googleapis.com',
                 'clientName': 'VISIONOS',
                 'clientVersion': '0.1',
                 'deviceMake': 'Apple',
