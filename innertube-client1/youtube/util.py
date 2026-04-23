@@ -706,7 +706,7 @@ def to_valid_filename(name):
 
 def get_user_agent(ua_platform):
     if ua_platform == 'desktop':
-        user_agent = 'Mozilla/5.0 (Windows NT 6.1; rv:52.0) Gecko/20100101 Firefox/52.0'
+        user_agent = 'Mozilla/5.0 (Windows NT 6.1; rv:91.0) Gecko/20100101 Firefox/91.0'
     elif ua_platform == 'mobile':
         user_agent = 'Mozilla/5.0 (Linux; Android 7.0; Redmi Note 4 Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Mobile Safari/537.36'
     else:
