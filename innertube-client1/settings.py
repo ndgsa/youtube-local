@@ -115,6 +115,7 @@ For security reasons, enabling this is not recommended.''',
             # ('web_safari'),            # not working
             # ('web_embedded'),          # not working
             # ('web_remix'),             # not working
+            ('web_downgraded'),          #(require: js;)
             ('tv_simply'),               #(require: js;)
             ('tv_downgraded'),           #(require: js; cookies;)
             # ('ipados'),                #(require: po_token;) after 1 minute fails
