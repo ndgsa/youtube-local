@@ -936,6 +936,19 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT_CLIENT_NAME': 67,
         'REQUIRE_JS_PLAYER': True,
     },
+    'web_downgraded': {
+        'INNERTUBE_API_KEY': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'targetDomain': 'www.youtube.com',
+                'clientName': 'WEB', # WEB_PARENT_TOOL
+                'clientVersion': '1.20160315', # Available version '1.20160315', '1.20161001', '1.20170222', '1.20260410'
+                'userAgent': desktop_user_agent, #"Mozilla/5.0 (X11; OpenBSD amd64; rv:91.0) Gecko/20100101 Firefox/91.0"
+            }
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 88,
+        'REQUIRE_JS_PLAYER': True,
+    },
     # https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/extractor/youtube/_base.py
     'tv_simply': {
         'INNERTUBE_CONTEXT': {
