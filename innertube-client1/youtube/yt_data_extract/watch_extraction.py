@@ -441,7 +441,9 @@ def _extract_watch_info_desktop(top_level):
             ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'accessibilityText'],
             ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'toggledButtonViewModel', 'buttonViewModel', 'accessibilityText'],
         default=None)
-        if info['like_count']:
+        if info['like_count'] and 'like' == info['like_count'].lower():
+            info['like_count'] = 0
+        elif info['like_count']:
             info['like_count'] = int(''.join(i for i in info['like_count'] if i.isdigit() or i in '-./\\')) # int(re.sub(r'\D', '', info['like_count']))
 
     playlist = deep_get(top_level, 'response', 'contents', 'twoColumnWatchNextResults', 'playlist', 'playlist')
