@@ -431,6 +431,17 @@ def _extract_watch_info_desktop(top_level):
 
     related = deep_get(top_level, 'response', 'contents', 'twoColumnWatchNextResults', 'secondaryResults', 'secondaryResults', 'results', default=[])
     info['related_videos'] = [extract_item_info(renderer) for renderer in related if not 'continuationItemRenderer' in renderer]
+    if len(related) == 1 and len(info['related_videos']) < 2:
+        related_items = []
+        for i in multi_deep_get(related[0], ['itemSectionRenderer', 'contents'], default=[]):
+            if i.get('continuationItemRenderer'): continue
+            tmp_info = extract_item_info(i)
+            # if tmp_info.get('type') == 'video':
+            related_items.append(tmp_info)
+        if len(related_items) > 1: info['related_videos'] = related_items
+
+    # if not info['author_id']:
+        # info['author_id'] = multi_deep_get(video_info, ['owner', 'videoOwnerRenderer', 'navigationEndpoint', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'title', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'])
 
     if not info['description']:
         info['description'] = deep_get(video_info, 'attributedDescription', 'content')
