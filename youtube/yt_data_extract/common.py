@@ -521,6 +521,9 @@ def extract_item_info(item, additional_info={}):
         _author_id_tmp = extract_str(multi_deep_get(item,
             ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'canonicalBaseUrl'],
             ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],))
+        if info['author_id'] == None and _author_id_tmp == None:
+            _author_id_tmp = extract_str(multi_deep_get(item,
+                ['metadata', 'lockupMetadataViewModel', 'image', 'avatarStackViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],))
         if _author_id_tmp and (_author_id_tmp.startswith("/@") or _author_id_tmp.startswith("/channel/")):
             info['type'] = 'video'
             info['playlist_type'] = "video"
