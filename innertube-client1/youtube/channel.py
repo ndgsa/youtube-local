@@ -814,31 +814,24 @@ def extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_j
         polymer_json = json.loads(tasks[0].value)
         paths_list = get_path_of_keys(polymer_json)
 
-        if tab != 'streams':
-            # chipCloudChipRenderer - contains ctokens for different sorting
-            chipCloudChipRenderer = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'chipCloudChipRenderer' == i[-1]]
-            if chipCloudChipRenderer:
-                # 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipCloudChipRenderer' dict key
-                if sort in ['1', '2']: ctoken = chipCloudChipRenderer[int(sort)][1]['navigationEndpoint']['continuationCommand']['token']
-                elif int(sort) > 2: ctoken = chipCloudChipRenderer[0][1]['navigationEndpoint']['continuationCommand']['token']
-            else: # try other
-                chipBarViewModel = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'chipBarViewModel' == i[-1]]
-                if chipBarViewModel:
-                    ## 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
-                    if sort in ['1', '2']: ctoken = chipBarViewModel[0][1]['chips'][int(sort)]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
-                    elif int(sort) > 2: ctoken = chipBarViewModel[0][1]['chips'][0]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
-        else:
-            chipBarViewModel = multi_deep_get(polymer_json,
-            ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'content', 'richGridRenderer', 'header', 'chipBarViewModel', 'chips', 0, 'chipViewModel', 'tapCommand', 'innertubeCommand', 'showSheetCommand', 'panelLoadingStrategy', 'inlineContent', 'sheetViewModel', 'content', 'listViewModel', 'listItems'], default=None)
+        # chipCloudChipRenderer - contains ctokens for different sorting
+        chipCloudChipRenderer = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'chipCloudChipRenderer' == i[-1]]
+        if chipCloudChipRenderer and tab != 'streams':
+            # 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipCloudChipRenderer' dict key
+            if sort in ['1', '2']: ctoken = chipCloudChipRenderer[int(sort)][1]['navigationEndpoint']['continuationCommand']['token']
+            elif int(sort) > 2: ctoken = chipCloudChipRenderer[0][1]['navigationEndpoint']['continuationCommand']['token']
+        else: # try other
+            try: chipBarViewModel = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'chipBarViewModel' == i[-1]][0][1]
+            except: chipBarViewModel = []
+            # chipBarViewModel = multi_deep_get(yt_data_extract.extract_items(polymer_json.get('response', {}), item_types={'richGridRenderer'}), [0,0, 'richGridRenderer', 'header',  'chipBarViewModel'], default=[])
             if chipBarViewModel:
-                ## 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
-                if sort in ['1', '2']: ctoken = chipBarViewModel[int(sort)]['listItemViewModel']['rendererContext']['commandContext']['onTap']['innertubeCommand']['commandExecutorCommand']['commands'][1]['continuationCommand']['token']
-                elif int(sort) > 2: ctoken = chipBarViewModel[0]['listItemViewModel']['rendererContext']['commandContext']['onTap']['innertubeCommand']['commandExecutorCommand']['commands'][1]['continuationCommand']['token']
-            else:
-                chipBarViewModel = multi_deep_get(polymer_json,
-                ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 3, 'tabRenderer', 'content', 'richGridRenderer', 'header', 'chipBarViewModel'], default=None)
-                if chipBarViewModel:
-                    # 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
+                listItems = multi_deep_get(chipBarViewModel['chips'][0], ['chipViewModel', 'tapCommand', 'innertubeCommand', 'showSheetCommand', 'panelLoadingStrategy', 'inlineContent', 'sheetViewModel', 'content', 'listViewModel', 'listItems'], default=[])
+                if len(listItems) == 3 and chipBarViewModel['chips'][1]['chipViewModel']['text'] != 'Popular': # case if Members only
+                    ## 0 - "Latest", 1 - "Popular", 2 - "Oldest"
+                    if sort in ['1', '2']: ctoken = multi_deep_get(listItems, [int(sort), 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandExecutorCommand', 'commands', 1, 'continuationCommand', 'token'],)
+                    elif int(sort) > 2: ctoken = multi_deep_get(listItems, [0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandExecutorCommand', 'commands', 1, 'continuationCommand', 'token'],)
+                else:
+                    ## 0 - "Latest", 1 - "Popular", 2 - "Oldest" # this is the order when extracting from 'chipBarViewModel' dict key
                     if sort in ['1', '2']: ctoken = chipBarViewModel['chips'][int(sort)]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
                     elif int(sort) > 2: ctoken = chipBarViewModel['chips'][0]['chipViewModel']['tapCommand']['innertubeCommand']['continuationCommand']['token']
         if not ctoken:
@@ -879,6 +872,13 @@ def extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_j
 
         # other cases
         ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],)
+
+        # if 'response' in polymer_json:
+            # ctoken = yt_data_extract.extract_items(polymer_json.get('response', {}), item_types={'null_item_type'})[1]
+        # elif 'onResponseReceivedActions' in polymer_json:
+            # ctoken = yt_data_extract.extract_items(polymer_json, item_types={'null_item_type'})[1]
+        # else:
+            # pass
 
         # some responses have different continuationItems size
         if not ctoken:
