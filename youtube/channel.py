@@ -316,6 +316,8 @@ def get_channel_tab(channel_id, page="1", sort=3, tab='videos', view=1,
 
     return content
 
+# cache for continuation tokens (videos/shorts/streams pagination)
+continuation_token_cache = cachetools.TTLCache(512, 15*60)
 # cache entries expire after 30 minutes
 number_of_videos_cache = cachetools.TTLCache(128, 30*60)
 @cachetools.cached(number_of_videos_cache)
@@ -542,6 +544,9 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             ctoken, continuation, number_of_pages = extract_ctoken(base_url, channel_id, tab, sort, page_number, view, polymer_json=None)
             if isinstance(ctoken, flask.Response): return ctoken
 
+            cache_key = (channel_id, tab, sort, page_number - 1)
+            cached_ctoken = continuation_token_cache.get(cache_key)
+
         if channel_id and not default_params:
             if not channel_id: channel_id = get_channel_id(base_url)
             if channel_id: num_videos_call = (get_number_of_videos_channel, channel_id) # only regular uploads
@@ -639,6 +644,11 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             item.update(additional_info)
 
     if tab in ('videos', 'shorts', 'streams'):
+
+        if info.get('ctoken'):
+            cache_key = (channel_id, tab, sort, page_number)
+            continuation_token_cache[cache_key] = info['ctoken']
+
         if tab in ('shorts', 'streams'):
             number_of_videos = len(info.get('items', [])) # use actual item count
             if number_of_videos == 0: number_of_pages = 1
