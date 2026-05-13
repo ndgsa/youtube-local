@@ -524,6 +524,9 @@ def extract_item_info(item, additional_info={}):
         if info['author_id'] == None and _author_id_tmp == None:
             _author_id_tmp = extract_str(multi_deep_get(item,
                 ['metadata', 'lockupMetadataViewModel', 'image', 'avatarStackViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'showDialogCommand', 'panelLoadingStrategy', 'inlineContent', 'dialogViewModel', 'customContent', 'listViewModel', 'listItems', 0, 'listItemViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],))
+        # case if streams use lockupViewModel
+        if info['author_id'] == None and _author_id_tmp == None and not info['id'] and info['video_count'] == None and info['first_video_id']:
+            _author_id_tmp = '/channel/None'
         if _author_id_tmp and (_author_id_tmp.startswith("/@") or _author_id_tmp.startswith("/channel/")):
             info['type'] = 'video'
             info['playlist_type'] = "video"
@@ -541,11 +544,17 @@ def extract_item_info(item, additional_info={}):
             elif _author_id_tmp.startswith("/channel/"):
                 info['author_url'] = ('https://www.youtube.com/channel/' + _author_id_tmp.replace('/channel/', ''))
 
-            _time_published_tmp = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'], default='')
+            _time_published_tmp = multi_deep_get(item,
+            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'],
+            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 1, 'text', 'content'],
+            default='')
             timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', _time_published_tmp)
             if timestamp: info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
 
-            _views_tmp = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'], default='')
+            _views_tmp = multi_deep_get(item,
+            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'],
+            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'content'],
+            default='')
             view_count_many = re.search(r'(\d+[,.]*\d*K{0,1}M{0,1}B{0,1})(?: views{0,1})*', _views_tmp)
             if view_count_many:
                 view_count = str(extract_approx_int(view_count_many.group(1)))

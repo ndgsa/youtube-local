@@ -102,7 +102,7 @@ def extract_channel_info(polymer_json, tab, continuation=False):
             else: items, ctoken = extract_items(response)
         elif tab == 'streams':
             if tab_is_type not in ['Streams', 'Live', None]: items, ctoken = [], None
-            elif tab_is_type in ['Streams', 'Live']: items, ctoken = extract_items(response, item_types={'videoRenderer'})
+            elif tab_is_type in ['Streams', 'Live']: items, ctoken = extract_items(response, item_types={'videoRenderer', 'lockupViewModel'})
             else: items, ctoken = extract_items(response)
         elif tab == 'playlists': items, ctoken = extract_items(response, item_types={'lockupViewModel'})
         else: items, ctoken = extract_items(response)
