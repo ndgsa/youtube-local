@@ -61,6 +61,10 @@ def get_search_json(query, page, autocorrect, sort, filters):
     headers = util.generate_api_headers(ua_platform='desktop', additional_headers=(('Host', 'www.youtube.com'),))
     url += "&pbj=1&sp=" + page_number_to_sp_parameter(page, autocorrect, sort, filters).replace("=", "%3D")
     content = util.fetch_url(url, headers=headers, report_text="Got search results", debug_name='search_results')
+    if content == b')]}\'\n{"deprecated":""}': # frequently fetch_url returns invalid json
+        print('Bad json response, retry one more time.')
+        content = util.fetch_url(url, headers=headers, report_text="Got search results", debug_name='search_results')
+    elif len(content) < 100: print('Warning! Small json response:', content)
     info = json.loads(content)
     return info
 
