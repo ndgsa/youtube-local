@@ -215,24 +215,53 @@ def extract_date(date_text):
             return year + '-' + month + '-' + day
     return None
 
+_RELATIVE_TIME_UNIT_MAP = {
+    's': 'second', 'sec': 'second', #'second': 'second',
+    'm': 'minute', 'min': 'minute', #'minute': 'minute',
+    'h': 'hour', 'hr': 'hour', #'hour': 'hour',
+    'd': 'day', #'day': 'day',
+    'w': 'week', 'wk': 'week', #'week': 'week',
+    'mo': 'month', #'month': 'month',
+    'y': 'year', 'yr': 'year', #'year': 'year',
+}
+_RELATIVE_TIME_UNIT_MAP_string = '|'.join(map(re.escape, sorted(_RELATIVE_TIME_UNIT_MAP, key=len, reverse=True)))
+### rf"(?P<time>\d+)\s*(?P<unit>{units})s?\s*ago"
+TIME_STRING_RELATIVE_TIME_UNIT_MAP_RE = re.compile(rf"(?P<time>\d+)\s*(?P<unit>{_RELATIVE_TIME_UNIT_MAP_string})s?")
 def convert_trimmed_time_string(string):
     '''replace trimmed time names with complete names'''
     if (not string) or (not isinstance(string, str)): return None
+    elif string.count(' ') == 2 and string.split(' ')[1] in _RELATIVE_TIME_UNIT_MAP: pass
+    elif 'days' in string or 'day' in string: return string
     # string have format '3 weeks ago', or  number + trimmed time string have max 4 characters
     elif string.count(' ') > 1 or len(string[:-4]) > 4: return string
 
-    time_string_pairs = {'s': 'second', 'm': 'minute', 'h': 'hour', 'd': 'day', 'w': 'week', 'mo': 'month', 'y': 'year'}
     tmp_c_time_string = ""
     tmp_c_time_number = ""
-    string = string[:-4] # string.replace(' ago', '')
+    if string.endswith(' ago'): string = string[:-4] # string.replace(' ago', '')
 
-    for k,v in time_string_pairs.items():
+    for k,v in _RELATIVE_TIME_UNIT_MAP.items():
         if string.endswith(k):
-            tmp_c_time_string = v
-            if k == 'mo': tmp_c_time_number = string[:-2]
-            else: tmp_c_time_number = string[:-1]
-            if int(tmp_c_time_number) > 1: tmp_c_time_string = f"{tmp_c_time_string}s"
-            return f'{tmp_c_time_number} {tmp_c_time_string} ago'
+            try:
+                tmp_c_time_string = v
+                if len(k) > 1 and k in ['sec', 'min', 'hr', 'wk', 'mo', 'yr']: tmp_c_time_number = string[:-len(k)].strip()
+                elif len(k) == 1 and k in ['s', 'm', 'h', 'd', 'w', 'y']: tmp_c_time_number = string[:-1].strip()
+                else: raise Exception('Not implemented time string')
+                if int(tmp_c_time_number) > 1: tmp_c_time_string = f"{tmp_c_time_string}s"
+                return f'{tmp_c_time_number} {tmp_c_time_string} ago'
+            except:
+                print('Warning! Invalid time string:', string)
+                return None
+
+    ## regex way
+    # mobj = re.search(TIME_STRING_RELATIVE_TIME_UNIT_MAP_RE, string)
+    # if mobj:
+        # try:
+            # tmp_c_time_string = _RELATIVE_TIME_UNIT_MAP[mobj.group('unit')]
+            # tmp_c_time_number = mobj.group("time")
+            # if int(tmp_c_time_number) > 1: tmp_c_time_string = f"{tmp_c_time_string}s"
+            # return f"{tmp_c_time_number} {tmp_c_time_string} ago"
+        # except ValueError:
+            # return None
 
     return None
 
