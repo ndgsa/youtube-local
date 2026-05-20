@@ -132,13 +132,14 @@
 		</div>
 
         <div id="export-options">
-            <form id="playlist-export" method="post" action="/youtube.com/playlists/{{ title }}">
+            <form id="playlist-export" method="post" action="/youtube.com/playlists/{{ parameters_dictionary.get('list', '') if parameters_dictionary.get('list', '') else '' }}">
                 <select id="export-type" name="export_format">
                     <option value="json">JSON</option>
                     <option value="ids">Video id list (txt)</option>
                     <option value="urls">Video url list (txt)</option>
 					<option value="key_value_dict">Video dict (txt)</option>
                 </select>
+				<input type="hidden" value="{{ title }}" name="playlist_name" />
 				<input type="hidden" value="{{  parameters_dictionary.get('list', '') }}" name="playlist_id" />
 				<input type="hidden" value="true" name="export_youtube_playlist" />
                 <button type="submit" id="playlist-export-button" name="action" value="export">Export</button>
@@ -230,6 +231,29 @@
 		}
 
 		validate()
+
+		function escape_playlist_name() {
+			var playlistExportForm = document.getElementById('playlist-export');
+			var playlistExportForm_action_value = playlistExportForm.getAttribute('action');
+			var playlist_new_name = playlistExportForm_action_value
+				.replace(/&amp;/g, '&')
+				.replace(/&lt;/g, '<')
+				.replace(/&gt;/g, '>')
+				.replace(/&quot;/g, '"')
+				.replace(/&#39;/g, "'")
+				.replace(/&#039;/g, "'")
+				.replace(/&ndash;/g, "-")
+				.replace(/#/g, "_")
+				.replace(/"/g, "_")
+				.replace(/'/g, "_")
+				.replace(/<br>/g, "")
+				.replace(/&nbsp;/g, "")
+				.replace(/%20/g, "")
+				.trim();
+			playlistExportForm.setAttribute("action", playlist_new_name);
+		}
+		<!-- escape_playlist_name(); -->
+
 	</script>
 {% endblock main %}
 

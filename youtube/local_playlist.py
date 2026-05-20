@@ -383,6 +383,8 @@ def path_edit_playlist(playlist_name):
 
         if request.values.get('export_youtube_playlist', None) == 'true':
             videos = [json.loads(v.strip()) for v in get_all_videos_from_playlist(request.values['playlist_id'])]
+            if request.values.get('playlist_name') and request.values.get('playlist_name', '').strip():
+                playlist_name = check_playlist_name_invalid_symbols(request.values['playlist_name'].strip(), '_')
         else: videos = read_playlist(playlist_name)
 
         fmt = request.values['export_format']
