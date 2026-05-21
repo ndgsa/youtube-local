@@ -119,7 +119,7 @@
 			<a style="font-weight:bold;font-size: 18px;">Sort by</a>
 			<div class="dropdown_home_content">
 				<div id="links-metadata">
-					{% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'),] %}
+					{% set sorts = [('1', 'views'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'), ('6', 'duration'),] %}
 					{% for sort_number, sort_name in sorts %}
 						{% if sort_number == current_sort.__str__() %}
 							<a class="sort-button" id="home-link">{{ sort_name }}</a>

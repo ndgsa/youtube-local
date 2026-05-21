@@ -699,6 +699,27 @@ def get_toplevel_custom_page(custom, tab='videos'):
 
 
 
+def transform_time_string(string):
+    string = re.sub(r"[^0-9:.]", "", string or '')
+    if not string: return ''
+    time_parts = [part.zfill(2) for part in string.split(":")]
+    if len(time_parts) == 2: time_parts = ['00'] + time_parts
+    return ':'.join(time_parts)
+
+def sort_video_items_by_duration(data, sort_key):
+    '''return sorted list of dicts by duration key'''
+    sorted_list = data
+    for i in range(len(sorted_list)):
+        for j in range(i + 1, len(sorted_list)):
+            i_s = transform_time_string(sorted_list[i][sort_key])
+            j_s = transform_time_string(sorted_list[j][sort_key])
+            if i_s > j_s:
+                sorted_list[i], sorted_list[j] = sorted_list[j], sorted_list[i]
+                i_s, j_s = j_s, i_s  # swapping vars in case next if is True
+            if len(i_s) > len(j_s):
+                sorted_list[i], sorted_list[j] = sorted_list[j], sorted_list[i]
+    return sorted_list
+
 def sort_video_items(data, sort_key='approx_view_count', order=1):
     '''return sorted list of dicts by specific key'''
     def get_multiplier(string):
@@ -720,8 +741,11 @@ def sort_video_items(data, sort_key='approx_view_count', order=1):
         else:
             return None
 
-    # quicksort oneliner
-    q = lambda l: q([x for x in l[1:] if get_multiplier(x[sort_key]) <= get_multiplier(l[0][sort_key])]) + [l[0]] + q([x for x in l if get_multiplier(x[sort_key]) > get_multiplier(l[0][sort_key])]) if l else []
+    if sort_key == 'duration':
+        q = lambda l: sort_video_items_by_duration(l, sort_key)
+    else:
+        # quicksort oneliner
+        q = lambda l: q([x for x in l[1:] if get_multiplier(x[sort_key]) <= get_multiplier(l[0][sort_key])]) + [l[0]] + q([x for x in l if get_multiplier(x[sort_key]) > get_multiplier(l[0][sort_key])]) if l else []
 
     if len(data) > 1:
         try:

@@ -199,6 +199,9 @@ def get_playlist_page():
     elif sort1 == '5':
         from youtube.channel import sort_video_items
         info['items'] = sort_video_items(info.get('items', []), sort_key='author', order=2) # video author
+    elif sort1 == '6':
+        from youtube.channel import sort_video_items
+        info['items'] = sort_video_items(info.get('items', []), sort_key='duration', order=1) # video duration
 
     return flask.render_template('playlist.html',
         header_playlist_names = local_playlist.get_playlist_names(),
