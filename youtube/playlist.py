@@ -171,7 +171,7 @@ def get_playlist_page():
             item['thumbnail'] = settings.img_prefix + 'https://i.ytimg.com/vi/' + item['id'] + '/default.jpg'
 
         item['url'] += '&list=' + playlist_id
-        if item['index']:
+        if item.get('index', None):
             item['url'] += '&index=' + str(item['index'])
 
     video_count = yt_data_extract.deep_get(info, 'metadata', 'video_count')

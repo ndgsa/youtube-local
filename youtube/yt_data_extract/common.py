@@ -524,6 +524,9 @@ def extract_item_info(item, additional_info={}):
                 ))
             info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id']) if info['author_id'] else None
 
+        if info.get('index') == None:
+            info['index'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'index'])
+
     if type == "lockupViewModel":
         info['type'] = 'playlist'
         info['playlist_type'] = "playlist"
