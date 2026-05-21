@@ -116,17 +116,17 @@ def get_playlist_page():
         info['metadata'] = yt_data_extract.extract_playlist_metadata(first_page_json)
 
     util.prefix_urls(info['metadata'])
-    for item in info['items']:
+    for item in info.get('items', ()):
         if item['error']:
             continue
         util.prefix_urls(item)
         util.add_extra_html_info(item)
-        if item['id']:
+        if 'id' in item and item['id']:
             item['thumbnail'] = settings.img_prefix + 'https://i.ytimg.com/vi/' + item['id'] + '/default.jpg'
-        if item['url']:
-            item['url'] += '&list=' + playlist_id
-            if item['index']:
-                item['url'] += '&index=' + str(item['index'])
+
+        item['url'] += '&list=' + playlist_id
+        if item.get('index', None):
+            item['url'] += '&index=' + str(item['index'])
 
     video_count = yt_data_extract.deep_get(info, 'metadata', 'video_count')
     if video_count is None:
