@@ -10,6 +10,7 @@ import gevent
 import math
 from flask import request
 import flask
+import cachetools.func
 
 
 def playlist_ctoken(playlist_id, offset, include_shorts=True):
@@ -28,6 +29,7 @@ def playlist_ctoken(playlist_id, offset, include_shorts=True):
     return base64.urlsafe_b64encode(pointless_nest).decode('ascii')
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def playlist_first_page(playlist_id, report_text="Retrieved playlist",
                         use_mobile=False):
     # Use innertube API (pbj=1 no longer works for many playlists)
@@ -53,6 +55,7 @@ def playlist_first_page(playlist_id, report_text="Retrieved playlist",
     return content
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def get_videos(playlist_id, page, include_shorts=True, use_mobile=False,
                report_text='Retrieved playlist'):
     page_size = 100
@@ -80,6 +83,7 @@ def get_videos(playlist_id, page, include_shorts=True, use_mobile=False,
     return info
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def playlist_first_page_old(playlist_id, report_text="Retrieved playlist",
                         use_mobile=False):
     if use_mobile:
@@ -100,6 +104,7 @@ def playlist_first_page_old(playlist_id, report_text="Retrieved playlist",
     return content
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def get_videos_old(playlist_id, page, include_shorts=True, use_mobile=False,
                report_text='Retrieved playlist'):
     # mobile requests return 20 videos per page
