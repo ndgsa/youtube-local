@@ -1,5 +1,5 @@
 from youtube import util, yt_data_extract, proto, local_playlist
-from youtube.channel import sort_video_items
+from youtube.channel import sort_video_items, sort_video_items_custom
 from youtube import yt_app
 import settings
 
@@ -305,6 +305,10 @@ def filter_search_items(search_info_items, query, page, request_url, request_arg
     if int(sort) in [2,100]: search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=1)
     # relevance by date case
     if int(sort) == 0 and filters['time'] in [1,2]: search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=1)
+
+    # sort items if 'sort1' request argument is used
+    if request_args.get('sort1'):
+        search_info_items = sort_video_items_custom(search_info_items, request_args.get("sort1"), request_args.get("sort1_reversed", "false")) # sorting
 
     return [*other_type_list, *search_info_items]
 
