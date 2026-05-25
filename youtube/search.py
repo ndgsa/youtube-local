@@ -307,6 +307,15 @@ def filter_search_items(search_info_items, query, page, request_url, request_arg
     # relevance by date case
     if int(sort) == 0 and filters['time'] in [1,2]: search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=2)
 
+    # sort items if 'sort1' request argument is used
+    order, order1 = (2,1) if request_args.get("sort1_reversed", "false") == 'true' else (1,2)
+    if request_args.get("sort1") == '1': search_info_items = sort_video_items(search_info_items, sort_key='approx_view_count', order=order) # popular
+    elif request_args.get('sort1') == '2': search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=order) # oldest
+    elif request_args.get("sort1") == '3': search_info_items = sort_video_items(search_info_items, sort_key='time_published', order=order1) # newest
+    elif request_args.get("sort1") == '4': search_info_items = sort_video_items(search_info_items, sort_key='title', order=order1) # video title
+    elif request_args.get("sort1") == '5': search_info_items = sort_video_items(search_info_items, sort_key='author', order=order1) # video author
+    elif request_args.get("sort1") == '6': search_info_items = sort_video_items(search_info_items, sort_key='duration', order=order) # video duration
+
     return [*other_type_list, *search_info_items]
 
 
