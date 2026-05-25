@@ -10,6 +10,7 @@ import gevent
 import math
 from flask import request
 import flask
+import cachetools.func
 
 
 def playlist_ctoken(playlist_id, offset, include_shorts=True):
@@ -56,11 +57,13 @@ def playlist_call_api(data, report_text, debug_name):
 
     return content
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def playlist_first_page(playlist_id, report_text="Retrieved playlist",
                         use_mobile=False):
     return playlist_call_api({'browseId': 'VL' + playlist_id}, report_text=report_text, debug_name='playlist_first_page')
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def get_videos(playlist_id, page, include_shorts=True, page_size=100,
                report_text='Retrieved playlist'):
     ctoken = playlist_ctoken(playlist_id, (int(page)-1)*page_size,
@@ -68,6 +71,7 @@ def get_videos(playlist_id, page, include_shorts=True, page_size=100,
     return playlist_call_api({'continuation': ctoken}, report_text=report_text, debug_name='playlist_videos')
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def playlist_first_page_old(playlist_id, report_text="Retrieved playlist",
                         use_mobile=False):
     if use_mobile:
@@ -88,6 +92,7 @@ def playlist_first_page_old(playlist_id, report_text="Retrieved playlist",
     return content
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def get_videos_old(playlist_id, page, include_shorts=True, use_mobile=False,
                report_text='Retrieved playlist'):
     # mobile requests return 20 videos per page
