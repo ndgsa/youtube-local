@@ -281,6 +281,7 @@ def channel_about_ctoken(channel_id):
         )
     )
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def get_channel_tab(channel_id, page="1", sort=3, tab='videos', view=1,
                     ctoken=None, print_status=True, include_shorts=True):
     message = 'Got channel tab' if print_status else None
@@ -439,6 +440,7 @@ def post_process_channel_info(info):
                 info['links'][i] = (text, util.prefix_url(url))
 
 
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
 def get_channel_first_page(base_url=None, tab='videos', channel_id=None, sort=None):
     if channel_id: base_url = 'https://www.youtube.com/channel/' + channel_id
     url = base_url + '/' + tab + '?pbj=1&view=0'
