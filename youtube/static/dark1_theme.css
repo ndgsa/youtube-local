@@ -292,3 +292,19 @@ div[role="menu"] .plyr__control:hover, button.plyr__control--back:hover{
 	box-shadow: unset !important;
 	background: #adaeae !important;
 }
+
+
+/* for chrome */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .playlist ::-webkit-scrollbar {
+    border-radius: 10px;
+  }
+  .playlist ::-webkit-scrollbar-thumb {
+    background-color: #707071;
+  }
+  .playlist ::-webkit-scrollbar-thumb:hover {
+    background-color: #777979;
+  }
+}
+  /* scrollbar-color: #6e6e70 transparent; */
+
