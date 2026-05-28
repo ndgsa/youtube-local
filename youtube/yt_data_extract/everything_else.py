@@ -226,8 +226,9 @@ def extract_search_info(polymer_json):
     info['estimated_pages'] = ceil(info['estimated_results']/20)
 
 
-    results, _ = extract_items(response)
-
+    results, ctoken = extract_items(response)
+    # ctoken = multi_deep_get(response, ['contents', 'twoColumnSearchResultsRenderer', 'primaryContents', 'sectionListRenderer', 'contents', 1, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
+    info['ctoken'] = ctoken
 
     info['items'] = []
     info['corrections'] = {'type': None}
@@ -258,8 +259,69 @@ def extract_search_info(polymer_json):
         if i_info.get('type') != 'unsupported':
             info['items'].append(i_info)
 
+    # refinement_filters
+    info['search_refinement_filters'] = {}
+    chips = multi_deep_get(polymer_json,
+        ['response', 'header', 'searchHeaderRenderer', 'chipBar', 'chipCloudRenderer', 'chips'],
+        # ['onResponseReceivedCommands', 1, 'reloadContinuationItemsCommand', 'continuationItems', 0, 'searchHeaderRenderer', 'chipBar', 'chipCloudRenderer', 'chips'],
+        default=[])
+    for c in chips:
+        c_text = multi_deep_get(c, ['chipCloudChipRenderer', 'text', 'simpleText'])
+        c_tok = multi_deep_get(c, ['chipCloudChipRenderer', 'navigationEndpoint', 'continuationCommand', 'token'])
+        if c_text and c_tok:
+            if c_text == 'All': continue
+            info['search_refinement_filters'][c_text] = c_tok
+
     # check_for_empty_value('extract_search_info', info, ['error'])
     # check_for_empty_value('extract_search_info', info['items'], ['error', 'description', 'badges', 'index', 'video_count'])
+
+    return info
+
+def extract_search_refinement_info(polymer_json):
+    if isinstance(polymer_json, dict) and ('onResponseReceivedCommands' in polymer_json or 'response' in polymer_json or 'responseContext' in polymer_json):
+        response = polymer_json
+    else:
+        return {'error': 'Failed to extract response'}
+
+    info = {'error': None}
+    info['estimated_results'] = int(response['estimatedResults'])
+    info['estimated_pages'] = ceil(info['estimated_results']/20)
+    info['items'] = []
+    info['corrections'] = {'type': None}
+    info['search_refinement_filters'] = {}
+
+    if 'onResponseReceivedCommands' in response:
+        results = multi_deep_get(response,
+        ['onResponseReceivedCommands', 0, 'reloadContinuationItemsCommand', 'continuationItems', 0, 'twoColumnSearchResultsRenderer', 'primaryContents', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents'],
+        ['onResponseReceivedCommands', 0, 'appendContinuationItemsAction', 'continuationItems', 0, 'itemSectionRenderer', 'contents'],
+        default=[])
+        for renderer in results:
+            if 'gridShelfViewModel' in renderer:
+                # for r1 in renderer['gridShelfViewModel']['contents']: info['items'].append(extract_item_info(r1))
+                pass
+            else:
+                i_info = extract_item_info(renderer)
+                if i_info.get('type') != 'unsupported':
+                    info['items'].append(i_info)
+
+    # refinement_filters
+    chips = multi_deep_get(response,
+        ['response', 'header', 'searchHeaderRenderer', 'chipBar', 'chipCloudRenderer', 'chips'],
+        # ['onResponseReceivedCommands', 1, 'reloadContinuationItemsCommand', 'continuationItems', 0, 'searchHeaderRenderer', 'chipBar', 'chipCloudRenderer', 'chips'],
+        default=[])
+    for c in chips:
+        c_text = multi_deep_get(c, ['chipCloudChipRenderer', 'text', 'simpleText'])
+        c_tok = multi_deep_get(c, ['chipCloudChipRenderer', 'navigationEndpoint', 'continuationCommand', 'token'])
+        if c_text and c_tok:
+            if c_text == 'All': continue
+            info['search_refinement_filters'][c_text] = c_tok
+
+    ctoken = multi_deep_get(response,
+        ['onResponseReceivedCommands', 0, 'reloadContinuationItemsCommand', 'continuationItems', 0, 'twoColumnSearchResultsRenderer', 'primaryContents', 'sectionListRenderer', 'contents', 1, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['onResponseReceivedCommands', 0, 'appendContinuationItemsAction', 'continuationItems', 1, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+    )
+
+    info['ctoken'] = ctoken
 
     return info
 
