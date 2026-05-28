@@ -68,6 +68,56 @@ def get_search_json(query, page, autocorrect, sort, filters):
     info = json.loads(content)
     return info
 
+def get_search_api_json(query, page, autocorrect, sort, filters, ctoken=None):
+    sp = page_number_to_sp_parameter(page, autocorrect, sort, filters).replace("=", "%3D")
+    _, client_params = util.get_innertube_client(client_name='web')
+    key = client_params['INNERTUBE_API_KEY'] or 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
+    params = {'key': key, 'contentCheckOk': True, 'racyCheckOk': True}
+
+    data = {
+        # 'context': client_params['INNERTUBE_CONTEXT'],
+        'context': {
+            'client': {
+                'hl': 'en',
+                'gl': 'US',
+                'clientName': 'WEB',
+                'clientVersion': '2.20180830',
+            },
+        },
+        # 'params': sp,
+        # 'user': {
+            # "lockedSafetyMode":'false',
+        # },
+        # 'request': {
+            # "useSsl": True,
+            # "internalExperimentFlags": [],
+            # "consistencyTokenJars": []
+        # },
+    }
+
+    if ctoken:
+        data['continuation'] = ctoken.replace('=', '%3D')
+    else:
+        data['query'] = urllib.parse.quote_plus(query)
+        params['query'] = query
+        params['params'] = sp
+    url = f"https://www.youtube.com/youtubei/v1/search?{urllib.parse.urlencode(params)}"
+
+    headers_desktop = util.generate_api_headers(
+        ua_platform='desktop',
+        additional_headers=(('Host', 'www.youtube.com'),),
+        update_headers_with=(('X-YouTube-Client-Version', '2.20180830'),)
+    )
+    content = util.fetch_url(url, util.merge_dicts(headers_desktop, {'Content-Type': 'application/json'}),
+        data=json.dumps(data), report_text="Got search api results", debug_name='search_api_results')
+    polymer_json = json.loads(content.decode('utf-8'))
+
+    return polymer_json
+
+
+# cache for continuation tokens (search pagination)
+api_continuation_token_cache = cachetools.LRUCache(512)
+
 
 @yt_app.route('/results')
 @yt_app.route('/search')
@@ -102,6 +152,19 @@ def get_search_page():
             search_info = get_many_pages_as_one_reversed(query, page, autocorrect, sort, filters, page_multiplier)
         else:
             search_info = get_many_pages_as_one(query, page, autocorrect, sort, filters, page_multiplier)
+
+            # for refinement with api
+            # if int(page) == 1:
+                # search_info = get_many_pages_as_one(query, 1, autocorrect, sort, filters, 1)
+                # cached_ctoken = search_info['search_refinement_filters']['Recently uploaded']
+            # else:
+                # cache_key = (query, sort, filters, int(page) - 1)
+                # cached_ctoken = api_continuation_token_cache.get(cache_key)
+            # if cached_ctoken == None and int(page) > 1:
+                # redirect_to_1_path = re.sub(r'\&page\=[0-9]+',r'', request.full_path)
+                # if redirect_to_1_path:
+                    # return flask.redirect(f'{util.URL_ORIGIN}{redirect_to_1_path}')
+            # search_info = get_many_pages_as_one_refinement_(cached_ctoken, query, int(page), autocorrect, sort, filters, page_multiplier)
     else:
         polymer_json = get_search_json(query, page, autocorrect, sort, filters)
         search_info = yt_data_extract.extract_search_info(polymer_json)
@@ -457,4 +520,53 @@ def calculate_last_page(query, page, autocorrect, sort, filters):
 
     g_last_page_list.append((query, sort, filters, last_page, search_info))
     return last_page, search_info
+
+
+@cachetools.func.ttl_cache(maxsize=99, ttl=10*60)
+def get_many_pages_as_one_refinement_(ctoken, query, page, autocorrect, sort, filters, page_multiplier=3):
+    '''return a number of search results'''
+    pages_list = list(range((int(page) * page_multiplier) - page_multiplier + 1, (int(page) * page_multiplier) + 1))
+    search_info_tmp = {'error': None, 'estimated_results': 0, 'estimated_pages': 0, 'corrections': {'type': None}, 'items': []}
+    estimated_results_list = []
+
+    for p in pages_list:
+        polymer_json = get_search_api_json(query, p, autocorrect, sort, filters, ctoken)
+        search_info = yt_data_extract.extract_search_refinement_info(polymer_json)
+
+        if search_info['error']:
+            return flask.render_template('error.html', error_message = search_info['error'])
+
+        for i in search_info['items']:
+            util.prefix_urls(i)
+            util.add_extra_html_info(i)
+
+        for k,v in search_info.items():
+            if k != 'items': search_info_tmp[k] = v
+            else: search_info_tmp['items'].extend(v)
+
+        estimated_results_list.append(search_info['estimated_results'])
+
+        if search_info['ctoken']:
+            ctoken = search_info['ctoken']
+        else: break
+
+    # case wheen last page return 0 estimated results
+    estimated_results_list = list(dict.fromkeys(estimated_results_list))
+    if len(estimated_results_list) > 1 and estimated_results_list[-1] == 0 and len(search_info_tmp['items']) != 0:
+        search_info_tmp['estimated_results'] = estimated_results_list[-2]
+
+    search_info = search_info_tmp
+
+    if search_info.get('ctoken'):
+        cache_key = (query, sort, filters, page)
+        api_continuation_token_cache[cache_key] = search_info.get('ctoken')
+
+    if page == ceil(search_info['estimated_results']/(page_multiplier*20)) or search_info.get('ctoken') is None or len(search_info['items']) == 0:
+        search_info['estimated_pages'] = page
+        search_info['is_last_page'] = None
+    else:
+        search_info['estimated_pages'] = page + 1
+        search_info['is_last_page'] = (search_info.get('ctoken') is None)
+
+    return search_info
 
