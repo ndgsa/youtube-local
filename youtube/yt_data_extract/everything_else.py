@@ -85,6 +85,10 @@ def extract_channel_info(polymer_json, tab, continuation=False):
                 tab_is_selected = t_tab_is_selected
                 break
 
+        custom_type = multi_deep_get(response,['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'text'])
+        if tab in ['videos', 'shorts', 'streams'] and custom_type in ['Albums & Singles']:
+            tab_is_type = 'Playlists'
+
         # use first if available
         # if tab_is_type == None and tab_is_selected == None:
             # tab_is_selected = multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'selected'],) # True
@@ -104,7 +108,11 @@ def extract_channel_info(polymer_json, tab, continuation=False):
             if tab_is_type not in ['Streams', 'Live', None]: items, ctoken = [], None
             elif tab_is_type in ['Streams', 'Live']: items, ctoken = extract_items(response, item_types={'videoRenderer', 'lockupViewModel'})
             else: items, ctoken = extract_items(response)
-        elif tab == 'playlists': items, ctoken = extract_items(response, item_types={'lockupViewModel'})
+        elif tab == 'playlists':
+            if multi_deep_get(response, ['continuationContents', 'itemSectionContinuation', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'text']) not in ['Videos', 'Shorts', 'Streams', 'Music videos', 'Popular videos']:
+                items, ctoken = extract_items(response, item_types={'lockupViewModel'})
+            else:
+                items, ctoken = [], None
         else: items, ctoken = extract_items(response)
 
         additional_info = {
