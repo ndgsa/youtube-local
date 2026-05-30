@@ -283,6 +283,7 @@ def youtube_timestamp_to_posix(dumb_timestamp):
 
 def posix_to_dumbed_down(posix_time):
     '''Inverse of youtube_timestamp_to_posix.'''
+    posix_time = _coerce_posix_time(posix_time)
     delta = int(time.time() - posix_time)
     assert delta >= 0
 
@@ -300,10 +301,27 @@ def posix_to_dumbed_down(posix_time):
         raise Exception()
 
 def exact_timestamp(posix_time):
+    posix_time = _coerce_posix_time(posix_time)
     result = time.strftime('%I:%M %p %m/%d/%y', time.localtime(posix_time))
     if result[0] == '0':    # remove 0 infront of hour (like 01:00 PM)
         return result[1:]
     return result
+
+def _coerce_posix_time(posix_time):
+    '''Best-effort conversion of a stored time_published value to a float.
+    Older versions could persist an unparsed timestamp string into the
+    integer time_published column. Recover gracefully: try numeric
+    conversion, then the dumbed-down parser, and fall back to "now".'''
+    if isinstance(posix_time, (int, float)):
+        return posix_time
+    try:
+        return float(posix_time)
+    except (TypeError, ValueError):
+        pass
+    try:
+        return youtube_timestamp_to_posix(posix_time)
+    except Exception:
+        return time.time()
 
 if use_sqlite3_db_as_storage():
     pass
@@ -554,7 +572,8 @@ def _get_upstream_videos(channel_id):
             try:
                 video_item['time_published'] = youtube_timestamp_to_posix(video_item['time_published']) - i  # subtract a few seconds off the videos so they will be in the right order
             except Exception:
-                print(video_item)
+                print('Failed to parse time_published:', video_item)
+                video_item['time_published'] = None
         else:
             video_item['is_time_published_exact'] = False
             video_item['time_published'] = None
