@@ -458,6 +458,7 @@ def extract_playlist_metadata(polymer_json):
                 time_published1[0]['text'] = strftime("%b %d, %Y")
             elif 'yesterday' in time_published1[-1]['text'].lower():
                 time_published1[0]['text'] = strftime("%b %d, %Y")
+            elif is_date_matching(time_published1[-1].get('text', ''), '%b %d, %Y'): pass
             else: print('Not implemented date string', time_published1)
 
         metadata['time_published'] = extract_date(time_published1[-1]['text'])
@@ -577,6 +578,13 @@ def extract_comments_info(polymer_json, ctoken=None):
     # check_for_empty_value('extract_comments_info', info['comments'], ['error', 'like_count', 'approx_like_count', 'reply_ctoken'])
 
     return info
+
+
+def is_date_matching(date_str, date_format):
+    from datetime import datetime
+    # import time
+    try: return bool(datetime.strptime(date_str, date_format)) # bool(time.strptime(date_str, date_format))
+    except ValueError: return False
 
 
 
