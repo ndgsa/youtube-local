@@ -120,13 +120,26 @@
         </div>
     </div>
     <nav class="channel-tabs">
-        {% for tab_name in ('Videos', 'Shorts', 'Streams', 'Playlists', 'About') %}
+
+		{% if 'Releases' in channel_available_tabs or 'releases' == current_tab %}
+			{% set _tab_list_str = ('Videos', 'Shorts', 'Streams', 'Playlists', 'Releases', 'About') %}
+		{% else %}
+			{% set _tab_list_str = ('Videos', 'Shorts', 'Streams', 'Playlists', 'About') %}
+		{% endif %}
+
+        {% for tab_name in _tab_list_str %}
             {% if tab_name.lower() == current_tab %}
                 <a class="tab page-button">{{ tab_name }}</a>
             {% else %}
                 <a class="tab page-button" href="{{ channel_url + '/' + tab_name.lower() }}">{{ tab_name }}</a>
             {% endif %}
         {% endfor %}
+
+		{% if _tab_list_str|length == 6 %}
+			<script>
+				Array.from(document.getElementsByClassName("tab page-button")).forEach(t_i =>{t_i.style.width = "167px";});
+			</script>
+		{% endif %}
 
         <form class="channel-search" action="{{ channel_url + '/search' }}">
             <input type="search" name="query" class="search-box" value="{{ search_box_value }}">
@@ -173,7 +186,7 @@
                     {% else %}
                         <div id="number-of-results">{{ number_of_videos }} videos</div>
                     {% endif %}
-                {% elif current_tab == 'playlists' %}
+                {% elif current_tab == 'playlists' or current_tab == 'releases' %}
                     {% set sorts = [('3', 'newest'), ('4', 'last video added')] %}
                     {% if items %}
                         <h2 class="page-number">Page {{ page_number }}</h2>
@@ -235,7 +248,7 @@
                 <nav class="page-button-row">
                     {{ common_elements.page_buttons(number_of_pages, channel_url + '/' + current_tab, parameters_dictionary, include_ends=(current_sort.__str__() in '34')) }}
                 </nav>
-            {% elif current_tab == 'playlists' or current_tab == 'search' %}
+            {% elif current_tab == 'playlists' or current_tab == 'releases' or current_tab == 'search' %}
                 <nav class="next-previous-button-row">
                     {{ common_elements.next_previous_buttons(is_last_page, channel_url + '/' + current_tab, parameters_dictionary) }}
                 </nav>
