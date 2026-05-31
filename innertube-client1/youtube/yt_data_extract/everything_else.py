@@ -69,11 +69,16 @@ def extract_channel_info(polymer_json, tab, continuation=False):
     info['items'] = []
     info['ctoken'] = None
 
+    info['channel_available_tabs'] = []
+    for t in multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'], default=[]):
+        if t.get('tabRenderer', {}).get('title'):
+            info['channel_available_tabs'].append(t.get('tabRenderer', {}).get('title'))
+
     # empty channel
     #if 'contents' not in response and 'continuationContents' not in response:
     #    return info
 
-    if tab in ('videos', 'shorts', 'streams', 'playlists', 'search'):
+    if tab in ('videos', 'shorts', 'streams', 'playlists', 'releases', 'albums', 'podcasts', 'courses', 'search'):
         tab_is_type, tab_is_selected = None, None
         for t in multi_deep_get(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'], default=[]):
             t_tab_is_type = t.get('tabRenderer', {}).get('title')
@@ -116,6 +121,10 @@ def extract_channel_info(polymer_json, tab, continuation=False):
                 else: items, ctoken = extract_items(response, item_types={'lockupViewModel'})
             else:
                 items, ctoken = [], None
+        elif tab == 'releases':
+            items, ctoken = extract_items(response, item_types={'playlistRenderer'})
+        elif tab in ['albums', 'podcasts', 'courses']:
+            items, ctoken = extract_items(response, item_types={'playlistRenderer', 'lockupViewModel'})
         else: items, ctoken = extract_items(response)
 
         additional_info = {
@@ -125,7 +134,7 @@ def extract_channel_info(polymer_json, tab, continuation=False):
         }
         info['items'] = [extract_item_info(renderer, additional_info) for renderer in items]
         info['ctoken'] = ctoken
-        if tab in ('search', 'playlists'):
+        if tab in ('search', 'playlists', 'releases', 'albums', 'podcasts', 'courses'):
             info['is_last_page'] = (ctoken is None)
     elif tab == 'about':
         # Latest type
