@@ -451,7 +451,7 @@ def set_cached_metadata(channel_id, metadata):
 def extract_metadata_for_caching(channel_info):
     metadata = {}
     for key in ('approx_subscriber_count', 'short_description', 'channel_name',
-                'avatar'):
+                'avatar', 'channel_available_tabs'):
         metadata[key] = channel_info[key]
     return metadata
 
@@ -633,16 +633,20 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             'continuation': ctoken,
         })
         continuation=True
-    elif tab == 'playlists' and page_number == 1:
-        # polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_{tab}'))
+    elif tab in ['playlists', 'releases', 'albums', 'podcasts', 'courses'] and page_number == 1:
+        # polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name=f'gen_channel_{tab}')
         try:
             if not channel_id: channel_id = get_channel_id(base_url)
             polymer_json = get_channel_tab(channel_id, '1', sort, tab, view)
         except:
-            polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name='gen_channel_{tab}')
+            polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name=f'gen_channel_{tab}')
         continuation = True
     elif tab == 'playlists':
         polymer_json = get_channel_tab(channel_id, page_number, sort, tab, view)
+        continuation = True
+    elif tab in ['releases', 'albums', 'podcasts', 'courses']:
+        ctoken = next_page_ctoken.get((channel_id, tab, sort, page_number - 1))
+        polymer_json = get_channel_tab(channel_id, page_number, sort, tab, view, ctoken)
         continuation = True
     elif tab == 'search' and channel_id:
         polymer_json = get_channel_search_json(channel_id, query, page_number)
@@ -668,6 +672,9 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
     else:
         channel_id = info['channel_id']
 
+    if channel_id and tab not in ('videos', 'about') and not info.get('channel_available_tabs'):
+        info['channel_available_tabs'] = get_metadata(channel_id).get('channel_available_tabs', [])
+    if not info.get('channel_available_tabs'): info['channel_available_tabs'] = []
     # Will have microformat present, cache metadata while we have it
     if (channel_id and default_params and tab not in ('videos', 'about')
             and info.get('channel_name') is not None):
@@ -687,6 +694,9 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         for item in info['items']:
             item.update(additional_info)
 
+    if tab in ('releases', 'albums', 'podcasts', 'courses'):
+        next_page_ctoken[(channel_id, tab, sort, page_number)] = info.get('ctoken')
+
     if tab in ('videos', 'shorts', 'streams'):
         if tab in ('shorts', 'streams') or try_channel_api:
             ctoken = next_page_ctoken.get((channel_id, tab, sort, page_number + 1))
@@ -705,12 +715,12 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         else: info['number_of_pages'] = 1
         if info['number_of_pages'] < page_number: info['number_of_pages'] = page_number
         info['header_playlist_names'] = local_playlist.get_playlist_names()
-    if tab in ('videos', 'shorts', 'streams', 'playlists'):
+    if tab in ('videos', 'shorts', 'streams', 'playlists', 'releases', 'albums', 'podcasts', 'courses'):
         info['current_sort'] = sort
     elif tab == 'search':
         info['search_box_value'] = query
         info['header_playlist_names'] = local_playlist.get_playlist_names()
-    if tab in ('search', 'playlists'):
+    if tab in ('search', 'playlists', 'releases', 'albums', 'podcasts', 'courses'):
         info['page_number'] = page_number
     info['subscribed'] = subscriptions.is_subscribed(info['channel_id'])
 
