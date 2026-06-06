@@ -124,7 +124,7 @@
 						{% if sort_number == current_sort.__str__() %}
 							<a class="sort-button" id="home-link">{{ sort_name }}</a>
 						{% else %}
-							<a class="sort-button" id="home-link" href="/https://www.youtube.com/playlist?list={{  parameters_dictionary.get('list', '') }}{{'&sort1=' + sort_number }}">{{ sort_name }}</a>
+							<a class="sort-button" id="home-link" href="/https://www.youtube.com/playlist?list={{ parameters_dictionary.get('list', '') }}{{ '&page=' + parameters_dictionary.get('page', 1)|string }}{{'&sort1=' + sort_number }}">{{ sort_name }}</a>
 						{% endif %}
 					{% endfor %}
 				</div>
