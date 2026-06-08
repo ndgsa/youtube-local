@@ -169,6 +169,35 @@
 												<li>{{ playlist['current_index']+1 }}/{{ playlist['video_count'] }}</li>
 											{% endif %}
 											<li><a href="{{ playlist['author_url'] }}" title="{{ playlist['author'] }}">{{ playlist['author'] }}</a></li>
+											<div class="dropdown_home" style="float:right;display:inline-block;">
+												<a style="font-weight:bold;font-size:16px;opacity:0.1;">Sort by</a>
+												<div class="dropdown_home_content">
+													<div id="links-metadata">
+														<!-- lighter version of sort do not require page reload -->
+														{% set sorts = [('1', 'views'), ('6', 'duration'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'),] %}
+														{% for sort_number, sort_name in sorts %}
+															<a class="sort-button-1" id="home-link" href="javascript:;" data-sort-number="{{sort_number}}" data-sort-name="{{sort_name}}" onclick="SortData(this)">{{ sort_name }}</a>
+														{% endfor %}
+
+														<!-- {% set sorts = [('1', 'views'), ('6', 'duration'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'),] %} -->
+														<!-- {% set sort_tmp_parameters_dictionary = dict() %} -->
+														<!-- {% for item in request.url.split('&')[1:] %} -->
+															<!-- {% set _ = sort_tmp_parameters_dictionary.__setitem__(*item.split('=')) %} -->
+														<!-- {% endfor %} -->
+														<!-- {% for sort_number, sort_name in sorts %} -->
+															<!-- {% if ('http://127.0.0.1:' + settings.port_number|string + '/https://www.youtube.com/playlists/') in playlist['url'] and sort_tmp_parameters_dictionary.get('playlists1') == None %} -->
+																<!-- {% set _ = sort_tmp_parameters_dictionary.__setitem__('playlists1', playlist['id']) %} -->
+															<!-- {% endif %} -->
+															<!-- {% set _ = sort_tmp_parameters_dictionary.__setitem__('sort1', sort_number) %} -->
+															<!-- <a class="sort-button-1" id="home-link" href="{{ '/https://www.youtube.com/embed/' + video_id + '&' + sort_tmp_parameters_dictionary|urlencode }}">{{ sort_name }}</a> -->
+														<!-- {% endfor %} -->
+														<div class="sort-button-1" id="home-link">
+															<input type="checkbox" id="sort1_reversed" name="sort1_reversed" value="false">
+															<label for="sort1_reversed"> reversed</label>
+														</div>
+													</div>
+												</div>
+											</div>
 										</ul>
 									</div>
 									<nav class="playlist-videos">
@@ -230,14 +259,20 @@
 			let already_used = false
 			function setScrollPosition(event){
 				if (data.playlist !== null && data.playlist['current_index'] !== null && already_used !== true) {
-					// scroll playlist to proper position
-					// item height + gap == 100
-					let pl = document.querySelector('.playlist-videos');
-					pl.scrollTop = 100*data.playlist['current_index'];
-					// console.log(pl.scrollTop);
+					if (new URLSearchParams(window.location.href).has('sort2') === true) {
+						let items = Array.from(document.getElementsByClassName("playlist-videos")[0].children);
+						setScrollPositionSort2(items);
+					} else {
+						// scroll playlist to proper position
+						// item height + gap == 100
+						let pl = document.querySelector('.playlist-videos');
+						pl.scrollTop = 100*data.playlist['current_index'];
+						// console.log(pl.scrollTop);
+					}
 					already_used = true
 				}
 			}
 		</script>
+		<script src="/youtube.com/static/js/sort2.js"></script>
     </body>
 </html>
