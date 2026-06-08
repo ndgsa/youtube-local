@@ -828,6 +828,25 @@ def get_watch_page(video_id=None):
         for item in info['playlist']['items']: item['url'] = item['url'].replace("watch?v=", "embed/")
 
 
+    tmp_request_param_dict = dict(urllib.parse.parse_qsl(request.url))
+    if request.args.get('sort1') or tmp_request_param_dict.get('sort1'):
+        tmp_sort1 = request.args.get('sort1') or tmp_request_param_dict.get('sort1') or ''
+        tmp_sort1_reversed = request.args.get('sort1_reversed') or tmp_request_param_dict.get('sort1_reversed') or 'false'
+        tmp_index = index or tmp_request_param_dict.get('index') or '1'
+        info['playlist']['items'] = [item for item in info['playlist']['items'] if item.get('title') != None and item.get('author') != None]
+        from youtube.channel import sort_video_items_custom
+        info['playlist']['items'] = sort_video_items_custom(info['playlist']['items'][:], tmp_sort1, tmp_sort1_reversed) # sorting
+        for i, v in enumerate(info['playlist']['items']):
+            # v['custom_index'] = i
+            if video_id == v['id'] and int(tmp_index) == v.get('index', 1):
+                # info['playlist']['custom_current_index'] = i
+                info['playlist']['current_index'] = i
+            if tmp_request_param_dict.get('sort1', None):
+                v['url'] = v['url'] + '&sort1=' + tmp_request_param_dict.get('sort1')
+            if tmp_request_param_dict.get('sort1_reversed', None):
+                v['url'] = v['url'] + '&sort1_reversed=' + tmp_request_param_dict.get('sort1_reversed')
+
+
     # 1 second per pixel, or the actual video width
     theater_video_target_width = max(640, info['duration'] or 0, video_width)
 
