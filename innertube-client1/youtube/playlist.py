@@ -23,10 +23,9 @@ def playlist_ctoken(playlist_id, offset, include_shorts=True):
 
     continuation_info = proto.string( 3, proto.percent_b64encode(offset) )
 
-    playlist_id = proto.string(2, 'VL' + playlist_id )
-    pointless_nest = proto.string(80226972,
-        playlist_id + continuation_info + proto.string(35, playlist_id)
-    )
+    plid = proto.string(2, "VL" + playlist_id)
+    playlist_id_ = proto.string(35, playlist_id)
+    pointless_nest = proto.string(80226972, plid + continuation_info + playlist_id_)
 
     return base64.urlsafe_b64encode(pointless_nest).decode('ascii')
 
