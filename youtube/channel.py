@@ -520,7 +520,7 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         info = pl_info
         info['channel_id'] = channel_id
         info['current_tab'] = 'videos'
-        if info.get('items'):   # Success
+        if info.get('items', None) != None:   # Success
             page_size = 100
             try_channel_api = False
             ctoken = extract_ctoken_(base_url, channel_id, tab, sort, page_number, view, pl_json)
@@ -651,9 +651,13 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             ctoken = next_page_ctoken.get((channel_id, tab, sort, page_number + 1))
             number_of_videos = len(info.get('items', [])) # use actual item count
             if number_of_videos == 0: number_of_pages = 1
-            else: number_of_videos = (page_number - 1) * page_size + number_of_videos
-            if ctoken: number_of_videos = max(number_of_videos, page_number * page_size + 1)
-            info['is_last_page'] = (ctoken is None)
+            else:
+                number_of_videos = (page_number - 1) * page_size + number_of_videos
+                if ctoken: number_of_videos = max(number_of_videos, page_number * page_size + 1)
+            if (info.get('ctoken') is None) and ctoken: print('Warning: Something wrong with tab ctoken')
+            info['is_last_page'] = (info.get('ctoken') is None)
+        else:
+            if number_of_videos == 0 or number_of_videos == 1000: number_of_videos = len(info.get('items', [])) # use actual item count
         info['number_of_videos'] = number_of_videos
         if number_of_pages: info['number_of_pages'] = number_of_pages
         elif number_of_videos: info['number_of_pages'] = math.ceil(number_of_videos/page_size)
