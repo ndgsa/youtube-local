@@ -81,6 +81,50 @@ def get_videos(playlist_id, page, include_shorts=True, page_size=100,
     return info
 
 
+def playlist_first_page_old(playlist_id, report_text="Retrieved playlist",
+                        use_mobile=False):
+    if use_mobile:
+        url = 'https://m.youtube.com/playlist?list=' + playlist_id + '&pbj=1'
+        content = util.fetch_url(
+            url, util.generate_api_headers(ua_platform='mobile'),
+            report_text=report_text, debug_name='playlist_first_page'
+        )
+        content = json.loads(content.decode('utf-8'))
+    else:
+        url = 'https://www.youtube.com/playlist?list=' + playlist_id + '&pbj=1'
+        content = util.fetch_url(
+            url, util.generate_api_headers(ua_platform='desktop'),
+            report_text=report_text, debug_name='playlist_first_page'
+        )
+        content = json.loads(content.decode('utf-8'))
+
+    return content
+
+
+def get_videos_old(playlist_id, page, include_shorts=True, use_mobile=False,
+               report_text='Retrieved playlist'):
+    # mobile requests return 20 videos per page
+    if use_mobile:
+        page_size = 20
+        headers = util.generate_api_headers(ua_platform='mobile')
+    # desktop requests return 100 videos per page
+    else:
+        page_size = 100
+        headers = util.generate_api_headers(ua_platform='desktop')
+
+    url = "https://m.youtube.com/playlist?ctoken="
+    url += playlist_ctoken(playlist_id, (int(page)-1)*page_size,
+                           include_shorts=include_shorts)
+    url += "&pbj=1"
+    content = util.fetch_url(
+        url, headers, report_text=report_text,
+        debug_name='playlist_videos'
+    )
+
+    info = json.loads(content.decode('utf-8'))
+    return info
+
+
 @yt_app.route('/playlist')
 def get_playlist_page():
     if 'list' not in request.args:
