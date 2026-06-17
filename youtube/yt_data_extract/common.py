@@ -529,6 +529,12 @@ def extract_item_info(item, additional_info={}):
         if info.get('index') == None:
             info['index'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'index'])
 
+        if info.get('author_id') and info.get('author_id', '').startswith('PL') and len(info['author_id']) == 34:
+            if 'https://www.youtube.com/channel/' in info.get('author_url', '') and info['author_id'] in info['author_url']:
+                # wrong author_id for shortsLockupViewModel
+                info['author_id'] = None
+                info['author_url'] = None
+
     if type == "lockupViewModel":
         info['type'] = 'playlist'
         info['playlist_type'] = "playlist"
