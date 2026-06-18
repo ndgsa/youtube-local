@@ -446,13 +446,13 @@ def extract_playlist_metadata(polymer_json):
 
     metadata['video_count'] = extract_int(multi_deep_get(header, ['numVideosText']))
     if not metadata['video_count']:
-        try:
-            metadata['video_count'] = int(deep_get(header, 'metadata', 'contentMetadataViewModel', 'metadataRows', default={})[1]['metadataParts'][1]['text']['content'].replace(' videos','').replace(' episodes', ''))
-        except:
-            metadata['video_count'] = None
+        metadata['video_count'] = extract_int(multi_deep_get(header, ['metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'], default='').replace(' videos','').replace(' episodes', ''))
 
     if not metadata['video_count']:
         metadata['video_count'] = extract_int("".join([i['text'] for i in multi_deep_get(header, ['stats', 0, 'runs'], default=[])]).replace(' videos','').replace(' episodes', ''))
+
+    if not metadata['video_count']:
+        metadata['video_count'] = extract_int("".join([i['text'] for i in multi_deep_get(response, ['sidebar', 'playlistSidebarRenderer', 'items', 0, 'playlistSidebarPrimaryInfoRenderer', 'stats', 0, 'runs'], default=[])]).replace(' videos','').replace(' episodes', ''))
 
     metadata['view_count'] = extract_int(multi_deep_get(header,['stats', 1, 'simpleText']))
     if not metadata['view_count']:
