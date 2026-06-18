@@ -793,6 +793,30 @@ def extract_watch_info(polymer_json):
     info['author_url'] = 'https://www.youtube.com/channel/' + info['author_id'] if info['author_id'] else None
     info['storyboard_spec_url'] = deep_get(player_response, 'storyboards', 'playerStoryboardSpecRenderer', 'spec')
 
+    # playlist stuff
+    info['playlist_metadata'] = {'view_count': '0', 'like_count': None, 'description': '', 'thumbnail': '', 'error': None}
+    info['playlist_metadata']['video_count'] = extract_int(multi_deep_get(top_level,
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'totalVideos'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'totalVideosText', 'runs', 0, 'text'],))
+    info['playlist_metadata']['title'] = multi_deep_get(top_level,
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'titleText', 'runs', 0, 'text'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'title'],)
+    info['playlist_metadata']['time_published'] = extract_date(extract_str(multi_deep_get(top_level,
+        ['response', 'engagementPanels', 2, 'engagementPanelSectionListRenderer', 'content', 'structuredDescriptionContentRenderer', 'items', 0, 'videoDescriptionHeaderRenderer', 'publishDate', 'runs', 0, 'text'],)))
+    info['playlist_metadata']['author'] = multi_deep_get(top_level,
+        ['response', 'contents', 'singleColumnWatchNextResults', 'results', 'results', 'contents', 1, 'slimVideoMetadataSectionRenderer', 'contents', 1, 'slimOwnerRenderer', 'channelName'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'results', 'results', 'contents', 1, 'slimVideoMetadataSectionRenderer', 'contents', 1, 'slimOwnerRenderer', 'title', 'runs', 0, 'text'],)
+    info['playlist_metadata']['first_video_id'] = multi_deep_get(top_level,
+        ['response', 'currentVideoEndpoint', 'watchEndpoint', 'videoId'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'results', 'results', 'contents', 1, 'slimVideoMetadataSectionRenderer', 'videoId'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'contents', 0, 'playlistPanelVideoRenderer', 'videoId'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'contents', 0, 'playlistPanelVideoRenderer', 'navigationEndpoint', 'watchEndpoint', 'videoId'],)
+    info['playlist_metadata']['author_id'] = multi_deep_get(top_level,
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'shortBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'],
+        ['response', 'contents', 'singleColumnWatchNextResults', 'playlist', 'playlist', 'longBylineText', 'runs', 0, 'navigationEndpoint', 'browseEndpoint', 'browseId'],)
+    if info['playlist_metadata']['author_id']:
+        info['playlist_metadata']['author_url'] = 'https://www.youtube.com/channel/' + info['playlist_metadata']['author_id']
+
     return info
 
 single_char_codes = {
