@@ -129,6 +129,22 @@ def get_videos_old(playlist_id, page, include_shorts=True, use_mobile=False,
     return info
 
 
+import random
+
+g_playlist_items_aggregator = {}
+@cachetools.func.ttl_cache(maxsize=20, ttl=10*120)
+def get_videos_from_watch_page(playlist_id, index, video_id=None):
+    fake_id = '{}'.format(random.randint(0, 99999999999)) if not video_id else video_id
+    url = f'https://m.youtube.com/watch?v={fake_id}&list={playlist_id}&index={index}' # info["items"][0]["id"]
+    headers = util.generate_api_headers(use_visitor=True)
+    watch_page = util.fetch_url(url, headers=headers, report_text='Retrieved watch playlist', debug_name='Retrieved watch playlist')
+    watch_page = watch_page.decode('utf-8')
+    info = dict(yt_data_extract.extract_watch_info_from_html(watch_page))
+    info['playlist']['metadata'] = info['playlist_metadata']
+    info['playlist']['error'] = None
+    return info['playlist']
+
+
 @yt_app.route('/playlist')
 def get_playlist_page():
     if 'list' not in request.args:
@@ -141,9 +157,44 @@ def get_playlist_page():
     if playlist_id.startswith('RD'):
         return flask.redirect(util.URL_ORIGIN + '/watch?v=' + playlist_id[2:] + '&list=' + playlist_id, 302)
 
-    if page == '1':
+    try_watch_list = False
+
+    if try_watch_list:
+        first_page_json = playlist_first_page(playlist_id, report_text='Retrieved playlist info', use_mobile=True)
+        info = {'metadata': yt_data_extract.extract_playlist_metadata(first_page_json), 'error': None}
+
+        global g_playlist_items_aggregator
+        if not g_playlist_items_aggregator.get(playlist_id): g_playlist_items_aggregator[playlist_id] = []
+
+        if (int(page) != 1 and len(g_playlist_items_aggregator[playlist_id]) == 0) or math.ceil(info['metadata']['video_count']/100) < int(page):
+            # this_page_json = get_videos_from_watch_page(playlist_id, (int(page)-1)*100)
+            return flask.redirect(f"/https://www.youtube.com/playlist?list={playlist_id}&page=1", 302)
+
+        video_id = info['metadata']['first_video_id']
+        this_page_json = None
+        if int(page) == 1 or len(g_playlist_items_aggregator[playlist_id]) == 0:
+            this_page_json = get_videos_from_watch_page(playlist_id, 1, video_id)
+        elif int(page) > 1 and int(page)*99 > len(g_playlist_items_aggregator[playlist_id]):
+            index = len(g_playlist_items_aggregator[playlist_id]) + 200
+            #if 0 < info['metadata']['video_count'] < index:
+            #    index = info['metadata']['video_count']
+            if info['metadata']['video_count'] - index < int(page)*100:
+                # index += info['metadata']['video_count'] - index
+                index = (int(page)-1)*100
+            this_page_json = get_videos_from_watch_page(playlist_id, index)
+
+        if this_page_json and len(this_page_json['items']) > 0:
+            for i in this_page_json['items']:
+                if not any(i['id'] == j['id'] for j in g_playlist_items_aggregator[playlist_id]):
+                    if i['title'] != None and i['author_id'] != None:
+                        g_playlist_items_aggregator[playlist_id].append(i)
+
+        info['items'] = g_playlist_items_aggregator[playlist_id][100*(int(page)-1):100*(int(page))]
+
+    elif page == '1' and not try_watch_list:
         first_page_json = playlist_first_page(playlist_id)
         this_page_json = first_page_json
+        info = yt_data_extract.extract_playlist_info(this_page_json)
     else:
         tasks = (
             gevent.spawn(
@@ -155,8 +206,7 @@ def get_playlist_page():
         gevent.joinall(tasks)
         util.check_gevent_exceptions(*tasks)
         first_page_json, this_page_json = tasks[0].value, tasks[1].value
-
-    info = yt_data_extract.extract_playlist_info(this_page_json)
+        info = yt_data_extract.extract_playlist_info(this_page_json)
 
     # some playlist does not give items for first page
     if page == '1' and len(info.get('items', [])) == 0:
