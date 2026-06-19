@@ -284,6 +284,8 @@ def convert_duration_string(string, delimiter=','):
             i = i.replace('hours', '').replace('hour', '').strip()
             string_duration = string_duration + i
             if len(string_list) == 1: string_duration = string_duration + ':00:00'
+            elif len(string_list) == 2 and not any('minute' in d_ for d_ in string_list):
+                string_duration = string_duration + ':00:'
             else: string_duration = string_duration + ':'
         else: print('Unknown duration string', i)
     return string_duration
