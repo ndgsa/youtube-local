@@ -112,6 +112,33 @@
 
 		{% endif %}
 
+		<div class="dropdown_home" style="margin-top:3px;">
+			<a style="font-size: 16px;">Sort by</a>
+			<div class="dropdown_home_content">
+				<div id="links-metadata">
+					<!-- lighter version of sort do not require page reload -->
+					{% set sorts = [('1', 'views'), ('6', 'duration'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'),] %}
+					{% for sort_number, sort_name in sorts %}
+						<a class="sort-button-1" id="home-link" href="javascript:;" data-sort-number="{{sort_number}}" data-sort-name="{{sort_name}}" onclick="SortData(this)">{{ sort_name }}</a>
+					{% endfor %}
+
+					<!-- {% set sorts = [('1', 'views'), ('6', 'duration'), ('2', 'oldest'), ('3', 'newest'), ('4', 'title'), ('5', 'author'),] %} -->
+					<!-- {% for sort_number, sort_name in sorts %} -->
+						<!-- {% set sort_tmp_parameters_dictionary = parameters_dictionary.to_dict() %} -->
+						<!-- {% if sort_number == current_sort.__str__() %} -->
+							<!-- <a class="sort-button-1" id="home-link">{{ sort_name }}</a> -->
+						<!-- {% else %} -->
+							<!-- <a class="sort-button-1" id="home-link" href="/https://www.youtube.com/playlists/{{ playlist_name }}{{ '?page=' + parameters_dictionary.get('page', 1)|string }}{{'&sort1=' + sort_number }}{{ '&sort1_reversed=true' if sort_tmp_parameters_dictionary.get('sort1_reversed', 'false') == 'true' else '&sort1_reversed=false' }}">{{ sort_name }}</a> -->
+						<!-- {% endif %} -->
+					<!-- {% endfor %} -->
+					<div class="sort-button-1" id="home-link">
+						<input type="checkbox" id="sort1_reversed" name="sort1_reversed" value="false">
+						<label for="sort1_reversed"> reversed</label>
+					</div>
+				</div>
+			</div>
+		</div>
+
         <input type="hidden" name="playlist_page" value="{{ playlist_name }}" form="playlist-edit">
         <button type="submit" id="playlist-remove-button" name="action" value="remove" form="playlist-edit" formaction="">Remove from playlist</button>
 
@@ -133,4 +160,6 @@
     <nav class="page-button-row">
         {{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlists/' + playlist_name, parameters_dictionary) }}
     </nav>
+
+	<script src="/youtube.com/static/js/sort2.js"></script>
 {% endblock main %}
