@@ -415,6 +415,11 @@ def get_local_playlist_page(playlist_name=None):
             videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=50)
             num_pages = math.ceil(num_videos/50)
             display_as_grid = settings.display_as_grid
+
+        if request.args.get('sort1'):
+            from youtube.channel import sort_video_items_custom
+            videos = sort_video_items_custom(videos, request.args.get('sort1'), request.args.get("sort1_reversed", "false")) # sorting
+
         return flask.render_template('local_playlist.html',
             header_playlist_names = get_playlist_names(),
             playlist_name = playlist_name,
@@ -1448,6 +1453,11 @@ def get_local_history_page():
     page = int(request.args.get('page', 1))
     offset = 50*(page - 1)
     videos, num_videos = get_local_playlist_videos("History", offset=offset, amount=50)
+
+    if request.args.get('sort1'):
+        from youtube.channel import sort_video_items_custom
+        videos = sort_video_items_custom(videos, request.args.get('sort1'), request.args.get("sort1_reversed", "false")) # sorting
+
     return flask.render_template('local_playlist.html',
         header_playlist_names = get_playlist_names(),
         playlist_name = "History",
@@ -1596,6 +1606,69 @@ def get_watch_page_local_playlist(playlist_local, video_id, amount=301):
         if video_id == item['id']: local_playlist['current_index'] = item_index
 
     return local_playlist
+
+
+@yt_app.route('/playlists/<playlist_name>/sort1/<sort1>/<sort1_reversed>', methods=['GET'])
+@yt_app.route('/playlists/<playlist_name>/sort1/<sort1>', methods=['GET'])
+def get_sort_database_playlist_page(playlist_name=None, sort1=None, sort1_reversed=None):
+    sorted_playlist_name = sort_database_playlist(playlist_name, str(sort1), sort1_reversed, sorted_dublicate=True)
+    return get_local_playlist_page(playlist_name)
+
+def sort_database_playlist(playlist_name, sort1='1', sort1_reversed=None, sorted_dublicate=True):
+    '''insert in data base dublicated playlist with sorted items'''
+
+    if not is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+        print('Sorting is not available for non custom playlist.')
+        return
+
+    videos = read_playlist(playlist_name)
+
+    sort1_reversed = 'false' if sort1_reversed == '1' else 'true'
+
+    from youtube.channel import sort_video_items_custom
+    import sys
+    sys.setrecursionlimit(1500)
+    videos = sort_video_items_custom(videos, sort1, sort1_reversed) # sorting
+    sys.setrecursionlimit(1000)
+
+    video_info_list = [json.dumps(item) for item in videos]
+
+    if sorted_dublicate:
+        sorted_playlist_name = playlist_name + f" sort1_{sort1}"
+    else:
+        sorted_playlist_name = playlist_name
+
+    if len(video_info_list) > 0:
+        if use_sqlite3_db_as_storage():
+            remove_playlist_sqlite_db('playlists', sorted_playlist_name)
+        else:
+            status = (None, None)
+            from pathlib import Path
+            playlist_path = _find_playlist_path(playlist_name)
+            thumbnails_folder_path = _find_thumbnails_folder_path(playlist_name)
+            thumbnails_folder_path_new = _find_thumbnails_folder_path(sorted_playlist_name)
+            if (Path(playlists_directory).is_dir()
+                and Path(thumbnails_folder_path).is_dir()
+                and Path(playlist_path).is_file()):
+                try:
+                    Path(playlist_path).unlink()
+                    if playlist_name != sorted_playlist_name:
+                        Path(thumbnails_folder_path).rename(thumbnails_folder_path_new)
+                except FileNotFoundError:
+                    print("The playlist file/folder does not exist.")
+                    status = ('', 500)
+                except PermissionError:
+                    print("You do not have permission to rename the file/folder.")
+                    status = ('', 500)
+                except:
+                    print('Moving playlist failed.')
+                    status = ('', 500)
+                if status[1]: raise Exception('Error occurred on renaming.')
+
+    add_to_playlist(sorted_playlist_name, video_info_list)
+    print(f"Playlist '{playlist_name}' items sorted and saved into '{sorted_playlist_name}'.")
+
+    return sorted_playlist_name
 
 
 @yt_app.route('/export_from_txt_to_sqlite3', methods=['GET'])
