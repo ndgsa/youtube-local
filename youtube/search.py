@@ -159,7 +159,22 @@ def search_hidden_channels_hide(search_info_items):
 
 
 def get_search_json_and_extract(query, page, autocorrect, sort, filters):
-    polymer_json = get_search_json(query, page, autocorrect, sort, filters)
+    tries = 2
+    for i in range(tries):
+        try:
+            polymer_json = get_search_json(query, page, autocorrect, sort, filters)
+        except util.FetchError as e:
+            if e.code in ('404') and i < tries - 1:
+                print('Error fetching search json. Retry...')
+                continue
+            elif e.code in ('404') and i >= tries - 1:
+                print('Error fetching search json. Return empty search_info.')
+                return {'error': None, 'estimated_results': -1, 'estimated_pages': 0, 'corrections': {'type': None}, 'items': []}
+            else:
+                # traceback.print_exc()
+                raise
+        break
+
     search_info = yt_data_extract.extract_search_info(polymer_json)
     return search_info
 
