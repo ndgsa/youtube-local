@@ -1386,21 +1386,46 @@ def get_local_history_page():
 def get_local_playlist_page_edit(playlist_name=None):
     if playlist_name not in get_playlist_names():
         return flask.redirect(util.URL_ORIGIN + '/playlists')
-    videos, num_videos = get_local_playlist_videos(playlist_name, offset=0, amount=10000)
+    page = int(request.args.get('page', 1))
+    amount = int(request.args.get('amount', 50))
+    offset = amount*(page - 1)
+    videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=amount)
+    num_pages = math.ceil(num_videos/amount)
     return flask.render_template('local_playlist_edit.html',
         header_playlist_names = get_playlist_names(),
         playlist_name = playlist_name,
         videos = videos,
+        num_pages = num_pages,
         parameters_dictionary = request.args,)
+
+_VIDEO_INFO_LIST_ID_RE = re.compile(r'''\"id\"\:\s\"([A-Za-z0-9_\-]{11})\"\,\s''')
 
 @yt_app.route('/playlists/<playlist_name>/edit', methods=['POST'])
 def path_local_playlist_page_edit(playlist_name):
     '''Called when edit playlist'''
     if request.values['action'] == 'reorder':
         video_info_list = request.values.getlist('video_info_list')
-        if settings.sort_playlist: video_info_list.reverse()
-        remove_from_playlist(playlist_name, video_info_list, 'reorder')
-        add_to_playlist(playlist_name, video_info_list)
+        page = int(request.values.get('page', 1))
+        amount = int(request.values.get('amount', len(video_info_list)))
+        offset = amount*(page - 1)
+        videos = [json.dumps(item) for item in read_playlist(playlist_name)[::-1]]
+
+        if amount > len(videos): return 'Items per page exceeded length of playlist items.', 400
+
+        for i in video_info_list:
+            match = _VIDEO_INFO_LIST_ID_RE.search(i)
+            if match:
+                id_founded = match.group(1)
+                if any([id_founded in j for j in videos]): continue
+                else: return f'video id: {id_founded} does not exist in database. Abort!', 400
+
+        if len(videos[offset:offset+amount]) == len(video_info_list):
+            videos[offset:offset+amount] = video_info_list
+        else: return 'Invalid video_info_list length', 400
+
+        if settings.sort_playlist: videos.reverse()
+        remove_from_playlist(playlist_name, videos, 'reorder')
+        add_to_playlist(playlist_name, videos)
         return '', 204
     elif request.values['action'] == 'rename':
         import html
