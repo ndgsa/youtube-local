@@ -35,12 +35,23 @@
 
     #video-remove-container{
         display: flex;
-        justify-content: space-between;
+		justify-content: right;
         margin: 0px auto 15px auto;
     }
-        #playlist-remove-button{
-            white-space: nowrap;
-        }
+
+	.input-wrapper {
+		position: relative;
+		display: inline-block;
+	}
+	.input-wrapper button {
+		position: absolute;
+		top: -3px;
+		right: 0;
+		border: none;
+		background-color: transparent;
+		cursor: pointer;
+		font-size: 20px;
+	}
 
     #results{
         display: grid;
@@ -77,13 +88,34 @@
 	<form id="playlist-rename" action="/youtube.com/playlists/{{ playlist_name }}/edit/" method="post" target="_self">
 	</form>
 
+	<div id="video-remove-container" style="">
+		<div class="input-wrapper">
+			<input id='amount-items-per-page' type="text" placeholder="items per page...">
+			<button onclick="updateAmountItemsPerPage(event);">&#128260;</button>
+		</div>
+	</div>
+
 	<div id="results" class="sortable-list">
 		{% for video_info in videos %}
 			{{ common_elements.item(video_info, draggable=true) }}
 		{% endfor %}
 	</div>
 
+    <nav class="page-button-row">
+        {{ common_elements.page_buttons(num_pages, '/https://www.youtube.com/playlists/' + playlist_name + '/edit', parameters_dictionary) }}
+    </nav>
+
    <script>
+		function updateAmountItemsPerPage(event){
+			const urlParams = new URLSearchParams(window.location.search);
+			let amount = document.getElementById('amount-items-per-page').value;
+			if (typeof amount == "string" && !isNaN(amount) && !isNaN(parseFloat(amount))) {
+				if (Number(amount) == 0) return;
+				urlParams.set('amount', amount);
+				window.location.search = urlParams;
+			}
+		}
+
 		var playlistReorderForm = document.getElementById('playlist-reorder');
 		function sendData(event){
 			var clicked_button = document.activeElement;
@@ -101,10 +133,14 @@
 			};
 
 			FD.append('action', 'reorder');
+			FD.append('page', new URLSearchParams(window.location.search).get('page') || '1');
+			if (new URLSearchParams(window.location.search).get('amount')) {
+				FD.append('amount', new URLSearchParams(window.location.search).get('amount'));
+			}
 			XHR.addEventListener('load', function(event){
 				if(event.target.status == 204){
 					displayMessage('Playlist reordered with success');
-				} else {displayMessage('Error!', true);}
+				} else {displayMessage('Error! ' + event.target.responseText, true);}
 			});
 			XHR.open('POST', playlistReorderForm.getAttribute('action'));
 			XHR.send(FD);
