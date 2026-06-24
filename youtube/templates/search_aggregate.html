@@ -1,0 +1,195 @@
+{% set page_title = 'Search aggregate' %}
+{% extends "base.html" %}
+{% block style %}
+    main > * {
+        max-width: 800px;
+        margin: auto;
+    }
+
+	.search-card {
+		background: #1a1a24;
+		border: 1px solid rgba(255,255,255,0.08);
+		border-radius: 16px;
+		padding: 32px;
+	}
+
+	.abort-button {
+		font-size: 20px;
+		color: red;
+	}
+
+	.progress-status {
+		color: white;
+		margin: auto;
+		overflow-y: scroll;
+		height: 250px;
+		scroll-behavior: smooth;"
+	}
+
+	.progress-status p {
+		<!-- padding: 1px; -->
+		font-size: 18px;
+		font-weight: normal;
+		line-height:10px;
+	}
+
+	#terminate_task {
+		<!-- display:inline-block; -->
+	}
+
+{% endblock style %}
+
+
+{% block main %}
+
+	<div class="container">
+		<div class="search-card">
+			<form id="terminate_task" action="/youtube.com/terminate_searching" method="post" target="_self">
+				<input type="submit" class="button abort-button" name="action" value="Abort Search"/>
+			</form>
+		</div>
+
+		<div class="progress-status">
+		</div>
+	</div>
+
+	<script type="text/javascript">
+		function check_mysearchform_Fields(){
+			if(document.mysearchform.duration1.value === ""){document.mysearchform.duration1.disabled = true;};
+			if(document.mysearchform.date_after.value === ""){document.mysearchform.date_after.disabled = true;};
+			if(document.mysearchform.date_before.value === ""){document.mysearchform.date_before.disabled = true;};
+			if(document.mysearchform.date_step.value === ""){document.mysearchform.date_step.disabled = true;};
+			if(document.mysearchform.date_step_type.value === ""){document.mysearchform.date_step_type.disabled = true;};
+			return true;
+		}
+
+
+		filter_dropdown = document.getElementsByClassName("filter-dropdown-content")[0]
+		<!-- filter_dropdown.insertAdjacentHTML("beforeend", -->
+                    <!-- `<h3>Date STEP</h3> -->
+					<!-- <label for="date_step"></label> -->
+					<!-- <input type="text" id="date_step" name="date_step" value="" placeholder="date step" style="width:100px"> -->
+					<!-- <input type="radio" id="date_step_days" name="date_step_type" value="Days"> -->
+					<!-- <label for="date_step_days">Days</label> -->
+					<!-- <input type="radio" id="date_step_weeks" name="date_step_type" value="Weeks"> -->
+					<!-- <label for="date_step_weeks">Weeks</label> -->
+					<!-- <input type="radio" id="date_step_months" name="date_step_type" value="Months"> -->
+					<!-- <label for="date_step_months">Months</label>` -->
+		<!-- ); -->
+
+		filter_dropdown.innerHTML += '<h3>Date STEP</h3><label for="date_step"></label><input type="text" id="date_step" name="date_step" value="" placeholder="date step" style="width:100px"><input type="radio" id="date_step_days" name="date_step_type" value="Days"><label for="date_step_days">Days</label><input type="radio" id="date_step_weeks" name="date_step_type" value="Weeks"><label for="date_step_weeks">Weeks</label><input type="radio" id="date_step_months" name="date_step_type" value="Months"><label for="date_step_months">Months</label>';
+
+
+		var timeout;
+		var div_progress_status = document.getElementsByClassName("progress-status")[0]
+		async function getStatus() {
+			let get;
+			try {
+				const res = await fetch("http://127.0.0.1:" + location.port + "/youtube.com/status_searching");
+				get = await res.json();
+			} catch (e) {console.error("Error: ", e);}
+			console.log(JSON.stringify(get));
+			let para = document.createElement("p");
+			if (get.status == 'done' || get.terminated){
+				para.innerHTML += "* Done.";
+				div_progress_status.appendChild(para);
+				div_progress_status.scrollTop = div_progress_status.scrollHeight;
+				clearTimeout(timeout);
+				return false;
+			} else {
+				if (div_progress_status.lastChild.innerHTML !== "* " + get.status) {
+					para.innerHTML = "* " + get.status;
+					div_progress_status.appendChild(para);
+					div_progress_status.scrollTop = div_progress_status.scrollHeight;
+				}
+			}
+			timeout = setTimeout(getStatus, 800);
+		}
+
+
+		window.onload = function() {
+			function getStatusOnLoad() {
+				// check progress if page reloaded
+				(async() => {
+					let get;
+					try {
+						const res = await fetch("http://127.0.0.1:" + location.port + "/youtube.com/status_searching");
+						get = await res.json();
+					} catch (e) {console.error("Error: ", e);}
+					if (get.status == 'done' || get.terminated || get.status == null) clearTimeout(timeout);
+					else getStatus();
+				})();
+			}
+			timeout = setTimeout(getStatusOnLoad, 200);
+		};
+
+
+		var siteSearchForm = document.getElementById('site-search');
+		siteSearchForm.action = '/youtube.com/start_searching'
+		function startSearching(event){
+			event.preventDefault();
+
+			var XHR = new XMLHttpRequest();
+			const FD = new FormData(siteSearchForm);
+
+			XHR.addEventListener('load', function(event){
+				if(event.target.status == 204){
+					console.log('Start searching...', event.target.status.toString());
+					getStatus();
+				} else {
+					let para = document.createElement("p");
+					if (event.target.responseText) para.innerHTML += "* " + event.target.responseText;
+					else para.innerHTML += "* An error occurred!";
+					div_progress_status.appendChild(para);
+					console.log('Error', event.target.status.toString(), " " + event.target.responseText);}
+			});
+			XHR.addEventListener('error', function(event){
+				if(event.target.status == 0){console.log('XHR failed: Check that XHR requests are allowed');}
+				else {console.log('XHR failed: Unknown error');}
+			});
+			XHR.open('POST', '/youtube.com/start_searching');
+			XHR.send(FD);
+
+			<!-- (async() => { -->
+				<!-- try {const res = await fetch("http://127.0.0.1:" + location.port + "/youtube.com/start_searching", {mode:'cors'});} -->
+				<!-- catch (e) {console.error("Error: ", e);} -->
+			<!-- })(); -->
+
+			<!-- for (const [name,value] of FD) { -->
+				<!-- console.log(name, ":", value) -->
+			<!-- } -->
+
+			<!-- const urlParams = new URLSearchParams(window.location.search); -->
+			<!-- for (const [name,value] of FD) {if (value) urlParams.set(name, value);} -->
+			<!-- window.location.search = urlParams; -->
+
+		}
+		siteSearchForm.addEventListener('submit', startSearching);
+
+
+		var terminateTaskForm = document.getElementById('terminate_task');
+		function terminateTask(event){
+			event.preventDefault(); // Prevents default form submission
+			var XHR = new XMLHttpRequest();
+			var FD = new FormData(terminateTaskForm);
+			FD.append('action', 'Terminate');
+			XHR.addEventListener('load', function(event){
+				if(event.target.status == 204){console.log('Task Terminated!', event.target.status.toString());}
+				else {console.log('Error', event.target.status.toString());}
+			});
+			XHR.addEventListener('error', function(event){
+				if(event.target.status == 0){console.log('XHR failed: Check that XHR requests are allowed');}
+				else {console.log('XHR failed: Unknown error');}
+			});
+			XHR.open('POST', terminateTaskForm.getAttribute('action'));
+			XHR.send(FD);
+		};
+		terminateTaskForm.addEventListener('submit', terminateTask);
+	</script>
+{% endblock main %}
+
+
+
+
+
+
