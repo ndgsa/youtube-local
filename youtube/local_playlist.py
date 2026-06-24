@@ -27,12 +27,17 @@ thumbnails_sqlite_database_path = os.path.join(settings.data_dir, 'db', "thumbna
 playlists_sqlite_database_path = os.path.join(settings.data_dir, 'db', "playlists.sqlite")
 
 
+_SEARCH_AGGREGATE_PLAYLIST_NAME_RE = re.compile(r'''^sa_\s.+\s\-\s\d+\s(Days|Weeks|Months)$''')
 @cachetools.func.lru_cache(maxsize=64)
 def is_custom_type_playlist_name(name, custom=None):
+    if custom == 'sa' and not _SEARCH_AGGREGATE_PLAYLIST_NAME_RE.match(name):
+        is_custom = None
     if custom == 'no_hidden_channels_videos' and name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
         is_custom = None
     elif custom == 'no_hidden_channels' and name in ["related_hidden_channels", "search_hidden_channels"]:
         is_custom = None
+    elif _SEARCH_AGGREGATE_PLAYLIST_NAME_RE.match(name):
+        is_custom = True
     elif name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
         is_custom = True
     elif custom == 'dummy':
@@ -1634,7 +1639,9 @@ def sort_database_playlist(playlist_name, sort1='1', sort1_reversed=None, sorted
     video_info_list = [json.dumps(item) for item in videos]
 
     if sorted_dublicate:
-        sorted_playlist_name = playlist_name + f" sort1_{sort1}"
+        if is_custom_type_playlist_name(playlist_name, 'sa'):
+            sorted_playlist_name = re.sub(r"(\d+\s(Days|Weeks|Months))$", fr"sort1_{sort1} - \1", playlist_name)
+        else: sorted_playlist_name = playlist_name + f" sort1_{sort1}"
     else:
         sorted_playlist_name = playlist_name
 
