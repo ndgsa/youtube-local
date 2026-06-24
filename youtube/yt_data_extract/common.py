@@ -593,6 +593,7 @@ def extract_item_info(item, additional_info={}):
             default='')
             timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', _time_published_tmp)
             if timestamp: info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
+            else: info['time_published'] = None
 
             _views_tmp = multi_deep_get(item,
             ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'],
