@@ -2,6 +2,7 @@ import re
 import urllib.parse
 import collections
 import collections.abc
+from datetime import datetime
 
 def get(object, key, default=None, types=()):
     '''Like dict.get(), but returns default if the result doesn't match one of the types.
@@ -607,6 +608,15 @@ def extract_item_info(item, additional_info={}):
             else:
                 info['view_count'] = 0
                 info['approx_view_count'] = '0'
+
+            if not info['time_published']:
+                prem_sched = re.match(r'^(premieres|scheduled for) (.+M)$', _views_tmp, re.IGNORECASE)
+                if prem_sched and len(prem_sched.groups()) == 2:
+                    info['time_published'] = datetime.strptime(prem_sched.group(2), '%m/%d/%y, %I:%M %p').strftime("%Y-%m-%d")
+                if not info['duration']:
+                    _duration_tmp = multi_deep_get(item, ['contentImage', 'thumbnailViewModel', 'overlays', 0, 'thumbnailBottomOverlayViewModel', 'badges', 0, 'thumbnailBadgeViewModel', 'text'])
+                    if _duration_tmp in ['Upcoming']:
+                        info['duration'] = _duration_tmp
 
     if type_parts[0] in ('reel', 'shorts'): # shorts
         info['type'] = 'video'
