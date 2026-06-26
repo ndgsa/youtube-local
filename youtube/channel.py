@@ -1223,13 +1223,20 @@ def extract_ctoken_(base_url, channel_id, tab, sort, page_number, view, polymer_
         ### response, err = yt_data_extract.extract_response(polymer_json)
         ### continuation = yt_data_extract.extract_items(response, item_types={'chipCloudChipRenderer'})s
 
-        # some responses have different continuationItems size
         if not ctoken:
-            continuationItemRenderer = get_path_of_keys(polymer_json, 'continuationItemRenderer')
+            paths_list = get_path_of_keys(polymer_json)
+
+            # some responses have different continuationItems size
+            continuationItemRenderer = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'continuationItemRenderer' == i[-1]]
             if len(continuationItemRenderer) == 1:
                 ctoken = multi_deep_get(continuationItemRenderer[0][1], ['continuationEndpoint', 'continuationCommand', 'token'])
             elif len(continuationItemRenderer) > 1:
                 print("many continuationItemRenderer", continuationItemRenderer)
+
+            if not ctoken:
+                continuationItemViewModel = [(i, multi_deep_get(polymer_json, i)) for i in paths_list if i and 'continuationItemViewModel' == i[-1]]
+                if len(continuationItemViewModel) > 0:
+                    ctoken = multi_deep_get(continuationItemViewModel[0][1], ['continuationCommand', 'innertubeCommand', 'continuationCommand', 'token'])
 
     return ctoken
 
