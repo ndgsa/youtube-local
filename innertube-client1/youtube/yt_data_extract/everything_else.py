@@ -339,6 +339,8 @@ def extract_search_refinement_info(polymer_json):
     ctoken = multi_deep_get(response,
         ['onResponseReceivedCommands', 0, 'reloadContinuationItemsCommand', 'continuationItems', 0, 'twoColumnSearchResultsRenderer', 'primaryContents', 'sectionListRenderer', 'contents', 1, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
         ['onResponseReceivedCommands', 0, 'appendContinuationItemsAction', 'continuationItems', 1, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems', -1, 'continuationItemViewModel', 'continuationCommand', 'innertubeCommand', 'continuationCommand', 'token'],
+        ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', -1, 'continuationItemViewModel', 'continuationCommand', 'innertubeCommand', 'continuationCommand', 'token'],
     )
 
     info['ctoken'] = ctoken
