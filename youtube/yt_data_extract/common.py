@@ -765,6 +765,9 @@ def extract_items_from_renderer(renderer, item_types=_item_types):
     iter_stack = collections.deque()
     current_iter = iter(())
 
+    # playlist first page sends two continuationItemViewModel, ignore second one
+    is_extracted_cIVM = False
+
     while True:
         # mode 1: get a new renderer by iterating.
         # goes down the stack for an iterator if one has been exhausted
@@ -795,6 +798,14 @@ def extract_items_from_renderer(renderer, item_types=_item_types):
             )
             if cont:
                 ctoken = cont
+
+        # ctoken sometimes placed in these renderers, e.g. channel playlists
+        elif key == 'continuationItemViewModel':
+            if not is_extracted_cIVM:
+                cont = deep_get(value, 'continuationCommand', 'innertubeCommand', 'continuationCommand', 'token')
+                if cont:
+                    ctoken = cont
+                    is_extracted_cIVM = True
 
         # has a list in it, add it to the iter stack
         elif get_nested_renderer_list_function(key):
