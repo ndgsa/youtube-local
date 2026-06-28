@@ -9,6 +9,8 @@ import gevent
 import urllib
 import math
 
+import cachetools.func
+
 import flask
 from flask import request
 
@@ -23,6 +25,21 @@ thumbnails_directory = os.path.join(settings.data_dir, "playlist_thumbnails")
 
 thumbnails_sqlite_database_path = os.path.join(settings.data_dir, 'db', "thumbnails.sqlite")
 playlists_sqlite_database_path = os.path.join(settings.data_dir, 'db', "playlists.sqlite")
+
+
+@cachetools.func.lru_cache(maxsize=64)
+def is_custom_type_playlist_name(name, custom=None):
+    if custom == 'no_hidden_channels_videos' and name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
+        is_custom = None
+    elif custom == 'no_hidden_channels' and name in ["related_hidden_channels", "search_hidden_channels"]:
+        is_custom = None
+    elif name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
+        is_custom = True
+    elif custom == 'dummy':
+        is_custom = True
+    else:
+        is_custom = None
+    return is_custom
 
 
 # Whitelist accepted playlist names so user input cannot escape
@@ -80,6 +97,9 @@ def video_ids_in_playlist(name, column=None):
         return set()
 
 def add_to_playlist(name, video_info_list):
+
+    if is_custom_type_playlist_name(name):
+        name = check_playlist_name_invalid_symbols(name.strip(), '_')
 
     if not check_playlist_name_invalid_symbols(name.strip(), ''):
         raise Exception("Invalid playlist name provided!")
@@ -184,7 +204,11 @@ def add_to_playlist(name, video_info_list):
             if id not in ids:
                 file.write(info.strip() + "\n")
                 if id + '.jpg' not in thumbnails_id: missing_thumbnails.append(id)
-    gevent.spawn(util.download_thumbnails, thumbnails_folder_path, missing_thumbnails)
+
+    if is_custom_type_playlist_name(name):
+        pass
+    else:
+        gevent.spawn(util.download_thumbnails, thumbnails_folder_path, missing_thumbnails)
 
 
 def add_extra_info_to_videos(videos, playlist_name):
@@ -242,6 +266,10 @@ def add_extra_info_to_videos(videos, playlist_name):
                 video['thumbnail'] = util.get_thumbnail_url(video['id'])
                 missing_thumbnails.append(video['id'])
 
+            if is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+                video['thumbnail'] = ("/https://i.ytimg.com/vi/" + video['id'] + "/mqdefault.jpg")
+                missing_thumbnails = []
+
     gevent.spawn(util.download_thumbnails, thumbnails_folder_path, missing_thumbnails)
 
 
@@ -285,7 +313,9 @@ def get_local_playlist_videos(name, offset=0, amount=50):
         # videos = videos[::-1]
     if settings.sort_playlist: videos = videos[::-1]
 
-    add_extra_info_to_videos(videos, name)
+    if is_custom_type_playlist_name(name):
+        add_extra_info_to_videos(videos[offset:offset+amount], name)
+    else: add_extra_info_to_videos(videos, name)
     return videos[offset:offset+amount], len(videos)
 
 
@@ -350,24 +380,48 @@ def remove_from_playlist(name, video_info_list, action=''):
 @yt_app.route('/playlists', methods=['GET'])
 @yt_app.route('/playlists/<playlist_name>', methods=['GET'])
 def get_local_playlist_page(playlist_name=None):
+
+    if playlist_name == "custom_playlists":
+        playlists = []
+        for name in get_playlist_names():
+            if is_custom_type_playlist_name(name, 'no_hidden_channels_videos'):
+                playlists.append([name, util.URL_ORIGIN + '/playlists/' + name])
+        return flask.render_template('local_playlists_list.html', playlists=playlists)
+
     if playlist_name == "hidden_videos_channels":
         playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]]
         return flask.render_template('local_playlists_list.html', playlists=playlists)
 
     if playlist_name is None:
-        playlists = [(name, util.URL_ORIGIN + '/playlists/' + name) for name in get_playlist_names() if name not in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]] + [("hidden_videos_channels", util.URL_ORIGIN + '/playlists/' + "hidden_videos_channels")] + youtube_playlists_from_local(action='get')
+        playlists = []
+        c_p_count = 0
+        for name in get_playlist_names():
+            if is_custom_type_playlist_name(name, 'no_hidden_channels_videos'):
+                c_p_count += 1
+                continue
+            if name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]: continue
+            playlists.append([name, util.URL_ORIGIN + '/playlists/' + name])
+        playlists = playlists + [("hidden_videos_channels", util.URL_ORIGIN + '/playlists/' + "hidden_videos_channels")] + ([("custom_playlists", util.URL_ORIGIN + '/playlists/' + "custom_playlists")] if c_p_count > 0 else [])  + youtube_playlists_from_local(action='get')
         return flask.render_template('local_playlists_list.html', playlists=playlists)
     else:
         page = int(request.args.get('page', 1))
-        offset = 50*(page - 1)
-        videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=50)
+        if is_custom_type_playlist_name(playlist_name):
+            offset = 60*(page - 1)
+            videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=60)
+            num_pages = math.ceil(num_videos/60)
+            display_as_grid = False
+        else:
+            offset = 50*(page - 1)
+            videos, num_videos = get_local_playlist_videos(playlist_name, offset=offset, amount=50)
+            num_pages = math.ceil(num_videos/50)
+            display_as_grid = settings.display_as_grid
         return flask.render_template('local_playlist.html',
             header_playlist_names = get_playlist_names(),
             playlist_name = playlist_name,
             videos = videos,
-            num_pages = math.ceil(num_videos/50),
+            num_pages = num_pages,
             parameters_dictionary = request.args,
-            display_as_grid = settings.display_as_grid,
+            display_as_grid = display_as_grid,
         )
 
 
@@ -942,7 +996,10 @@ def add_to_playlist_sqlite_db(name, video_info_list):
     if video_info_list == []: return
     else: insert_videos_sqlite_db(name, video_info_list)
 
-    gevent.spawn(download_thumbnails_sqlite_db, missing_thumbnails)
+    if is_custom_type_playlist_name(name):
+        pass
+    else:
+        gevent.spawn(download_thumbnails_sqlite_db, missing_thumbnails)
 
 
 def add_extra_info_to_videos_sqlite_db(videos, playlist_name):
@@ -971,7 +1028,10 @@ def add_extra_info_to_videos_sqlite_db(videos, playlist_name):
             elif video['id'] not in thumbnails_id:
                 missing_thumbnails.append(video['id'])
 
-            video['thumbnail'] = ('/https://youtube.com/data/playlist_thumbnails/' + video['id'])
+            if is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+                video['thumbnail'] = ("/https://i.ytimg.com/vi/" + video['id'] + "/mqdefault.jpg")
+                missing_thumbnails = []
+            else: video['thumbnail'] = ('/https://youtube.com/data/playlist_thumbnails/' + video['id'])
 
     tasks = (gevent.spawn(download_thumbnails_sqlite_db, missing_thumbnails),)
     gevent.joinall(tasks)
@@ -988,7 +1048,9 @@ def read_playlist_sqlite_db(name):
 def get_local_playlist_videos_sqlite_db(name, offset=0, amount=50):
     videos = read_playlist_sqlite_db(name)
     if settings.sort_playlist: videos = videos[::-1]
-    add_extra_info_to_videos_sqlite_db(videos, name)
+    if is_custom_type_playlist_name(name):
+        add_extra_info_to_videos_sqlite_db(videos[offset:offset+amount], name)
+    else: add_extra_info_to_videos_sqlite_db(videos, name)
     return videos[offset:offset+amount], len(videos)
 
 
@@ -1113,6 +1175,10 @@ def import_slow(playlist_name, request, list_video_ids):
                 'author_id': info['author_id'],
             }
 
+            if is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+                for key in ('approx_view_count', 'time_published'):
+                    if key in item: video_info[key] = info[key]
+
             print(f"Add video '{video_id}' to playlist '{playlist_name}' with success.")
             add_to_playlist(playlist_name, [json.dumps(video_info)])
 
@@ -1173,6 +1239,10 @@ def import_faster_with_ip_ban1(playlist_name, request, list_video_ids):
                     'author':    info['author'],
                     'author_id': info['author_id'],
                 }
+
+                if is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+                    for key in ('approx_view_count', 'time_published'):
+                        if key in item: video_info[key] = info[key]
 
                 print(f"Add video '{video_id}' to playlist '{playlist_name}' with success.")
                 tmp.append(json.dumps(video_info))
@@ -1309,6 +1379,13 @@ def check_playlist_name_invalid_symbols(string, replacement=None):
 
 
 def update_playlist_name(name, new_name):
+
+    # Invalidate if no match with regex, because it will start
+    # downloading all thumbnails(they can be many, 5000) when accesing playlist.
+    if is_custom_type_playlist_name(name):
+        if not is_custom_type_playlist_name(new_name):
+            print('Invalid name for custom playlist type!')
+            return ('Invalid name for custom playlist type!', 500)
 
     if use_sqlite3_db_as_storage():
         update_playlist_name_sqlite_db('playlists', name, new_name)
