@@ -1,5 +1,10 @@
 var video = document.querySelector('video');
 
+// Set up default volume
+if (data.settings.video_player == 0 && data.settings.default_volume !== -1) {
+  video.volume = data.settings.default_volume / 100;
+}
+
 function setVideoDimensions(height, width){
     var body = document.querySelector('body');
     body.style.setProperty('--video_height', String(height));
