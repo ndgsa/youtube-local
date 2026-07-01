@@ -279,6 +279,7 @@ def convert_duration_string(string, delimiter=','):
             if len(string_list) == 3 and len(i) == 1: i = '0' + i
             string_duration = string_duration + i
             if len(string_list) == 1: string_duration = string_duration + ':00'
+            elif len(string_list) == 2 and 'second' not in string_list[-1]: string_duration = string_duration + ':00'
             else: string_duration = string_duration + ':'
         elif 'hour' in i:
             i = i.replace('hours', '').replace('hour', '').strip()
