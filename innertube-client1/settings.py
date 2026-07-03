@@ -149,6 +149,7 @@ For security reasons, enabling this is not recommended.''',
             (1, 'ejs'),                     # ejs
             # (2, 'youtubei.js+dukpy'),       # youtubei.js extract decryption functions and dukpy decrypt signatures
             (3, 'youtubei.js+nodejs'),      # youtubei.js extract decryption functions and nodejs decrypt signatures
+            # (4, 'ytdlp-ejs'),               # https://github.com/ahaoboy/ytdlp-ejs
         ],
         'category': 'client',
     }),
