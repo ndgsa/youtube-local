@@ -13,7 +13,7 @@ import cachetools.func
 
 
 def signature_solver(s, info):
-    solvers = ['', solver1, solver2, solver3]
+    solvers = ['', solver1, solver2, solver3, solver4]
     return solvers[int(s)](info)
 
 
@@ -121,8 +121,8 @@ def get_js_runtime():
     return None
 
 SUPPORTED_RUNTIMES = ['node','deno']
-SUPPORTED_RUNTIMES_MIN_SUPPORTED_VERSION = {'node': (18, 0, 0), 'deno': (1, 22, 1), 'bun': (1, 0, 31)}
-SUPPORTED_RUNTIMES_DETECT_VERSION_RE = {'node': r'^v(\S+)', 'deno': r'^deno (\S+)', 'bun': r'^(\S+)'}
+SUPPORTED_RUNTIMES_MIN_SUPPORTED_VERSION = {'node': (18, 0, 0), 'deno': (1, 22, 1), 'bun': (1, 0, 31), 'ejs': (0, 1, 1)}
+SUPPORTED_RUNTIMES_DETECT_VERSION_RE = {'node': r'^v(\S+)', 'deno': r'^deno (\S+)', 'bun': r'^(\S+)', 'ejs': r'^ejs (\S+)'}
 g_js_runtime = get_js_runtime()
 
 def _run_js_runtime_bytes(js_file, requests, js_format="file"):
@@ -189,7 +189,8 @@ def _run_js_runtime_file(js_file, *args, js_format="file", response_format='json
         else: raise NotImplementedError(f'No js runtime with name "{js_runtime_name_from_path}" available.')
     else:
         js_runtime_name_from_path = os.path.basename(custom_runtime).replace('.EXE', '')
-        raise NotImplementedError(f'No js runtime with name "{js_runtime_name_from_path}" available.')
+        if 'ejs' == js_runtime_name_from_path: cmd = [custom_runtime, js_file, *args]
+        else: raise NotImplementedError(f'No js runtime with name "{js_runtime_name_from_path}" available.')
 
     # process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     # stdout, stderr = process.communicate()
@@ -640,6 +641,60 @@ def solver3(info):
         output = _run_js_runtime_file(decrypt_function_cache, json_requests, response_type='n_sig')
 
         responses = output.get('responses', [])
+        if len(responses) != 2:
+            return ("nsig or ssig decryption failed", False)
+
+        n_resp = responses[0]
+        if n_resp['type'] == 'error':
+            return ("nsig decryption failed", False)
+        n_sig_list = n_resp['data']
+
+        s_resp = responses[1]
+        if s_resp['type'] == 'error':
+            return ("ssig decryption failed", False)
+        s_sig_list = s_resp['data']
+
+        return (n_sig_list, s_sig_list)
+
+
+    err = solve_(info)
+    return err
+
+
+
+def solver4(info):
+    '''return error string, or False if no errors'''
+
+    def solve_(info):
+        err = check_requirements(info)
+        if err != None: return err
+
+        try: custom_runtime = find_executable('ejs')[0]
+        except: return ("EJS runtime is not installed", False)
+
+        n_sig_list, s_sig_list = extract_encrypted_n_s_signatures_from_info(info)
+
+        # solve signatures using javascript runtime as 'node', 'deno', ...
+        decrypted_nsig, decrypted_ssig = decrypt_nsig_ssig(info, list(n_sig_list), list(s_sig_list), custom_runtime)
+        if type(decrypted_nsig) == str and decrypted_ssig == False: return decrypted_nsig # things goes wrong
+
+        replace_n_s_signatures(info, decrypted_nsig, decrypted_ssig)
+
+        return False
+
+    def decrypt_nsig_ssig(info, n_sig_list, s_sig_list, custom_runtime):
+        '''return error string, or set of 2 dict if no errors'''
+        player_name = util.get_player_data(client=info['__client_name'], include_basejs=False)['player_name']
+        requests = []
+        for n in n_sig_list: requests.append(f"n:{n}")
+        for sig in s_sig_list: requests.append(f"sig:{sig}")
+
+        output = _run_js_runtime_file(player_name, *requests, response_type='n_sig', custom_runtime=custom_runtime)
+
+        responses = output.get('responses', [])
+
+        output = None
+
         if len(responses) != 2:
             return ("nsig or ssig decryption failed", False)
 
