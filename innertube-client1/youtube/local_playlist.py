@@ -157,35 +157,44 @@ def add_extra_info_to_videos(videos, playlist_name):
     missing_thumbnails = []
 
     for video in videos:
-        video['type'] = 'video'
-        util.add_extra_html_info(video)
-        if video['id'] + '.jpg' in thumbnails:
-            video['thumbnail'] = (
-                '/https://youtube.com/data/playlist_thumbnails/'
-                + playlist_name
-                + '/' + video['id'] + '.jpg')
-        elif playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
-                url = re.sub(r'\=s(\d{3,4})-', '=s200-', video['avatar']) # 900px is too big
-                save_location = os.path.join(os.path.join(thumbnails_directory, playlist_name), video['author_id'] + ".jpg")
-                try:
-                    thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + video['author_id'])
-                except Exception as e:
-                    print("Failed to download thumbnail for " + video['author_id'] + ": " + str(e))
-                    if '404 Not Found' in e.__str__() or "403 Forbidden" in e.__str__(): thumbnail = b''
-                try:
-                    f = open(save_location, 'wb')
-                except FileNotFoundError:
-                    os.makedirs(os.path.join(thumbnails_directory, playlist_name), exist_ok = True)
-                    f = open(save_location, 'wb')
-                f.write(thumbnail)
-                f.close()
-                if video['id'] + '.jpg' in thumbnails:
-                    video['thumbnail'] = (
-                        '/https://youtube.com/data/playlist_thumbnails/'
-                        + playlist_name + '/' + video['id'] + '.jpg')
+        if 'first_video_id' in video and 'video_count' in video and video['id'].startswith(('PL', 'OL')) and len(video['id']) > 11:
+            video['type'] = 'playlist'
+            video['playlist_type'] = 'playlist'
+            video['thumbnail'] = ("/https://i.ytimg.com/vi/" + video['first_video_id'] + "/mqdefault.jpg")
+            video['author_url'] = util.concat_or_none(util.URL_ORIGIN, "/channel/", video['author_id'])
+            video['url'] = util.concat_or_none(util.URL_ORIGIN, '/playlist?list=', video['id'])
+            video['badges'] = ''
+            missing_thumbnails = []
         else:
-            video['thumbnail'] = util.get_thumbnail_url(video['id'])
-            missing_thumbnails.append(video['id'])
+            video['type'] = 'video'
+            util.add_extra_html_info(video)
+            if video['id'] + '.jpg' in thumbnails:
+                video['thumbnail'] = (
+                    '/https://youtube.com/data/playlist_thumbnails/'
+                    + playlist_name
+                    + '/' + video['id'] + '.jpg')
+            elif playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
+                    url = re.sub(r'\=s(\d{3,4})-', '=s200-', video['avatar']) # 900px is too big
+                    save_location = os.path.join(os.path.join(thumbnails_directory, playlist_name), video['author_id'] + ".jpg")
+                    try:
+                        thumbnail = util.fetch_url(url, report_text="Saved thumbnail: " + video['author_id'])
+                    except Exception as e:
+                        print("Failed to download thumbnail for " + video['author_id'] + ": " + str(e))
+                        if '404 Not Found' in e.__str__() or "403 Forbidden" in e.__str__(): thumbnail = b''
+                    try:
+                        f = open(save_location, 'wb')
+                    except FileNotFoundError:
+                        os.makedirs(os.path.join(thumbnails_directory, playlist_name), exist_ok = True)
+                        f = open(save_location, 'wb')
+                    f.write(thumbnail)
+                    f.close()
+                    if video['id'] + '.jpg' in thumbnails:
+                        video['thumbnail'] = (
+                            '/https://youtube.com/data/playlist_thumbnails/'
+                            + playlist_name + '/' + video['id'] + '.jpg')
+            else:
+                video['thumbnail'] = util.get_thumbnail_url(video['id'])
+                missing_thumbnails.append(video['id'])
 
     gevent.spawn(util.download_thumbnails,
                  os.path.join(thumbnails_directory, playlist_name),
@@ -339,7 +348,12 @@ def path_edit_playlist(playlist_name):
         if fmt in ('ids', 'urls'):
             prefix = ''
             if fmt == 'urls':
-                prefix = 'https://www.youtube.com/watch?v=' if playlist_name not in ["related_hidden_channels", "search_hidden_channels"] else 'https://www.youtube.com/channel/'
+                if playlist_name in ["related_hidden_channels", "search_hidden_channels"]:
+                    prefix = 'https://www.youtube.com/channel/'
+                elif videos and videos[0].get('first_video_id'):
+                    prefix = 'https://www.youtube.com/playlist?list='
+                else:
+                    prefix = 'https://www.youtube.com/watch?v='
             id_list = '\n'.join(prefix + v['id'] for v in videos)
             id_list += '\n'
             resp = flask.Response(id_list, mimetype='text/plain')
@@ -364,6 +378,8 @@ def path_edit_playlist(playlist_name):
                     kz = ['id', 'title', 'author', 'author_id', 'duration', 'approx_subscriber_count', 'short_description', 'channel_name', 'avatar']
                 elif item.get('approx_view_count') or item.get('time_published'):
                     kz = ['id', 'title', 'author', 'author_id', 'duration', 'approx_view_count', 'time_published']
+                elif item.get('first_video_id') and item.get('video_count'):
+                    kz = ['id', 'title', 'author', 'author_id', 'video_count', 'first_video_id']
                 else: kz = ['id', 'title', 'author', 'author_id', 'duration']
                 for key in kz:
                     try: video_info[key] = item[key]
@@ -568,6 +584,17 @@ def db_connect_sqlite_db(func):
                                   avatar text,
                                   unique (sql_playlist_id, id)
                               )''')
+            cursor.execute('''CREATE TABLE IF NOT EXISTS playlist_playlists (
+                                  playlist_id integer PRIMARY KEY AUTOINCREMENT,
+                                  sql_playlist_id integer NOT NULL REFERENCES playlists(id) ON UPDATE CASCADE ON DELETE CASCADE,
+                                  id text NOT NULL,
+                                  title text,
+                                  author text,
+                                  author_id text NOT NULL,
+                                  video_count integer,
+                                  first_video_id text NOT NULL,
+                                  unique (sql_playlist_id, id)
+                              )''')
             cursor.execute('''CREATE TABLE IF NOT EXISTS db_info (
                                   version integer DEFAULT 1
                               )''')
@@ -642,35 +669,68 @@ def get_playlists_sqlite_db(cursor, table, column):
 
 @db_connect_sqlite_db
 def get_videos_column_sqlite_db(cursor, name, column):
-    sql_playlist_id = get_playlist_column_sqlite_db('playlists', name, 'id')
-    rows = cursor.execute(f'''SELECT {column}
-                             FROM playlist_videos
-                             WHERE sql_playlist_id=?
-                             ORDER BY video_id;
-                             ''', [sql_playlist_id]).fetchall()
+    row_videos = []
+    row_playlists = []
 
-    rows = [dict(row) for row in rows]
-    if column == '*': return rows
-    elif column.count(",") > 0: return rows
-    elif column.count(",") == 0: return [row[column] for row in rows]
+    v_fields_allowed = ['id', 'title','author', 'author_id', 'duration', 'approx_view_count', 'time_published', 'approx_subscriber_count', 'short_description', 'channel_name', 'avatar',]
+    p_fields_allowed = ['id', 'title', 'author', 'author_id', 'video_count', 'first_video_id',]
+    columns = [s.strip() for s in column.split(',')]
+    sql_playlist_id = get_playlist_column_sqlite_db('playlists', name, 'id')
+
+    if all(c in v_fields_allowed for c in columns) or column == '*':
+        row_videos = cursor.execute(f'''SELECT {column}
+                                 FROM playlist_videos
+                                 WHERE sql_playlist_id=?
+                                 ORDER BY video_id;
+                                 ''', [sql_playlist_id]).fetchall()
+
+    if all(c in p_fields_allowed for c in columns) or column == '*':
+        row_playlists = cursor.execute(f'''SELECT {column}
+                                 FROM playlist_playlists
+                                 WHERE sql_playlist_id=?
+                                 ORDER BY playlist_id;
+                                 ''', [sql_playlist_id]).fetchall()
+
+    rows = [dict(row) for row in row_videos + row_playlists]
+    if column == '*':
+        for r in rows:
+            del r['sql_playlist_id']
+            # del r['video_id']
+            # del r['playlist_id']
+        return rows
+    elif column.count(",") > 0:
+        return rows
+    elif column.count(",") == 0:
+        return [row[column] for row in rows]
 
 @db_connect_sqlite_db
 def insert_videos_sqlite_db(cursor, name, video_info_list):
-    rows = []
+    rows_videos = []
+    rows_playlists = []
     for video_item in video_info_list:
-        rows.append(( name,
-            video_item['id'],
-            video_item['title'],
-            video_item['author'],
-            video_item['author_id'],
-            video_item['duration'],
-            video_item.get('approx_view_count', None),
-            video_item.get('time_published', None),
-            video_item.get('approx_subscriber_count', None),
-            video_item.get('short_description', None),
-            video_item.get('channel_name', None),
-            video_item.get('avatar', None),
-        ))
+        if 'first_video_id' in video_item and 'video_count' in video_item and video_item['id'].startswith(('PL', 'OL')) and len(video_item['id']) > 11:
+            rows_playlists.append(( name,
+                video_item['id'],
+                video_item['title'],
+                video_item['author'],
+                video_item['author_id'],
+                video_item['video_count'],
+                video_item['first_video_id'],
+            ))
+        else:
+            rows_videos.append(( name,
+                video_item['id'],
+                video_item['title'],
+                video_item['author'],
+                video_item['author_id'],
+                video_item['duration'],
+                video_item.get('approx_view_count', None),
+                video_item.get('time_published', None),
+                video_item.get('approx_subscriber_count', None),
+                video_item.get('short_description', None),
+                video_item.get('channel_name', None),
+                video_item.get('avatar', None),
+            ))
 
     add_playlist_sqlite_db('playlists', name, None)
     cursor.executemany('''INSERT OR IGNORE INTO playlist_videos (
@@ -687,7 +747,18 @@ def insert_videos_sqlite_db(cursor, name, video_info_list):
                               channel_name,
                               avatar
                           )
-                          VALUES ((SELECT id FROM playlists WHERE playlist_name=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', rows)
+                          VALUES ((SELECT id FROM playlists WHERE playlist_name=?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', rows_videos)
+
+    cursor.executemany('''INSERT OR IGNORE INTO playlist_playlists (
+                              sql_playlist_id,
+                              id,
+                              title,
+                              author,
+                              author_id,
+                              video_count,
+                              first_video_id
+                          )
+                          VALUES ((SELECT id FROM playlists WHERE playlist_name=?), ?, ?, ?, ?, ?, ?)''', rows_playlists)
 
 @db_connect_sqlite_db
 def remove_videos_sqlite_db(cursor, name, video_ids):
@@ -809,16 +880,25 @@ def add_extra_info_to_videos_sqlite_db(videos, playlist_name):
     missing_thumbnails = []
 
     for video in videos:
-        video['type'] = 'video'
-        util.add_extra_html_info(video)
+        if 'first_video_id' in video and 'video_count' in video and video['id'].startswith(('PL', 'OL')) and len(video['id']) > 11:
+            video['type'] = 'playlist'
+            video['playlist_type'] = 'playlist'
+            video['thumbnail'] = ("/https://i.ytimg.com/vi/" + video['first_video_id'] + "/mqdefault.jpg")
+            video['author_url'] = util.concat_or_none(util.URL_ORIGIN, "/channel/", video['author_id'])
+            video['url'] = util.concat_or_none(util.URL_ORIGIN, '/playlist?list=', video['id'])
+            video['badges'] = ''
+            missing_thumbnails = []
+        else:
+            video['type'] = 'video'
+            util.add_extra_html_info(video)
 
-        if video['id'] not in thumbnails_id and playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
-            video['avatar'] = re.sub(r'\=s(\d{3,4})-', '=s200-', video['avatar']) # 900px is too big
-            download_thumbnail_sqlite_db(video['id'], video['avatar'])
-        elif video['id'] not in thumbnails_id:
-            missing_thumbnails.append(video['id'])
+            if video['id'] not in thumbnails_id and playlist_name in ["related_hidden_channels", 'search_hidden_channels']:
+                video['avatar'] = re.sub(r'\=s(\d{3,4})-', '=s200-', video['avatar']) # 900px is too big
+                download_thumbnail_sqlite_db(video['id'], video['avatar'])
+            elif video['id'] not in thumbnails_id:
+                missing_thumbnails.append(video['id'])
 
-        video['thumbnail'] = ('/https://youtube.com/data/playlist_thumbnails/' + video['id'])
+            video['thumbnail'] = ('/https://youtube.com/data/playlist_thumbnails/' + video['id'])
 
     tasks = (gevent.spawn(download_thumbnails_sqlite_db, missing_thumbnails),)
     gevent.joinall(tasks)
@@ -827,7 +907,8 @@ def add_extra_info_to_videos_sqlite_db(videos, playlist_name):
 
 def read_playlist_sqlite_db(name):
     '''Returns a list of videos for the given playlist name'''
-    videos = video_ids_in_playlist_sqlite_db(name, 'id, title, author, author_id, duration, approx_view_count, time_published, approx_subscriber_count, short_description, channel_name, avatar')
+    # videos = video_ids_in_playlist_sqlite_db(name, 'id, title, author, author_id, duration, approx_view_count, time_published, approx_subscriber_count, short_description, channel_name, avatar')
+    videos = video_ids_in_playlist_sqlite_db(name, '*')
     return videos
 
 
