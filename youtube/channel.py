@@ -745,6 +745,169 @@ def get_toplevel_custom_page(custom, tab='videos'):
 
 
 
+def get_channel_video_items_from_watch_page(channel_id, first_video_id=None):
+    playlist_items_aggregator = []
+    playlist_id = 'UU' + channel_id[2:]
+
+    first_page_json = playlist.playlist_first_page(playlist_id, report_text='Retrieved playlist info', use_mobile=True)
+    info = {'metadata': yt_data_extract.extract_playlist_metadata(first_page_json), 'error': None}
+
+    index = 1
+    video_id = first_video_id or info['metadata']['first_video_id']
+    page = 1
+    while index > 0:
+        this_page_json = playlist.get_videos_from_watch_page(playlist_id, index, video_id)
+        total_video_count = this_page_json['video_count'] or this_page_json['metadata']['video_count'] or info['metadata']['video_count']
+        print(f"Total_videos:{total_video_count} Items:{len(this_page_json['items'])} video:{video_id} index:{index}")
+        if this_page_json and len(this_page_json['items']) > 0:
+            if len(playlist_items_aggregator) > 0 and playlist_items_aggregator[-1]['id'] == this_page_json['items'][-1]['id']: break
+            for i in this_page_json['items']:
+                if not any(i['id'] == j['id'] for j in playlist_items_aggregator):
+                    playlist_items_aggregator.append(i)
+        else: break
+        video_id = playlist_items_aggregator[-1]['id']
+        index = playlist_items_aggregator[-1]['index']
+        page += 1
+        if this_page_json['items'][-1]['index'] == total_video_count:
+            print(f"Total_videos:{total_video_count} Items:{len(this_page_json['items'])} video:{video_id} index:{index}")
+            break
+        elif page > math.ceil(total_video_count/100) + 3:
+            print("Warning! Too many pages requested")
+            break
+
+    return playlist_items_aggregator[::-1]
+
+def get_channel_video_items_from_playlist(channel_id):
+    playlist_items_aggregator = []
+    playlist_id = 'UU' + channel_id[2:]
+
+    this_page_json = playlist.playlist_first_page(playlist_id, report_text='Retrieved playlist info', use_mobile=True)
+    info = yt_data_extract.extract_playlist_info(this_page_json)
+    total_video_count = info['metadata']['video_count'] or 1000
+    num_pages = math.ceil(total_video_count/100)
+
+    # some playlist does not give items for first page
+    if len(info.get('items', [])) == 0:
+        page = 1
+    else:
+        page = 2
+        playlist_items_aggregator.extend(info['items'])
+    print(f"Total_videos:{total_video_count} Items:{len(info['items'])} Page:{1}")
+
+    while num_pages >= page:
+        this_page_json = playlist.get_videos(playlist_id, page, include_shorts=True)
+        info = yt_data_extract.extract_playlist_info(this_page_json)
+        playlist_items_aggregator.extend(info['items'])
+        print(f"Total_videos:{total_video_count} Items:{len(info['items'])} Page:{page}")
+        page += 1
+        # if len(playlist_items_aggregator) > 0 and playlist_items_aggregator[-1]['id'] == info['items'][-1]['id']:
+            # break
+
+    return playlist_items_aggregator[::-1]
+
+def get_channel_video_items_with_ctoken(channel_id):
+    playlist_items_aggregator = []
+    playlist_id = 'UU' + channel_id[2:]
+    sort = 4
+    tab = 'videos'
+
+    first_page_json = get_channel_first_page('https://www.youtube.com/channel/' + channel_id)
+    info = yt_data_extract.extract_channel_info(json.loads(first_page_json), tab, continuation=True)
+    if not info['channel_name'] or not info['channel_id'] or not info['channel_url']: raise Exception("Incomplete channel data. Abort!")
+    additional_info = {
+        'author': info['channel_name'],
+        'author_id': info['channel_id'],
+        'author_url': info['channel_url'],
+    }
+    page = 1
+    if len(info.get('items', [])) == 0:
+        first_page_json = get_channel_tab(channel_id, page=str(page), sort=sort, tab=tab)
+        info = yt_data_extract.extract_channel_info(json.loads(first_page_json), tab, continuation=True)
+        for item in info['items']: item.update(additional_info)
+    playlist_items_aggregator.extend(info['items'])
+    print(f"Items:{len(info['items'])} Page:{page}")
+
+    ctoken = extract_ctoken_('https://www.youtube.com/channel/', channel_id, tab, sort, 2, 1, first_page_json)
+    if info['ctoken']: ctoken = info['ctoken']
+
+    page += 1
+    while ctoken:
+        this_page_json = get_channel_tab(channel_id, page=str(page), sort=sort, tab=tab, ctoken=ctoken)
+        # this_page_json = util.call_youtube_api('web', 'browse', {'continuation': ctoken})
+        info = yt_data_extract.extract_channel_info(json.loads(this_page_json), tab, continuation=True)
+        for item in info['items']: item.update(additional_info)
+        playlist_items_aggregator.extend(info['items'])
+        print(f"Items:{len(info['items'])} Page:{page}")
+        ctoken = info['ctoken']
+        page += 1
+
+    return playlist_items_aggregator[::-1]
+
+def get_channel_items_with_ctoken_1(channel_id, sort, tab):
+    playlist_items_aggregator = []
+
+    # for playlists, releases also works this for first page
+    # first_page_json = util.fetch_url('https://www.youtube.com/channel/' + channel_id + f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[str(sort)], headers_desktop, debug_name=f'gen_channel_{tab}')
+    # info = yt_data_extract.extract_channel_info(json.loads(first_page_json), tab, continuation=True)
+
+    additional_info = None
+    ctoken = channel_ctoken_v3(channel_id, page='1', sort=sort, tab=tab)
+    page = 1
+    while ctoken:
+        try:
+            this_page_json = util.call_youtube_api('web', 'browse', {'continuation': ctoken})
+            # this_page_json = get_channel_tab(channel_id, page=str(page), sort=sort, tab=tab, ctoken=ctoken)
+        except:
+            traceback.print_exc()
+            break
+        info = yt_data_extract.extract_channel_info(json.loads(this_page_json), tab, continuation=True)
+
+        if page == 1:
+            if not info['channel_name'] or not info['channel_id'] or not info['channel_url']: raise Exception("Incomplete channel data. Abort!")
+            additional_info = {'author': info['channel_name'], 'author_id': info['channel_id'], 'author_url': info['channel_url']}
+        else:
+            [yt_data_extract.conservative_update(item, k, v) for item in info['items'] for k, v in additional_info.items()]
+
+        playlist_items_aggregator.extend(info['items'])
+        print(f"Tab:{tab} Items:{len(info['items'])} Page:{page}")
+
+        ctoken = info['ctoken']
+        page += 1
+
+    return playlist_items_aggregator[::-1]
+
+@yt_app.route('/channel/<channel_id>/import')
+def import_channel_videos_playlists(channel_id, first_video_id=None):
+
+    # video_items_aggregator = get_channel_video_items_from_watch_page(channel_id, first_video_id)
+    # video_items_aggregator = get_channel_video_items_from_playlist(channel_id)
+    # video_items_aggregator = get_channel_video_items_with_ctoken(channel_id)
+    video_items_aggregator = get_channel_items_with_ctoken_1(channel_id, 4, 'videos')
+
+    from youtube.search import filter_search_items_by_duration
+    video_items_aggregator = filter_search_items_by_duration(video_items_aggregator, '1:00')
+
+    tmp = []
+    for item in video_items_aggregator:
+        try: item['time_published'] = datetime.fromtimestamp(subscriptions.youtube_timestamp_to_posix(item['time_published'])).strftime('%Y-%m-%d')
+        except: pass
+        tmp.append(json.dumps({key: item[key] for key in [
+            'id', 'title', 'author', 'author_id', 'duration', 'approx_view_count', 'time_published']}))
+    video_items_aggregator = tmp[:]
+    playlist_name = f"cha_ {channel_id} - videos"
+    local_playlist.add_to_playlist(playlist_name, video_items_aggregator)
+
+    playlist_items_aggregator = get_channel_items_with_ctoken_1(channel_id, 4, 'releases')
+    playlist_items_aggregator.extend(get_channel_items_with_ctoken_1(channel_id, 4, 'playlists'))
+    if playlist_items_aggregator:
+        playlist_name = f"cha_ {channel_id} - playlists"
+        ids = local_playlist.video_ids_in_playlist(playlist_name, 'id')
+        playlist_items_aggregator = [json.dumps(v) for v in playlist_items_aggregator if (v['id'] not in ids) and v['id'] != None ]
+        local_playlist.add_to_playlist(playlist_name, playlist_items_aggregator)
+
+    return flask.redirect(f"/https://www.youtube.com/channel/{channel_id}/", 302)
+
+
 def sort_video_items_custom(items, sort1, sort1_reversed='false', sort_key=None, custom_order=None):
     if type(items) is not list: raise Exception('Only list type allowed for sorting!')
     if sort1 == None: return
