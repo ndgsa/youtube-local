@@ -27,16 +27,24 @@ thumbnails_sqlite_database_path = os.path.join(settings.data_dir, 'db', "thumbna
 playlists_sqlite_database_path = os.path.join(settings.data_dir, 'db', "playlists.sqlite")
 
 
+_CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(playlists|releases|albums|podcasts|courses)$''')
+_CHANNEL_AGGREGATE_VIDEOS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(videos)$''')
 _SEARCH_AGGREGATE_PLAYLIST_NAME_RE = re.compile(r'''^sa_\s.+\s\-\s\d+\s(Days|Weeks|Months)$''')
 @cachetools.func.lru_cache(maxsize=64)
 def is_custom_type_playlist_name(name, custom=None):
     if custom == 'sa' and not _SEARCH_AGGREGATE_PLAYLIST_NAME_RE.match(name):
         is_custom = None
-    if custom == 'no_hidden_channels_videos' and name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
+    elif custom == 'cha_v' and not _CHANNEL_AGGREGATE_VIDEOS_NAME_RE.match(name):
+        is_custom = None
+    elif custom == 'cha_p' and not _CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE.match(name):
+        is_custom = None
+    elif custom == 'no_hidden_channels_videos' and name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
         is_custom = None
     elif custom == 'no_hidden_channels' and name in ["related_hidden_channels", "search_hidden_channels"]:
         is_custom = None
     elif _SEARCH_AGGREGATE_PLAYLIST_NAME_RE.match(name):
+        is_custom = True
+    elif _CHANNEL_AGGREGATE_VIDEOS_NAME_RE.match(name) or _CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE.match(name):
         is_custom = True
     elif name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
         is_custom = True
@@ -1623,7 +1631,7 @@ def get_sort_database_playlist_page(playlist_name=None, sort1=None, sort1_revers
 def sort_database_playlist(playlist_name, sort1='1', sort1_reversed=None, sorted_dublicate=True):
     '''insert in data base dublicated playlist with sorted items'''
 
-    if not is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+    if not is_custom_type_playlist_name(playlist_name, 'no_hidden_channels') or is_custom_type_playlist_name(playlist_name, 'cha_p'):
         print('Sorting is not available for non custom playlist.')
         return
 
@@ -1642,6 +1650,8 @@ def sort_database_playlist(playlist_name, sort1='1', sort1_reversed=None, sorted
     if sorted_dublicate:
         if is_custom_type_playlist_name(playlist_name, 'sa'):
             sorted_playlist_name = re.sub(r"(\d+\s(Days|Weeks|Months))$", fr"sort1_{sort1} - \1", playlist_name)
+        elif is_custom_type_playlist_name(playlist_name, 'cha_v') or is_custom_type_playlist_name(playlist_name, 'cha_p'):
+            sorted_playlist_name = re.sub(r"((videos|playlists|releases|albums|podcasts|courses))$", fr"sort1_{sort1} - \1", playlist_name)
         else: sorted_playlist_name = playlist_name + f" sort1_{sort1}"
     else:
         sorted_playlist_name = playlist_name
