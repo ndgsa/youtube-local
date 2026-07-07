@@ -864,8 +864,11 @@ def get_channel_items_with_ctoken_1(channel_id, sort, tab):
             this_page_json = util.call_youtube_api('web', 'browse', {'continuation': ctoken})
             # this_page_json = get_channel_tab(channel_id, page=str(page), sort=sort, tab=tab, ctoken=ctoken)
         except:
-            traceback.print_exc()
-            break
+            if page == 1 and tab in ['releases', 'playlists']:
+                this_page_json = util.fetch_url('https://www.youtube.com/channel/' + channel_id + f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[str(sort)], headers_desktop, debug_name=f'gen_channel_{tab}')
+            else:
+                traceback.print_exc()
+                break
         info = yt_data_extract.extract_channel_info(json.loads(this_page_json), tab, continuation=True)
 
         if page == 1:
