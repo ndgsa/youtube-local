@@ -217,7 +217,7 @@ def channel_ctoken_v3(channel_id, page, sort, tab, view=1):
 
     shelf_view = proto.uint(4, 0)
     view = proto.uint(6, int(view))
-    continuation_info = proto.string(3,
+    continuation_info = proto.string(3, # 4 - show home tab
         proto.percent_b64encode(tab + sort + shelf_view + view + page_token)
     )
 
