@@ -567,6 +567,12 @@ def edit_playlist():
         if request.values.get('import_playlist', None) == 'true':
             items = get_all_videos_from_playlist(request.values['playlist_id'])
             items = items[::-1]  # items must be reversed
+
+            items = [json.loads(i) for i in items]
+            for i in items:
+                [i.pop(f, None) for f in ['approx_view_count', 'time_published'] if f in i]
+            items = [json.dumps(i) for i in items]
+
             if playlist_name in get_playlist_names():
                 print(f'Playlist name {playlist_name} already exist, adding random value to playlist name.')
                 add_to_playlist(f"{playlist_name}_{str(os.urandom(2).hex())}", items)
@@ -614,7 +620,14 @@ def import_videos_to_playlist(playlist_name, request):
 
         # if .txt contains dicts
         if all(x in list_video_url[0] for x in ["id", "title", "author", "author_id", "duration"]):
-            add_to_playlist(playlist_name, list_video_url)
+            if is_custom_type_playlist_name(playlist_name, 'no_hidden_channels'):
+                add_to_playlist(playlist_name, list_video_url)
+            else:
+                list_video_url = [json.loads(i) for i in list_video_url]
+                for i in list_video_url:
+                    [i.pop(f, None) for f in ['approx_view_count', 'time_published'] if f in i]
+                list_video_url = [json.dumps(i) for i in list_video_url]
+                add_to_playlist(playlist_name, list_video_url)
             return
 
         for url in list_video_url:
