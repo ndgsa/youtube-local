@@ -565,19 +565,24 @@ def edit_playlist():
         playlist_name = request.values['playlist_name']
         playlist_name = check_playlist_name_invalid_symbols(playlist_name.strip(), '_')
         if request.values.get('import_playlist', None) == 'true':
-            items = get_all_videos_from_playlist(request.values['playlist_id'])
-            items = items[::-1]  # items must be reversed
+            if request.values.get('as_custom', None) != 'on':
+                items = get_all_videos_from_playlist(request.values['playlist_id'])
 
-            items = [json.loads(i) for i in items]
-            for i in items:
-                [i.pop(f, None) for f in ['approx_view_count', 'time_published'] if f in i]
-            items = [json.dumps(i) for i in items]
+                items = [json.loads(i) for i in items]
+                for i in items:
+                    [i.pop(f, None) for f in ['approx_view_count', 'time_published'] if f in i]
+                items = [json.dumps(i) for i in items]
+            else:
+                # items = get_all_videos_from_playlist(request.values['playlist_id'], custom='watch')
+                items = get_all_videos_from_playlist(request.values['playlist_id'])
+                playlist_name = f"i_ {playlist_name}"
 
             if playlist_name in get_playlist_names():
                 print(f'Playlist name {playlist_name} already exist, adding random value to playlist name.')
-                add_to_playlist(f"{playlist_name}_{str(os.urandom(2).hex())}", items)
-            else:
-                add_to_playlist(playlist_name, items)
+                playlist_name = f"{playlist_name}_{str(os.urandom(2).hex())}"
+
+            items = items[::-1]  # items must be reversed
+            add_to_playlist(playlist_name, items)
         else:
             add_to_playlist(playlist_name, request.values.getlist('video_info_list'))
         return '', 204
@@ -1318,7 +1323,7 @@ def extract_info_mini2(video_id, use_invidious, playlist_id=None, index=None):
     return info
 
 
-def get_all_videos_from_playlist(playlist_id):
+def get_all_videos_from_playlist(playlist_id, custom=None):
     if not playlist_id: return []
 
     from youtube.playlist import (playlist_first_page, get_videos)
@@ -1333,36 +1338,41 @@ def get_all_videos_from_playlist(playlist_id):
         print('Error on extracting items.')
         return []
 
-    items = info['items']
-    video_count = yt_data_extract.deep_get(info, 'metadata', 'video_count')
-    if video_count is None: return []
-    num_pages = math.ceil(video_count/100)
-    # print(video_count, num_pages)
-
-    tasks = []
-    for p in range(2, num_pages+1):
-        tasks.append(gevent.spawn(get_videos, playlist_id, p))
-    tasks = tuple(tasks)
-    gevent.joinall(tasks)
-    util.check_gevent_exceptions(*tasks)
-    for t in tasks:
-        info = yt_data_extract.extract_playlist_info(t.value)
-        if info['error']:
-            print('Error on extracting items.')
-            return []
-        items.extend(info['items'])
-
     tmp = []
-    for item in items:
-        video_info = {}
-        for key in ('id', 'title', 'author', 'author_id', 'duration'):
-            try: video_info[key] = item[key]
-            except KeyError: video_info[key] = None
+    if custom == 'watch':
+        from youtube.channel import get_channel_video_items_from_watch_page
+        items = get_channel_video_items_from_watch_page(playlist_id, page_type='playlist', first_video_id=info['metadata']['first_video_id'])
+        tmp = [json.dumps(v) for v in items if v['id'] != None ]
+    else:
+        items = info['items']
+        video_count = yt_data_extract.deep_get(info, 'metadata', 'video_count')
+        if video_count is None: return []
+        num_pages = math.ceil(video_count/100)
+        # print(video_count, num_pages)
 
-        for key in ('approx_view_count', 'time_published'):
-            if key in item: video_info[key] = item[key]
+        tasks = []
+        for p in range(2, num_pages+1):
+            tasks.append(gevent.spawn(get_videos, playlist_id, p))
+        tasks = tuple(tasks)
+        gevent.joinall(tasks)
+        util.check_gevent_exceptions(*tasks)
+        for t in tasks:
+            info = yt_data_extract.extract_playlist_info(t.value)
+            if info['error']:
+                print('Error on extracting items.')
+                return []
+            items.extend(info['items'])
 
-        tmp.append(json.dumps(video_info))
+        for item in items:
+            video_info = {}
+            for key in ('id', 'title', 'author', 'author_id', 'duration'):
+                try: video_info[key] = item[key]
+                except KeyError: video_info[key] = None
+
+            for key in ('approx_view_count', 'time_published'):
+                if key in item: video_info[key] = item[key]
+
+            tmp.append(json.dumps(video_info))
 
     return tmp
 
