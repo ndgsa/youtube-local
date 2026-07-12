@@ -27,6 +27,7 @@ thumbnails_sqlite_database_path = os.path.join(settings.data_dir, 'db', "thumbna
 playlists_sqlite_database_path = os.path.join(settings.data_dir, 'db', "playlists.sqlite")
 
 
+_IMPORTED_PLAYLIST_VIDEOS_NAME_RE = re.compile(r'''^i_\s.+''')
 _BIG_PLAYLIST_VIDEOS_NAME_RE = re.compile(r'''^b_\s.+''')
 _CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(playlists|releases|albums|podcasts|courses)$''')
 _CHANNEL_AGGREGATE_VIDEOS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(videos)$''')
@@ -41,6 +42,8 @@ def is_custom_type_playlist_name(name, custom=None):
         is_custom = None
     elif custom == 'big' and not _BIG_PLAYLIST_VIDEOS_NAME_RE.match(name):
         is_custom = None
+    elif custom == 'imported' and not _IMPORTED_PLAYLIST_VIDEOS_NAME_RE.match(name):
+        is_custom = None
     elif custom == 'no_hidden_channels_videos' and name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
         is_custom = None
     elif custom == 'no_hidden_channels' and name in ["related_hidden_channels", "search_hidden_channels"]:
@@ -50,6 +53,8 @@ def is_custom_type_playlist_name(name, custom=None):
     elif _CHANNEL_AGGREGATE_VIDEOS_NAME_RE.match(name) or _CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE.match(name):
         is_custom = True
     elif _BIG_PLAYLIST_VIDEOS_NAME_RE.match(name):
+        is_custom = True
+    elif _IMPORTED_PLAYLIST_VIDEOS_NAME_RE.match(name):
         is_custom = True
     elif name in ["related_hidden_channels", "search_hidden_channels", "related_hidden_videos", "search_hidden_videos"]:
         is_custom = True
