@@ -111,6 +111,7 @@ For security reasons, enabling this is not recommended.''',
             # ('ios'),                   #(require: po_token;) after 1 minute fails
             # ('ipados'),                #(require: po_token;) after 1 minute fails
             ('visionos'),                #
+            ('visionos_new'),            #
 
             ('mweb'),                    #
             ('web'),                     #(require: js; ytcfg-endpoint;)

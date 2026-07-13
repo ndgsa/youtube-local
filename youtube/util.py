@@ -1048,6 +1048,21 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
         'REQUIRE_JS_PLAYER': False,
     },
+    'visionos_new': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'VISIONOS',
+                'clientVersion': '1.02',
+                'deviceMake': 'Apple',
+                'deviceModel': 'RealityDevice17,1',
+                'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
+                'osName': 'visionOS',
+                'osVersion': '26.5.23O471',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
+        'REQUIRE_JS_PLAYER': False,
+    },
 }
 
 @cachetools.func.lru_cache(maxsize=20)
