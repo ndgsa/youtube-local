@@ -62,12 +62,90 @@ import urllib3.contrib.socks
 
 URL_ORIGIN = "/https://www.youtube.com"
 
-connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED')
+
+class PoolManager:
+    def __init__(self):
+        self.proxy_url = {}
+        self.old_connection_pool = None
+        self.connection_pool = self.create_pool_manager()
+        self.new_pool_lock = gevent.lock.BoundedSemaphore(1)
+        self.pool_refresh_time = time.monotonic()
+
+        settings.add_setting_changed_hook(
+            'use_proxy',
+            lambda old_val, new_val: self.refresh_connection_pool(),
+        )
+        settings.add_setting_changed_hook(
+            'proxy_url',
+            lambda old_val, new_val: self.refresh_connection_pool(),
+        )
+
+    def create_pool_manager(self):
+        connection_pool = None
+        if settings.use_proxy == 1:
+            try:
+                url = settings.proxy_url.strip() if settings.proxy_url.strip().endswith('/') else settings.proxy_url.strip() + '/'
+                url_match = re.search(r'(?P<protocol>http|https|socks5|socks5h)://(?:(?P<auth>.+)@)?(?P<host>(?:[0-9]{1,3}\.){3}[0-9]{1,3})(?::(?P<port>\d{1,5}))?/?$', url)
+                self.proxy_url = {
+                    'url': url, 'protocol': url_match.group('protocol'),
+                    'auth': url_match.group('auth'), 'host': url_match.group('host'),
+                    'port': url_match.group('port'),}
+                if 'socks' in self.proxy_url['protocol']:
+                    connection_pool = urllib3.contrib.socks.SOCKSProxyManager(self.proxy_url['url'], cert_reqs = 'CERT_REQUIRED')
+                else:
+                    connection_pool = urllib3.ProxyManager(self.proxy_url['url'], cert_reqs = 'CERT_REQUIRED')
+                # proxy_test_timeout = 10
+                # connection_pool.request('GET', f"{self.proxy_url['host']}:{self.proxy_url['port']}", timeout=proxy_test_timeout, retries=0) # 'https://www.example.com'
+            except Exception as e:
+                print(e)
+                self.proxy_url = {}
+                connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED')
+        else:
+            self.proxy_url = {}
+            connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED')
+        return connection_pool
+
+    def refresh_connection_pool(self):
+        self.connection_pool.clear()
+
+        # Keep a reference for 5 min to avoid it getting garbage collected
+        # while sockets still in use
+        self.old_connection_pool = self.connection_pool
+
+        self.new_pool_lock.acquire()
+        print('Warning: Creating new pool manager.')
+        self.connection_pool = self.create_pool_manager()
+        self.new_pool_lock.release()
+        self.pool_refresh_time = time.monotonic()
+
+    def get_connection_pool(self):
+        current_time = time.monotonic()
+
+        # use settings.add_setting_changed_hook instead
+        # if (self.proxy_url['url'] == None and settings.use_proxy != 0
+            # or self.proxy_url['url'] and self.proxy_url['url'] != f"{settings.proxy_url.strip()}"):
+            # self.refresh_connection_pool()
+
+        # close old pool after 5 minutes
+        if self.old_connection_pool and current_time - self.pool_refresh_time > 300:
+            self.old_connection_pool = None
+
+        return self.connection_pool
+
+    def is_proxy_pool(self):
+        return isinstance(self.connection_pool, urllib3.poolmanager.ProxyManager)
+
+pool_manager = PoolManager()
+
+
 if settings.use_httpx:
     cookiejar_file = os.path.join(settings.data_dir, 'cookies.txt')
     cookiejar = http.cookiejar.LWPCookieJar(filename=cookiejar_file)
     if settings.route_tor == 0:
-        httpx_client = httpx.Client(http2=True, follow_redirects=True, max_redirects=10, cookies=cookiejar)
+        if pool_manager.is_proxy_pool():
+            httpx_client = httpx.Client(http2=True, follow_redirects=True, max_redirects=10, cookies=cookiejar, proxy=pool_manager.proxy_url['url'])
+        else:
+            httpx_client = httpx.Client(http2=True, follow_redirects=True, max_redirects=10, cookies=cookiejar)
     else:
         httpx_client = httpx.Client(http2=True, follow_redirects=True, max_redirects=10, cookies=cookiejar, proxy=f'socks5://localhost:{settings.tor_port}')
 
@@ -178,7 +256,7 @@ tor_manager = TorManager()
 
 def get_pool(use_tor):
     if not use_tor:
-        return connection_pool
+        return pool_manager.get_connection_pool()
     return tor_manager.get_tor_connection_pool()
 
 
@@ -316,7 +394,18 @@ def fetch_url_response(url, headers=(), timeout=30, data=None,
         if use_tor and settings.route_tor:
             opener = urllib.request.build_opener(sockshandler.SocksiPyHandler(socks.PROXY_TYPE_SOCKS5, "127.0.0.1", settings.tor_port), cookie_processor)
         else:
-            opener = urllib.request.build_opener(cookie_processor)
+            if pool_manager.is_proxy_pool():
+                if 'socks' in pool_manager.proxy_url['protocol']:
+                    if pool_manager.proxy_url['protocol'] == 'socks4':
+                        proxy_handler = sockshandler.SocksiPyHandler(socks.PROXY_TYPE_SOCKS4, pool_manager.proxy_url['host'], pool_manager.proxy_url['port'])
+                    elif 'socks5' in pool_manager.proxy_url['protocol']:
+                        proxy_handler = sockshandler.SocksiPyHandler(socks.PROXY_TYPE_SOCKS5, pool_manager.proxy_url['host'], pool_manager.proxy_url['port'])
+                    else: raise NotImplementedError(f"Invalid proxy protocol: {pool_manager.proxy_url['protocol']}")
+                else:
+                    proxy_handler = urllib.request.ProxyHandler({pool_manager.proxy_url['protocol']: pool_manager.proxy_url['url']})
+            else:
+                proxy_handler = urllib.request.ProxyHandler()
+            opener = urllib.request.build_opener(proxy_handler, cookie_processor)
 
         response = opener.open(req, timeout=timeout)
         cleanup_func = (lambda r: None)
