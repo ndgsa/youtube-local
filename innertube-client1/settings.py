@@ -46,6 +46,26 @@ SETTINGS_INFO = collections.OrderedDict([
         'category': 'network',
     }),
 
+    ('use_proxy', {
+        'type': int,
+        'default': 0,
+        'label': 'Proxy',
+        'comment': '',
+        'options': [
+            (0, 'Disabled'),
+            (1, 'Enabled'),
+        ],
+        'category': 'network',
+    }),
+
+    ('proxy_url', {
+        'label': 'Proxy url',
+        'type': str,
+        'default': '',
+        'comment': '<http|https|socks5|socks5h>://[login:password@]host[:port]',
+        'category': 'network',
+    }),
+
     ('allow_foreign_addresses', {
         'type': bool,
         'default': False,
