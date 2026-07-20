@@ -80,6 +80,7 @@
         <h2 class="playlist-title" contenteditable="true">{{ playlist_name }}</h2>
         <div id="reorder-options">
             <form id="playlist-reorder" method="post" action="/youtube.com/playlists/{{ playlist_name }}/edit/">
+				<input type="hidden" value="{{ num_videos }}" name="num_videos" />
                 <button type="submit" id="playlist-reorder-button" name="action" value="reorder">Reorder</button>
             </form>
         </div>

@@ -1532,6 +1532,7 @@ def get_local_playlist_page_edit(playlist_name=None):
         playlist_name = playlist_name,
         videos = videos,
         num_pages = num_pages,
+        num_videos = num_videos,
         parameters_dictionary = request.args,)
 
 _VIDEO_INFO_LIST_ID_RE = re.compile(r'''\"id\"\:\s\"([A-Za-z0-9_\-]{11})\"\,\s''')
@@ -1546,6 +1547,17 @@ def path_local_playlist_page_edit(playlist_name):
         offset = amount*(page - 1)
         videos = [json.dumps(item) for item in read_playlist(playlist_name)[::-1]]
 
+        ids = video_ids_in_playlist(playlist_name, 'id')[::-1]
+        ids = ids[offset:offset+amount]
+        ids_from_video_info_list = [json.loads(v.strip())['id'] for v in video_info_list]
+        if len(ids) == len(ids_from_video_info_list):
+            from collections import Counter
+            if Counter(ids) != Counter(ids_from_video_info_list) or set(ids) != set(ids_from_video_info_list) or sorted(ids) != sorted(ids_from_video_info_list):
+                return 'Playlist items mismatch, try refresh page.', 400
+        else: return 'Invalid video_info_list length.', 400
+
+        if int(request.values.get('num_videos', 0)) != len(videos): return 'Playlist length mismatch, please refresh page.', 400
+
         if amount > len(videos): return 'Items per page exceeded length of playlist items.', 400
 
         for i in video_info_list:
@@ -1557,7 +1569,7 @@ def path_local_playlist_page_edit(playlist_name):
 
         if len(videos[offset:offset+amount]) == len(video_info_list):
             videos[offset:offset+amount] = video_info_list
-        else: return 'Invalid video_info_list length', 400
+        else: return 'Invalid video_info_list length.', 400
 
         if settings.sort_playlist: videos.reverse()
         remove_from_playlist(playlist_name, videos, 'reorder')
