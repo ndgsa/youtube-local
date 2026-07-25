@@ -267,6 +267,9 @@ def convert_trimmed_time_string(string):
 
 def convert_duration_string(string, delimiter=','):
     string_list = string.split(delimiter)
+    if len(string_list) > 1 and string_list[0].isdigit():
+        string_list[1] = string_list[0] + string_list[1]
+        string_list = string_list[1:]
     string_duration = ''
     for i in string_list:
         if 'second' in i:
