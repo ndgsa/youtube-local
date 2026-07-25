@@ -68,6 +68,51 @@ def get_search_json(query, page, autocorrect, sort, filters):
     info = json.loads(content)
     return info
 
+def get_search_api_json(query, page, autocorrect, sort, filters, ctoken=None):
+    sp = page_number_to_sp_parameter(page, autocorrect, sort, filters).replace("=", "%3D")
+    _, client_params = util.get_innertube_client(client_name='web')
+    key = client_params['INNERTUBE_API_KEY'] or 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
+    params = {'key': key, 'contentCheckOk': True, 'racyCheckOk': True}
+
+    headers_desktop = util.generate_api_headers(ua_platform='desktop',
+        additional_headers=(('Host', 'www.youtube.com'),)
+    )
+
+    data = {
+        # 'context': client_params['INNERTUBE_CONTEXT'],
+        'context': {
+            'client': {
+                'hl': 'en',
+                'gl': 'US',
+                'clientName': 'WEB',
+                'clientVersion': headers_desktop['X-YouTube-Client-Version'],
+            },
+        },
+        # 'params': sp,
+        # 'user': {
+            # "lockedSafetyMode":'false',
+        # },
+        # 'request': {
+            # "useSsl": True,
+            # "internalExperimentFlags": [],
+            # "consistencyTokenJars": []
+        # },
+    }
+
+    if ctoken:
+        data['continuation'] = ctoken.replace('=', '%3D')
+    else:
+        data['query'] = urllib.parse.quote_plus(query)
+        params['query'] = query
+        params['params'] = sp
+    url = f"https://www.youtube.com/youtubei/v1/search?{urllib.parse.urlencode(params)}"
+
+    content = util.fetch_url(url, util.merge_dicts(headers_desktop, {'Content-Type': 'application/json'}),
+        data=json.dumps(data), report_text="Got search api results", debug_name='search_api_results')
+    polymer_json = json.loads(content.decode('utf-8'))
+
+    return polymer_json
+
 
 @yt_app.route('/results')
 @yt_app.route('/search')
