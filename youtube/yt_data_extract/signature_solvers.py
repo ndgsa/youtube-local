@@ -427,7 +427,7 @@ def get_youtubei(use_js_runtime=False):
     else: youtubei_name = 'youtubei.min.js'
     youtubei_dir = os.path.join(settings.other_dir, 'js', 'youtubei')
     youtubei_file = os.path.join(youtubei_dir, youtubei_name)
-    additional_js_code = '''(async function () {let args; let innertube; let player_version; if (typeof Deno !== 'undefined'){args = Deno.args;} else if (typeof Bun !== 'undefined'){args = Bun.args;} else {args = process.argv.slice(2);}; try{if (args.length === 0){innertube = await Innertube.create({'client': 'TV', 'lang': 'en'}); player_version = innertube.session.player.player_id;} else {player_version = args[0]; innertube = await Innertube.create({'client': 'TV', 'lang': 'en', 'retrieve_player': 'true', 'player_id': player_version});};} catch (innertube_error){console.error(innertube_error);return;}; const session_info = {}; session_info.data = innertube.session.player.data; session_info.player_version = player_version; console.log(JSON.stringify(session_info));})();'''
+    additional_js_code = '''(async function () {let args; let innertube; let player_version; if (typeof Deno !== 'undefined'){args = Deno.args;} else if (typeof Bun !== 'undefined'){args = Bun.args;} else {args = process.argv.slice(2);}; try{if (args.length === 0){innertube = await Innertube.create({'client': 'TV', 'lang': 'en'}); player_version = innertube.session.player.player_id;} else if (args.length === 1) {player_version = args[0]; if (player_version.length != 8) {throw new Error('player_version is not valid');}; innertube = await Innertube.create({'client': 'TV', 'lang': 'en', 'retrieve_player': 'true', 'player_id': player_version});};} catch (innertube_error){console.error(innertube_error);return;}; const session_info = {}; session_info.data = innertube.session.player.data; session_info.player_version = player_version; console.log(JSON.stringify(session_info));})();'''
     if not os.path.isdir(youtubei_dir):
         print(f'Creating {youtubei_dir} directory')
         os.makedirs(youtubei_dir)
@@ -476,7 +476,7 @@ def solver2(info):
         err = check_requirements(info)
         if err != None: return err
 
-        youtubei_file, err = get_youtubei(use_js_runtime=False)
+        youtubei_file, err = get_youtubei(use_js_runtime=True)
         if err == False: return youtubei_file
 
         decrypt_function_cache, err = extract_decryption_function(info, youtubei_file)
@@ -498,10 +498,12 @@ def solver2(info):
         decrypt_function_cache = os.path.join(settings.players_cache_dir, f'''signature_func_{info['player_version']}.js''')
         info['decryption_function'] = None
 
-        additional_js_code = '''function decipher_signatures(n="",sp="",s=""){const mockStreamingURL="https://ytjs.googlevideo.com/videoplayback?expire=1234567890&"+"n="+encodeURIComponent(n); const urlCtorFunction=exportedVars.nsigFunction || (() => {throw new Error('No n/sig decipher function extracted')}); const urlCtor=urlCtorFunction(mockStreamingURL,sp,encodeURIComponent(s)); for(const prop of Object.getOwnPropertyNames(Object.getPrototypeOf(urlCtor))){if(['constructor','clone','set','get'].includes(prop)){continue;}; if(typeof urlCtor[prop] === 'function'){urlCtor[prop]();};}; const sigResult=urlCtor.get(sp); const nResult=urlCtor.get('n'); return {sig: sigResult ? decodeURIComponent(sigResult) : undefined, n: nResult ? decodeURIComponent(nResult) : undefined};};\n'''
+        # additional_js_code = '''function decipher_signatures(n="",sp="",s=""){const mockStreamingURL="https://ytjs.googlevideo.com/videoplayback?expire=1234567890&"+"n="+encodeURIComponent(n); const urlCtorFunction=exportedVars.nsigFunction || (() => {throw new Error('No n/sig decipher function extracted')}); const urlCtor=urlCtorFunction(mockStreamingURL,sp,encodeURIComponent(s)); for(const prop of Object.getOwnPropertyNames(Object.getPrototypeOf(urlCtor))){if(['constructor','clone','set','get'].includes(prop)){continue;}; if(typeof urlCtor[prop] === 'function'){urlCtor[prop]();};}; const sigResult=urlCtor.get(sp); const nResult=urlCtor.get('n'); return {sig: sigResult ? decodeURIComponent(sigResult) : undefined, n: nResult ? decodeURIComponent(nResult) : undefined};};\nfunction resolve_signatures(n_sig_list, s_sig_list){var result = {}; const n_sig_result = {}; const s_sig_result={}; try {for(n_c in n_sig_list){n_sig_result[n_sig_list[n_c]]=decipher_signatures(n_sig_list[n_c]).n;}; for(sig_c in s_sig_list){s_sig_result[s_sig_list[sig_c]]=decipher_signatures('','sig',s_sig_list[sig_c]).sig;};} catch (decryption_error) {console.error(decryption_error); return;}; const n_sig_responses={'type':'result','data':n_sig_result,}; const s_sig_responses={'type':'result','data':s_sig_result,}; result['type']='result'; result['responses']=[n_sig_responses,s_sig_responses]; return result;};''' # dukpy < 0.6.0
+        additional_js_code = '''function decipher_signatures(n="",sp="",s=""){const mockStreamingURL="https://ytjs.googlevideo.com/videoplayback?expire=1234567890&"+"n="+encodeURIComponent(n); const urlCtorFunction=exportedVars.nsigFunction || (() => {throw new Error('No n/sig decipher function extracted')}); const urlCtor=urlCtorFunction(mockStreamingURL,sp,encodeURIComponent(s)); for(const prop of Object.getOwnPropertyNames(Object.getPrototypeOf(urlCtor))){if(['constructor','clone','set','get'].includes(prop)){continue;}; if(typeof urlCtor[prop] === 'function'){urlCtor[prop]();};}; const sigResult=urlCtor.get(sp); const nResult=urlCtor.get('n'); return {sig: sigResult ? decodeURIComponent(sigResult) : undefined, n: nResult ? decodeURIComponent(nResult) : undefined};};\nfunction resolve_signatures(json_requests) {let challenges = []; let result = {}; result['type']='result'; result['responses'] = []; challenges = JSON.parse(json_requests); try{for(const challenge of challenges){let challenge_result = {}; if (challenge['type'] === 'n'){for(const n_c of challenge['challenges']){challenge_result[n_c]=decipher_signatures(n_c).n;};} else if (challenge['type'] === 'sig'){for(const s_c of challenge['challenges']){challenge_result[s_c]=decipher_signatures('','sig',s_c).sig;};}; result['responses'].push({'type':'result','data':challenge_result});};} catch (decryption_error){console.error(decryption_error);return;}; return result;};'''
 
         if not os.path.isfile(decrypt_function_cache):
-            output = _run_js_runtime_file(youtubei_signature_generator, info['player_version'], response_type='pass')
+            # output = _run_js_runtime_file(youtubei_signature_generator, info['player_version'], response_type='pass') # dukpy < 0.6.0
+            output = _run_js_runtime_file(youtubei_file, info['player_version'], response_type='pass')
             if output.get('data'):
                 if output['data'].get('output'):
                     print(f'Saving decryption function to {os.path.basename(decrypt_function_cache)}')
@@ -527,25 +529,17 @@ def solver2(info):
         if not info.get('decryption_function'):
             return (f"decryption_function not in info", False)
 
-        js_resolve_code = '''function resolve_signatures(n_sig_list, s_sig_list){
-        var result = {};
-        const n_sig_result = {};
-        const s_sig_result={};
-        try {
-        for(n_c in n_sig_list){n_sig_result[n_sig_list[n_c]]=decipher_signatures(n_sig_list[n_c]).n;};
-        for(sig_c in s_sig_list){s_sig_result[s_sig_list[sig_c]]=decipher_signatures('','sig',s_sig_list[sig_c]).sig;};
-        } catch (decryption_error) {console.error(decryption_error); return;};
-        const n_sig_responses={'type':'result','data':n_sig_result,};
-        const s_sig_responses={'type':'result','data':s_sig_result,};
-        result['type']='result';
-        result['responses']=[n_sig_responses,s_sig_responses];
-        return result;
-        };'''
-
         decrypt_session_dukpy = get_decrypt_session_dukpy(info['decryption_function'])
-        decrypt_session_dukpy.evaljs(f'\n{js_resolve_code}')
-        decrypt_signature_dukpy = '''resolve_signatures(dukpy['n_sig_list'], dukpy['s_sig_list'])'''
-        output = decrypt_session_dukpy.evaljs(decrypt_signature_dukpy, n_sig_list=n_sig_list, s_sig_list=s_sig_list)
+        # dukpy < 0.6.0
+        # decrypt_signature_dukpy = '''resolve_signatures(dukpy['n_sig_list'], dukpy['s_sig_list'])'''
+        # output = decrypt_session_dukpy.evaljs(decrypt_signature_dukpy, n_sig_list=n_sig_list, s_sig_list=s_sig_list)
+        json_requests = [
+            {'type': 'n', 'challenges': n_sig_list, 'video_id': info['id'], 'player_version': info.get('player_version')},
+            {'type': 'sig', 'challenges': s_sig_list, 'video_id': info['id'], 'player_version': info.get('player_version')},
+        ]
+        json_requests = json.dumps(json_requests)
+        decrypt_signature_dukpy = '''resolve_signatures(dukpy['json_requests'])'''
+        output = decrypt_session_dukpy.evaljs(decrypt_signature_dukpy, json_requests=json_requests)
         del decrypt_session_dukpy
 
         responses = output.get('responses', [])
