@@ -200,7 +200,7 @@ def get_video_sources(info, target_resolution):
         uni_sources = uni_sources + only_audio_source
         if uni_idx == None: uni_idx = 0
 
-        if info['__client_name'] in ['ios', 'ipados', 'visionos'] and uni_sources[0]['itag'] != 18:
+        if info['__client_name'] in ['ios', 'ipados', 'visionos', 'visionos_new'] and uni_sources[0]['itag'] != 18:
             uni_sources = []
 
     return {
