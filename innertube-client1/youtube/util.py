@@ -944,6 +944,19 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT_CLIENT_NAME': 2,
         'REQUIRE_JS_PLAYER': True,
     },
+    'mweb_new': {
+        'INNERTUBE_API_KEY': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8',
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'MWEB',
+                'clientVersion': '2.20260708.05.00',
+                # mweb previously did not require PO Token with this UA
+                'userAgent': 'Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 2,
+        'REQUIRE_JS_PLAYER': True,
+    },
     'tv': {
         'INNERTUBE_CONTEXT': {
             'client': {
@@ -1053,7 +1066,14 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT': {
             'client': {
                 'clientName': 'TVHTML5_SIMPLY',
-                'clientVersion': '1.0',
+                'clientVersion': '1.1',
+                'userAgent': 'Mozilla/5.0 (PS4; Leanback Shell) Gecko/20100101 Firefox/65.0 LeanbackShell/01.00.01.75 Sony PS4/ (PS4, , no, CH),gzip(gfe)',
+
+                'clientPlatform': 'GAME_CONSOLE',
+                'deviceMake': 'Sony',
+                'deviceModel': 'PS4',
+                'osName': 'PlayStation 4',
+                'osVersion': '',
             },
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 75,
@@ -1070,6 +1090,38 @@ INNERTUBE_CLIENTS = {
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
         'SUPPORTS_COOKIES': True,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'tv_sabr': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'TVHTML5',
+                'clientVersion': '7.20260707.07.00',
+                'userAgent': 'Mozilla/5.0 (PS4; Leanback Shell) Gecko/20100101 Firefox/65.0 LeanbackShell/01.00.01.75 Sony PS4/ (PS4, , no, CH),gzip(gfe)',
+                'clientPlatform': 'GAME_CONSOLE',
+                'deviceMake': 'Sony',
+                'deviceModel': 'PS4',
+                'osName': 'PlayStation 4',
+                'osVersion': '',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
+        'REQUIRE_JS_PLAYER': True,
+    },
+    'tv_dash': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'TVHTML5',
+                'clientVersion': '5.20150304',
+                'userAgent': 'Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 (KHTML, like Gecko) Version/2.4.0 TV Safari/538.1',
+                'clientPlatform': 'TV',
+                'deviceMake': 'Samsung',
+                'deviceModel': 'SmartTV',
+                'osName': 'Tizen',
+                'osVersion': '2.4.0',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
         'REQUIRE_JS_PLAYER': True,
     },
     'ipados': {
@@ -1089,6 +1141,36 @@ INNERTUBE_CLIENTS = {
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 5,
         'REQUIRE_JS_PLAYER': False
+    },
+    'visionos': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'targetDomain': 'youtubei.googleapis.com',
+                'clientName': 'VISIONOS',
+                'clientVersion': '0.1',
+                'deviceMake': 'Apple',
+                'deviceModel': 'RealityDevice14,1',
+                'osName': 'visionOS',
+                'osVersion': '1.3.21O771',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
+        'REQUIRE_JS_PLAYER': False,
+    },
+    'visionos_new': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'VISIONOS',
+                'clientVersion': '1.02',
+                'deviceMake': 'Apple',
+                'deviceModel': 'RealityDevice17,1',
+                'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
+                'osName': 'visionOS',
+                'osVersion': '26.5.23O471',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
+        'REQUIRE_JS_PLAYER': False,
     },
     'android_creator': {
         'INNERTUBE_CONTEXT': {
@@ -1122,36 +1204,42 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT_CLIENT_NAME': 3,
         'REQUIRE_JS_PLAYER': False,
     },
-    'visionos': {
+    'android_xr': {
+        'INNERTUBE_API_KEY': 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w',
         'INNERTUBE_CONTEXT': {
             'client': {
-                'targetDomain': 'youtubei.googleapis.com',
-                'clientName': 'VISIONOS',
-                'clientVersion': '0.1',
-                'deviceMake': 'Apple',
-                'deviceModel': 'RealityDevice14,1',
-                'osName': 'visionOS',
-                'osVersion': '1.3.21O771',
+                'clientName': 'ANDROID_VR',
+                'clientVersion': '1.73.21',
+                'userAgent': 'com.google.android.apps.youtube.xr/1.73.21 (Linux; U; Android 14; eureka-user Build/UML1.250710.002.A1) gzip',
+                'deviceMake': 'Samsung',
+                'deviceModel': 'SM-I610',
+                'osName': 'Android',
+                'osVersion': '14',
+                'androidSdkVersion': 34,
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 28,
         'REQUIRE_JS_PLAYER': False,
     },
-    'visionos_new': {
+    'android_vr_pico': {
+        'INNERTUBE_API_KEY': 'AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w',
         'INNERTUBE_CONTEXT': {
             'client': {
-                'clientName': 'VISIONOS',
-                'clientVersion': '1.02',
-                'deviceMake': 'Apple',
-                'deviceModel': 'RealityDevice17,1',
-                'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7_3) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15',
-                'osName': 'visionOS',
-                'osVersion': '26.5.23O471',
+                'clientName': 'ANDROID_VR',
+                'clientVersion': '1.73.22',
+                'deviceMake': 'Pico',
+                'deviceModel': 'A8110',
+                'androidSdkVersion': 29,
+                'userAgent': 'com.google.android.apps.youtube.vr.pico/1.73.22 (Linux; U; Android 10; en_US; A8110 Build/5.13.7) gzip',
+                'osName': 'Android',
+                'osVersion': '10',
+                'osBuild': '5.13.7',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 101,
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 28,
         'REQUIRE_JS_PLAYER': False,
     },
+
 }
 
 @cachetools.func.lru_cache(maxsize=20)

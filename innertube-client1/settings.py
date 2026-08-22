@@ -125,7 +125,9 @@ For security reasons, enabling this is not recommended.''',
             ('android'),                 #
             # ('android-test-suite'),    # not working
             # ('android_creator'),       #(require: cookies;)
-            ('android_vr'),              #
+            ('android_vr'),              #(require: cookies; po_token)
+            # ('android_vr_pico'),       #(require: cookies; po_token)
+            # ('android_xr'),            # not working
             ('android_sdkless'),         #
 
             # ('ios'),                   #(require: po_token;) after 1 minute fails
@@ -145,7 +147,8 @@ For security reasons, enabling this is not recommended.''',
             ('tv'),                      #(require: js;)
             ('tv_simply'),               #(require: js;)
             ('tv_downgraded'),           #(require: js; cookies;)
-
+            # ('tv_sabr'),               # not working
+            # ('tv_dash'),               # not working
         ],
         'category': 'client',
     }),
