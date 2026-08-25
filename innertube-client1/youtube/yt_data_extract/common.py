@@ -588,7 +588,10 @@ def extract_item_info(item, additional_info={}):
                 info['duration'] = convert_duration_string(info['duration'])
 
             if not info['thumbnail']:
-                info['thumbnail'] = normalize_url(multi_deep_get(item,['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],))
+                info['thumbnail'] = normalize_url(multi_deep_get(item,
+                    ['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],
+                    ['contentImage', 'thumbnailViewModel', 'image', 'sources', 0, 'url']
+                ))
 
             if _author_id_tmp.startswith("/@"):
                 info['author_url'] = ('https://www.youtube.com' + _author_id_tmp)
