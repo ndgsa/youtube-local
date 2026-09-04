@@ -1568,20 +1568,37 @@ def generate_po_token(po_token_provider, identifier=''):
         os.chdir(curdir)
 
     elif po_token_provider == 4:
-
+        import urllib.request
+        proxy = ''
+        if settings.route_tor > 0:
+            proxy = f'socks5h://localhost:{settings.tor_port}'
         client, client_params = get_innertube_client(client_name='web') # other clients not working
         context = client_params['INNERTUBE_CONTEXT']
         payload = {'bypass_cache': True, 'innertube_context': context}
         visitor_data = get_visitor_data_(settings.innertube_client_name, 'homepage').get('visitorData')
         if not identifier: payload['content_binding'] = visitor_data
         else: payload['content_binding'] = identifier
+        if proxy: payload['proxy'] = proxy
         try:
-            ping_result = json.loads(fetch_url('http://localhost:4416/ping').decode())
+            if proxy:
+                # workaround for fetch_url which doesn't work with localhost if proxy is enabled.
+                with urllib.request.urlopen('http://localhost:4416/ping') as resp:
+                    ping_result = json.loads(resp.read())
+            else:
+                ping_result = json.loads(fetch_url('http://localhost:4416/ping').decode())
             print(f"Using bgutil server {ping_result['version']}")
-            response = fetch_url('http://localhost:4416/get_pot',
-                report_text=f'Getting po_token via bgutil server',
-                headers={'Content-Type': 'application/json'},
-                data=json.dumps(payload))
+            if not proxy:
+                response = fetch_url('http://localhost:4416/get_pot',
+                    report_text=f'Getting po_token via bgutil server',
+                    headers={'Content-Type': 'application/json'},
+                    data=json.dumps(payload))
+            else:
+                print(f'Getting po_token via bgutil server')
+                req = urllib.request.Request(url='http://localhost:4416/get_pot',
+                    headers={'Content-Type': 'application/json'},
+                    data=json.dumps(payload).encode('utf-8'))
+                with urllib.request.urlopen(req) as resp:
+                    response = resp.read()
             output = json.loads(response.decode())
             output['visitorData'] = visitor_data
         except Exception as err:
