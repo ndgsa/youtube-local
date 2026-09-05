@@ -12,6 +12,7 @@ from youtube import watch, search, search_aggregate, playlist, channel, local_pl
 import settings
 
 from gevent.pywsgi import WSGIServer
+from werkzeug.http import remove_hop_by_hop_headers
 import urllib
 import urllib3
 import socket
@@ -144,6 +145,7 @@ def proxy_site(env, start_response, video=False):
         #   response_headers = response_headers.items()
         try:
             response_headers = list(response_headers.items())
+            remove_hop_by_hop_headers(response_headers)
         except AttributeError:
             pass
         if video:
