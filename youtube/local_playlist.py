@@ -29,7 +29,7 @@ playlists_sqlite_database_path = os.path.join(settings.data_dir, 'db', "playlist
 
 _IMPORTED_PLAYLIST_VIDEOS_NAME_RE = re.compile(r'''^i_\s.+''')
 _BIG_PLAYLIST_VIDEOS_NAME_RE = re.compile(r'''^b_\s.+''')
-_CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(playlists|releases|albums|podcasts|courses)$''')
+_CHANNEL_AGGREGATE_PLAYLISTS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(playlists|releases|albums|podcasts|courses|shows)$''')
 _CHANNEL_AGGREGATE_VIDEOS_NAME_RE = re.compile(r'''^cha_\sU.+\s\-\s(videos)$''')
 _SEARCH_AGGREGATE_PLAYLIST_NAME_RE = re.compile(r'''^sa_\s.+\s\-\s\d+\s(Days|Weeks|Months)$''')
 @cachetools.func.lru_cache(maxsize=64)
@@ -1699,7 +1699,7 @@ def sort_database_playlist(playlist_name, sort1='1', sort1_reversed=None, sorted
         if is_custom_type_playlist_name(playlist_name, 'sa'):
             sorted_playlist_name = re.sub(r"(\d+\s(Days|Weeks|Months))$", fr"sort1_{sort1} - \1", playlist_name)
         elif is_custom_type_playlist_name(playlist_name, 'cha_v') or is_custom_type_playlist_name(playlist_name, 'cha_p'):
-            sorted_playlist_name = re.sub(r"((videos|playlists|releases|albums|podcasts|courses))$", fr"sort1_{sort1} - \1", playlist_name)
+            sorted_playlist_name = re.sub(r"((videos|playlists|releases|albums|podcasts|courses|shows))$", fr"sort1_{sort1} - \1", playlist_name)
         else: sorted_playlist_name = playlist_name + f" sort1_{sort1}"
     else:
         sorted_playlist_name = playlist_name
