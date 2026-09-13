@@ -876,7 +876,7 @@ def get_channel_items_with_ctoken_1(channel_id, sort, tab):
         try:
             this_page_json = get_channel_tab(channel_id, page=str(page), sort=sort, tab=tab, ctoken=ctoken)
         except:
-            if page == 1 and tab in ['playlists', 'releases', 'albums', 'podcasts', 'courses']:
+            if page == 1 and tab in ['playlists', 'releases', 'albums', 'podcasts', 'courses', 'shows']:
                 this_page_json = util.fetch_url('https://www.youtube.com/channel/' + channel_id + f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[str(sort)], headers_desktop, debug_name=f'gen_channel_{tab}')
             else:
                 traceback.print_exc()
@@ -927,7 +927,7 @@ def import_channel_videos_playlists(channel_id, first_video_id=None):
 
     if 'Playlists' not in metadata['channel_available_tabs']: metadata['channel_available_tabs'].append('Playlists')
     # playlist type tab
-    for tab in ['Playlists', 'Releases', 'Albums', 'Podcasts', 'Courses']:
+    for tab in ['Playlists', 'Releases', 'Albums', 'Podcasts', 'Courses', 'Shows']:
         if tab in metadata['channel_available_tabs']:
             playlist_items = get_channel_items_with_ctoken_1(channel_id, 4, tab.lower())
             if playlist_items:
