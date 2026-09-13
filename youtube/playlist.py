@@ -241,3 +241,9 @@ def get_playlist_page():
 
         **info['metadata']
     ).encode('utf-8')
+
+
+@yt_app.route('/show/<playlist_id>/')
+def get_show_page(playlist_id):
+    if playlist_id.startswith('VL'): playlist_id = playlist_id[2:]
+    return flask.redirect(util.URL_ORIGIN + '/playlist?list='+ playlist_id, 302)
