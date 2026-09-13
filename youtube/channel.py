@@ -38,6 +38,7 @@ g_tab_params = {
     'albums': 'EghyZWxlYXNlc_IGBQoDsgEA',
     'podcasts': 'Eghwb2RjYXN0c_IGBQoDugEA',
     'courses': 'Egdjb3Vyc2Vz8gYFCgPCAQA%3D',
+    'shows': 'EgVzaG93c_IGBAoCYgA%3D',
     'community': 'Egljb21tdW5pdHnyBgQKAkoA',
     'search': 'EgZzZWFyY2jyBgQKAloA',
     'channels': 'EghjaGFubmVscw%3D%3D',
