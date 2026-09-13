@@ -459,7 +459,12 @@ def extract_item_info(item, additional_info={}):
         info['approx_subscriber_count'] = extract_approx_int(multi_deep_get(item, ['videoCountText', 'simpleText']))
 
     elif primary_type == 'show':
-        info['id'] = deep_get(item, 'navigationEndpoint', 'watchEndpoint', 'playlistId')
+        info['id'] = multi_deep_get(item,
+            ['navigationEndpoint', 'watchEndpoint', 'playlistId'],
+            ['navigationEndpoint', 'browseEndpoint', 'browseId'],
+            # ['navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url']
+            )
+        if info['id'].startswith('VL'): info['id'] = info['id'][2:]
         info['first_video_id'] = deep_get(item, 'navigationEndpoint',
                                           'watchEndpoint', 'videoId')
 
