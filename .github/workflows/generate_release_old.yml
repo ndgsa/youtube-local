@@ -27,24 +27,24 @@ jobs:
           echo "Wine and 7zip is installed"
       - name: Preparing repository
         id: repository-preparation
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setting up latest python
         id: python-setup
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Setting up wine prefix
         id: setting-up-wine-prefix
         run: |
           echo "WINEPREFIX=$HOME/.wine64" > "$GITHUB_ENV"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Generating release (64 bit)
         id: generating-release-64
         run: |
           cd ${{ github.workspace }}
-          python ./generate_release.py 3.13.13
+          python ./generate_release.py 3.13.15
           mkdir -p /tmp/output
           cp -v v*zip /tmp/output/
       - name: Runtime test (64 bit)
@@ -86,17 +86,17 @@ jobs:
           echo "Wine and 7zip is installed"
       - name: Preparing repository
         id: repository-preparation
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setting up latest python
         id: python-setup
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Setting up wine prefix
         id: setting-up-wine-prefix
         run: |
           echo "WINEPREFIX=$HOME/.wine64" > "$GITHUB_ENV"
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       - name: Generating release (32 bit)
