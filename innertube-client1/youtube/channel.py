@@ -633,7 +633,7 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             'continuation': ctoken,
         })
         continuation=True
-    elif tab in ['playlists', 'releases', 'albums', 'podcasts', 'courses'] and page_number == 1:
+    elif tab in ['playlists', 'releases', 'albums', 'podcasts', 'courses', 'shows'] and page_number == 1:
         # polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name=f'gen_channel_{tab}')
         try:
             if not channel_id: channel_id = get_channel_id(base_url)
@@ -644,7 +644,7 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
     elif tab == 'playlists':
         polymer_json = get_channel_tab(channel_id, page_number, sort, tab, view)
         continuation = True
-    elif tab in ['releases', 'albums', 'podcasts', 'courses']:
+    elif tab in ['releases', 'albums', 'podcasts', 'courses', 'shows']:
         ctoken = next_page_ctoken.get((channel_id, tab, sort, page_number - 1))
         polymer_json = get_channel_tab(channel_id, page_number, sort, tab, view, ctoken)
         continuation = True
@@ -694,7 +694,7 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         for item in info['items']:
             item.update(additional_info)
 
-    if tab in ('releases', 'albums', 'podcasts', 'courses'):
+    if tab in ('releases', 'albums', 'podcasts', 'courses', 'shows'):
         next_page_ctoken[(channel_id, tab, sort, page_number)] = info.get('ctoken')
 
     if tab in ('videos', 'shorts', 'streams'):
@@ -715,12 +715,12 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
         else: info['number_of_pages'] = 1
         if info['number_of_pages'] < page_number: info['number_of_pages'] = page_number
         info['header_playlist_names'] = local_playlist.get_playlist_names()
-    if tab in ('videos', 'shorts', 'streams', 'playlists', 'releases', 'albums', 'podcasts', 'courses'):
+    if tab in ('videos', 'shorts', 'streams', 'playlists', 'releases', 'albums', 'podcasts', 'courses', 'shows'):
         info['current_sort'] = sort
     elif tab == 'search':
         info['search_box_value'] = query
         info['header_playlist_names'] = local_playlist.get_playlist_names()
-    if tab in ('search', 'playlists', 'releases', 'albums', 'podcasts', 'courses'):
+    if tab in ('search', 'playlists', 'releases', 'albums', 'podcasts', 'courses', 'shows'):
         info['page_number'] = page_number
     info['subscribed'] = subscriptions.is_subscribed(info['channel_id'])
 
