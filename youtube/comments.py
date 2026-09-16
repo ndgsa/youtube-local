@@ -46,20 +46,22 @@ def make_comment_ctoken(video_id, sort=0, offset=0, lc='', secret_key=''):
 def request_comments(ctoken, replies=False):
     url = 'https://m.youtube.com/youtubei/v1/next'
     url += '?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
+    headers = util.generate_api_headers(ua_platform='mobile')
     data = json.dumps({
         'context': {
             'client': {
                 'hl': 'en',
                 'gl': 'US',
                 'clientName': 'MWEB',
-                'clientVersion': '2.20210804.02.00',
+                # 'clientVersion': '2.20210804.02.00',
+                'clientVersion': headers['X-YouTube-Client-Version'],
             },
         },
         'continuation': ctoken.replace('=', '%3D'),
     })
 
     content = util.fetch_url(
-        url, headers=util.generate_api_headers(), data=data,
+        url, headers=util.merge_dicts(headers, {'Content-Type': 'application/json'}), data=data,
         report_text='Retrieved comments', debug_name='request_comments')
     content = content.decode('utf-8')
 
