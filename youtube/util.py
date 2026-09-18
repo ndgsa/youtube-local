@@ -992,7 +992,7 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT': {
             'client': {
                 'clientName': 'WEB',
-                'clientVersion': '2.20250312.04.00',
+                'clientVersion': '2.20260121.09.00',
                 'userAgent': desktop_user_agent,
             }
         },
@@ -1005,7 +1005,7 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT': {
             'client': {
                 'clientName': 'WEB_CREATOR',
-                'clientVersion': '1.20251227.00.00',
+                'clientVersion': '1.20260708.06.00',
                 'userAgent': desktop_user_agent,
             },
         },
@@ -1017,7 +1017,7 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT': {
             'client': {
                 'clientName': 'WEB',
-                'clientVersion': '2.20250312.04.00',
+                'clientVersion': '2.20260708.00.00',
                 'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)',
             },
         },
@@ -1083,7 +1083,8 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT': {
             'client': {
                 'clientName': 'TVHTML5',
-                'clientVersion': '4',
+                # 'clientVersion': '4',
+                'clientVersion': '5.20260707',
                 # 'userAgent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version,',
                 'userAgent': 'Mozilla/5.0 (PlayStation; PlayStation 4/10.50) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15,gzip(gfe)',
             },
@@ -1237,6 +1238,20 @@ INNERTUBE_CLIENTS = {
             },
         },
         'INNERTUBE_CONTEXT_CLIENT_NAME': 28,
+        'REQUIRE_JS_PLAYER': False,
+    },
+    'android_producer': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'ANDROID_PRODUCER',
+                'clientVersion': '0.111.1',
+                'androidSdkVersion': '30',
+                'osName': 'Android',
+                'osVersion': '11',
+                'userAgent': 'com.google.android.apps.youtube.producer/0.111.1 (Linux; U; Android 11) gzip',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 91,
         'REQUIRE_JS_PLAYER': False,
     },
 
