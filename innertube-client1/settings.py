@@ -125,6 +125,7 @@ For security reasons, enabling this is not recommended.''',
             ('android'),                 #
             # ('android-test-suite'),    # not working
             # ('android_creator'),       #(require: cookies;)
+            # ('android_producer'),      #(require: cookies;)
             ('android_vr'),              #(require: cookies; po_token)
             # ('android_vr_pico'),       #(require: cookies; po_token)
             # ('android_xr'),            # not working
