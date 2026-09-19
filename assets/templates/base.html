@@ -171,7 +171,9 @@
                     <input name="playlist_name" id="playlist-name-selection" list="playlist-options" type="text" placeholder="Playlist name">
                     <datalist id="playlist-options">
                     {% for playlist_name in header_playlist_names %}
-                        <option value="{{ playlist_name }}">{{ playlist_name }}</option>
+						{% if playlist_name not in ('related_hidden_channels', 'related_hidden_videos', 'search_hidden_channels', 'search_hidden_videos') %}
+							<option value="{{ playlist_name }}">{{ playlist_name }}</option>
+						{% endif %}
                     {% endfor %}
                     </datalist>
                     <button type="submit" id="playlist-add-button" class="button" name="action" value="add">Add to playlist</button>
