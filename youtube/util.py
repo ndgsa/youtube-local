@@ -106,6 +106,8 @@ class PoolManager:
         return connection_pool
 
     def refresh_connection_pool(self):
+        reset_visitor_data_po_token() # new connection_pool require a new visitorData/poToken
+
         self.connection_pool.clear()
 
         # Keep a reference for 5 min to avoid it getting garbage collected
