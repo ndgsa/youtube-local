@@ -1487,11 +1487,21 @@ def get_signature_timestamp(player_version, player_url, player_file, headers):
     return signature_timestamp
 
 
+video_ids_pot_threshold = []
+
 def call_youtube_api(client, api, data, query_params=None, use_visitor=True, report_text='', debug_name=None):
     client_params = INNERTUBE_CLIENTS[client]
     context = client_params['INNERTUBE_CONTEXT']
     key = client_params.get('INNERTUBE_API_KEY') or None
     host = client_params.get('INNERTUBE_HOST') or 'www.youtube.com'
+
+    if settings.use_po_token and settings.pot_videos_threshold > 0 and data.get('videoId'):
+        global video_ids_pot_threshold
+        if data.get('videoId') not in video_ids_pot_threshold:
+            if len(video_ids_pot_threshold) >= settings.pot_videos_threshold:
+                video_ids_pot_threshold = []
+                reset_visitor_data_po_token()
+            video_ids_pot_threshold.append(data.get('videoId'))
 
     headers = generate_api_headers(client_name=client, use_visitor=use_visitor)
 

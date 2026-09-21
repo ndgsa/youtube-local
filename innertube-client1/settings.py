@@ -193,6 +193,15 @@ For security reasons, enabling this is not recommended.''',
         'category': 'client',
     }),
 
+    ('pot_videos_threshold', {
+        'label': 'po_token threshold',
+        'type': int,
+        'default': 0,
+        'comment': '''Number of videos required to trigger generation of a new token.''',
+        'category': 'client',
+        'hidden': True,
+    }),
+
     ('use_ytcfg', {
         'label': 'Use ytcfg for innertube api request',
         'type': bool,
