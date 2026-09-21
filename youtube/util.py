@@ -1716,6 +1716,20 @@ def get_visitor_data(client=None):
     visitor_data_dict = get_visitor_data_(client, visitor_type)
     return visitor_data_dict.get('visitorData')
 
+def reset_visitor_data_po_token():
+    get_visitor_data_from_homepage.cache_clear()
+    get_visitor_data_.cache_clear()
+    generate_visitor_data.cache_clear()
+    visitor_data_cache = os.path.join(settings.players_cache_dir, 'yt_visitorData.txt')
+    if os.path.exists(visitor_data_cache): os.remove(visitor_data_cache)
+
+    generate_po_token.cache_clear()
+    get_po_token_visitor_data.cache_clear()
+    po_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_cache.txt')
+    player_token_cache = os.path.join(settings.players_cache_dir, 'yt_po_token_player_cache.txt')
+    if os.path.exists(po_token_cache): os.remove(po_token_cache)
+    if os.path.exists(player_token_cache): os.remove(player_token_cache)
+
 @cachetools.func.ttl_cache(maxsize=2, ttl=2*3600)
 def generate_po_token(po_token_provider, identifier=''):
     print('Generating yt_po_token_cache.txt')
