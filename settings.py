@@ -148,6 +148,7 @@ For security reasons, enabling this is not recommended.''',
             ('tv'),                      #(require: js;)
             ('tv_simply'),               #(require: js;)
             ('tv_downgraded'),           #(require: js; cookies;)
+            # ('tv_samsung'),            #(require: js; cookies;)
             # ('tv_sabr'),               # not working
             # ('tv_dash'),               # not working
         ],
