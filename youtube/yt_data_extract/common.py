@@ -549,7 +549,7 @@ def extract_item_info(item, additional_info={}):
         info['playlist_type'] = "playlist"
 
         info['title'] = multi_deep_get(item, ['metadata', 'lockupMetadataViewModel', 'title', 'content'])
-        info['id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'playlistId'], default='')
+        info['id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'playlistId'], ['itemPlayback', 'inlinePlayerData', 'onVisible', 'innertubeCommand', 'watchEndpoint', 'playlistId'], default='') # ['contentId']
         info['first_video_id'] = multi_deep_get(item, ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'watchEndpoint', 'videoId'], default='')
         info['thumbnail'] = normalize_url(multi_deep_get(item, ['contentImage', 'collectionThumbnailViewModel', 'primaryThumbnail', 'thumbnailViewModel', 'image', 'sources', 0, 'url']))
         info['video_count'] = extract_int(multi_deep_get(item, ['contentImage', 'collectionThumbnailViewModel', 'primaryThumbnail', 'thumbnailViewModel', 'overlays', 0, 'thumbnailOverlayBadgeViewModel', 'thumbnailBadges', 0, 'thumbnailBadgeViewModel', 'text']))
