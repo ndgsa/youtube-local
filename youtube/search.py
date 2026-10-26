@@ -327,6 +327,7 @@ def filter_search_items_by_duration(search_info_items, duration1):
         try:
             if duration1 == '0' or duration1 == '' or item.get('duration', None) == None: continue
             elif len(duration1.split(':')) == 1: duration1 = duration1 + ":00"
+            if item['duration'] in ['Upcoming']: continue
             video_duration = timedelta_parse(item['duration'])
             user_duration = timedelta_parse(duration1)
             if video_duration < user_duration:
