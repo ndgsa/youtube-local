@@ -448,8 +448,8 @@ console.log(JSON.stringify(result));
 
 
 
-youtubei_version = '17.0.1'
-youtubei_lib_sha256 = '4fb903ce4b8e642cb73ff7f795045a1bed3f168ae184846c951d41100c16fb3d'
+youtubei_version = '18.3.0'
+youtubei_lib_sha256 = 'e6401751a6f85e3a1274596253da8472df7192bf3e73eb641dd3c567dc9e4760'
 @cachetools.func.lru_cache(maxsize=1)
 def get_youtubei(use_js_runtime=False):
     '''Download youtubei.js library if not exists.'''
