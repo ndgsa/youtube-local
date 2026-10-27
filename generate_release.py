@@ -317,9 +317,9 @@ shutil.move(yt_solver_lib_name, r'./youtube-local/assets/other/js/ejs/' + yt_sol
 shutil.move(yt_solver_core_name, r'./youtube-local/assets/other/js/ejs/' + yt_solver_core_name)
 
 os.makedirs('./youtube-local/assets/other/js/youtubei/', exist_ok=True)
-youtubei_version = '17.0.1'
+youtubei_version = '18.3.0'
 youtubei_lib_url = f"https://cdn.jsdelivr.net/npm/youtubei.js@{youtubei_version}/bundle/browser.min.js"
-youtubei_lib_sha256 = '4fb903ce4b8e642cb73ff7f795045a1bed3f168ae184846c951d41100c16fb3d'
+youtubei_lib_sha256 = 'e6401751a6f85e3a1274596253da8472df7192bf3e73eb641dd3c567dc9e4760'
 youtubei_lib_name = 'youtubei_' + youtubei_version.replace('.', '') + '.js'
 download_if_not_exists(youtubei_lib_name, youtubei_lib_url, sha256=youtubei_lib_sha256)
 log('Copying youtubei file')
