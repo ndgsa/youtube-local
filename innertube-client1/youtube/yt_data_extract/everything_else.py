@@ -91,8 +91,9 @@ def extract_channel_info(polymer_json, tab, continuation=False):
                 break
 
         custom_type = multi_deep_get(response,['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'text'])
-        if tab in ['videos', 'shorts', 'streams'] and custom_type in ['Albums & Singles']:
-            tab_is_type = 'Playlists'
+        if custom_type in ['Albums & Singles']:
+            tab_is_type = 'Albums'
+            info['channel_available_tabs'].append('Albums')
 
         # use first if available
         # if tab_is_type == None and tab_is_selected == None:
