@@ -634,7 +634,21 @@ def get_channel_page_general_url(base_url, tab, request, channel_id=None):
             'continuation': ctoken,
         })
         continuation=True
-    elif tab in ['playlists', 'releases', 'albums', 'podcasts', 'courses', 'shows'] and page_number == 1:
+    elif tab in ['albums'] and page_number == 1:
+        # polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name=f'gen_channel_{tab}')
+        try:
+            if not channel_id: channel_id = get_channel_id(base_url)
+            polymer_json = get_channel_tab(channel_id, '1', sort, tab, view)
+        except:
+            polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name=f'gen_channel_{tab}')
+        album_ctoken = multi_deep_get(json.loads(polymer_json),
+            ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'navigationEndpoint', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+            ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'endpoint', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+            ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'menu', 'menuRenderer', 'topLevelButtons', 0, 'buttonRenderer', 'navigationEndpoint', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+        )
+        polymer_json = get_channel_tab(channel_id, 1, sort, tab, view, album_ctoken)
+        continuation = True
+    elif tab in ['playlists', 'releases', 'podcasts', 'courses', 'shows'] and page_number == 1:
         # polymer_json = util.fetch_url(base_url+ f'/{tab}?pbj=1&view=1&sort=' + playlist_sort_codes[sort], headers_desktop, debug_name=f'gen_channel_{tab}')
         try:
             if not channel_id: channel_id = get_channel_id(base_url)

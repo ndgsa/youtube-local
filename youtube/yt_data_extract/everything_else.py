@@ -125,7 +125,7 @@ def extract_channel_info(polymer_json, tab, continuation=False):
         elif tab == 'releases':
             items, ctoken = extract_items(response, item_types={'playlistRenderer'})
         elif tab in ['albums', 'podcasts', 'courses']:
-            items, ctoken = extract_items(response, item_types={'playlistRenderer', 'lockupViewModel'})
+            items, ctoken = extract_items(response, item_types={'playlistRenderer', 'lockupViewModel', 'gridPlaylistRenderer'})
         elif tab in ['shows']:
             items, ctoken = extract_items(response, item_types={'gridShowRenderer'})
         else: items, ctoken = extract_items(response)
