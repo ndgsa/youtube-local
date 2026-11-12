@@ -896,9 +896,20 @@ def get_channel_items_with_ctoken_1(channel_id, sort, tab):
             else:
                 traceback.print_exc()
                 break
+
+        if tab.lower() == 'albums' and page == 1:
+            album_ctoken = multi_deep_get(json.loads(this_page_json),
+                ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'title', 'runs', 0, 'navigationEndpoint', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+                ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'endpoint', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+                ['response', 'contents', 'twoColumnBrowseResultsRenderer', 'tabs', 0, 'tabRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'shelfRenderer', 'menu', 'menuRenderer', 'topLevelButtons', 0, 'buttonRenderer', 'navigationEndpoint', 'showEngagementPanelEndpoint', 'engagementPanel', 'engagementPanelSectionListRenderer', 'content', 'sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'],
+            )
+            info = yt_data_extract.extract_channel_info(json.loads(this_page_json), tab, continuation=False)
+            additional_info = {'author': info['channel_name'], 'author_id': info['channel_id'], 'author_url': info['channel_url']}
+            this_page_json = get_channel_tab(channel_id, page=str(1), sort=sort, tab=tab, ctoken=album_ctoken)
+
         info = yt_data_extract.extract_channel_info(json.loads(this_page_json), tab, continuation=True)
 
-        if page == 1:
+        if page == 1 and tab != 'albums':
             if not info['channel_name'] or not info['channel_id'] or not info['channel_url']: raise Exception("Incomplete channel data. Abort!")
             additional_info = {'author': info['channel_name'], 'author_id': info['channel_id'], 'author_url': info['channel_url']}
         else:
@@ -922,7 +933,7 @@ def import_channel_videos_playlists(channel_id, first_video_id=None):
     # video_items_aggregator = get_channel_video_items_with_ctoken(channel_id)
     # video_items_aggregator = get_channel_items_with_ctoken_1(channel_id, 4, 'videos')
 
-    if metadata['channel_name'].endswith('Topic') and len(metadata['channel_available_tabs']) == 1 and 'Home' in metadata['channel_available_tabs']:
+    if metadata['channel_name'].endswith('Topic') and len(metadata['channel_available_tabs']) == 1 and 'Home' in metadata['channel_available_tabs'] and False:
         video_items_aggregator = get_channel_video_items_from_watch_page(channel_id, 'channel', None)
     else:
         video_items_aggregator = get_channel_items_with_ctoken_1(channel_id, 4, 'videos')
@@ -940,6 +951,7 @@ def import_channel_videos_playlists(channel_id, first_video_id=None):
     playlist_name = f"cha_ {channel_id} - videos"
     local_playlist.add_to_playlist(playlist_name, video_items_aggregator)
 
+    if metadata['channel_name'].endswith('Topic') and len(metadata['channel_available_tabs']) == 1 and 'Home' in metadata['channel_available_tabs']: metadata['channel_available_tabs'].append('Albums')
     if 'Playlists' not in metadata['channel_available_tabs']: metadata['channel_available_tabs'].append('Playlists')
     # playlist type tab
     for tab in ['Playlists', 'Releases', 'Albums', 'Podcasts', 'Courses', 'Shows']:
