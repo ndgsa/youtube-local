@@ -603,23 +603,48 @@ def extract_item_info(item, additional_info={}):
                     ['contentImage', 'thumbnailViewModel', 'image', 'sources', 0, 'url']
                 ))
 
-            if _author_id_tmp.startswith("/@"):
+            metadataRows = multi_deep_get(item,
+                ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows'],
+                default=[])
+
+            if info['author_id'] == None:
+                info['author_id'] = multi_deep_get(metadataRows,
+                    [0, 'metadataParts', 0, 'avatarStack', 'avatarStackViewModel', 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                    [0, 'metadataParts', 0, 'avatarStack', 'avatarStackViewModel', 'avatars', 0, 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                )
+            if info['author_id'] == None:
+                info['author_id'] = multi_deep_get(item,
+                    ['metadata', 'lockupMetadataViewModel', 'image', 'decoratedAvatarViewModel', 'rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'browseEndpoint', 'browseId'],
+                )
+
+            if info['author_id']:
+                info['author_url'] = ('https://www.youtube.com/channel/' + info['author_id'])
+            elif _author_id_tmp.startswith("/@"):
                 info['author_url'] = ('https://www.youtube.com' + _author_id_tmp)
             elif _author_id_tmp.startswith("/channel/"):
                 info['author_url'] = ('https://www.youtube.com/channel/' + _author_id_tmp.replace('/channel/', ''))
 
-            _time_published_tmp = multi_deep_get(item,
-            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 1, 'text', 'content'],
-            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 1, 'text', 'content'],
-            default='')
+            if info['author'] == None:
+                info['author'] = multi_deep_get(metadataRows, [0, 'metadataParts', 0, 'avatarStack', 'avatarStackViewModel', 'text', 'content'],)
+
+            if info['description'] == None:
+                info['description'] = multi_deep_get(metadataRows, [2, 'metadataParts', 0, 'text', 'content'], default='')
+
+            _time_published_tmp = ''
+            _views_tmp = ''
+            for r in metadataRows:
+                for p in r.get('metadataParts', ()):
+                    a_label = multi_deep_get(p, ['accessibilityLabel'], default='')
+                    content = multi_deep_get(p, ['text', 'content'], default='')
+                    if ' ago' in a_label or ' ago' in content:
+                        _time_published_tmp = content
+                    elif ' view' in a_label or ' view' in content:
+                        _views_tmp = content
+
             timestamp = re.search(r'((\d+ \w+ ago)|(\d+\w+ ago))', _time_published_tmp)
             if timestamp: info['time_published'] = convert_trimmed_time_string(timestamp.group(1))
             else: info['time_published'] = None
 
-            _views_tmp = multi_deep_get(item,
-            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'content'],
-            ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'content'],
-            default='')
             view_count_many = re.search(r'(\d+[,.]*\d*K{0,1}M{0,1}B{0,1})(?: views{0,1})*', _views_tmp)
             if view_count_many:
                 view_count = str(extract_approx_int(view_count_many.group(1)))
