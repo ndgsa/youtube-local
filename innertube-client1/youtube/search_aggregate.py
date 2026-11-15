@@ -199,14 +199,9 @@ def task_aggregate(query, page, autocorrect, sort, filters):
         time.sleep(5) # Add some delay
 
     # sort playlist
-    if int(sort) in [0, 100]:
-        status_aggregate['status'] = f'Sort playlist by newest'
-        print(status_aggregate['status'])
-        local_playlist.sort_database_playlist(playlist_name, '3', None, False) # sort by newest
-    else:
-        status_aggregate['status'] = f'Sort playlist by max view_count'
-        print(status_aggregate['status'])
-        local_playlist.sort_database_playlist(playlist_name, '1', None, False) # sort by max view_count
+    status_aggregate['status'] = f'Sort playlist by max view_count'
+    print(status_aggregate['status'])
+    local_playlist.sort_database_playlist(playlist_name, '1', None, False) # sort by max view_count
 
     status_aggregate['stop'] = True
     # status_aggregate['status'] = None
