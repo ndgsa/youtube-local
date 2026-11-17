@@ -571,12 +571,33 @@ def extract_item_info(item, additional_info={}):
             if not info['thumbnail']:
                 info['thumbnail'] = normalize_url(multi_deep_get(item,['contentImage', 'thumbnailViewModel', 'image', 'sources', 1, 'url'],))
 
-        # WEB_PAGE_TYPE = multi_deep_get(item,
-            # ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
-            # ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],) #WEB_PAGE_TYPE_PLAYLIST
-        # LOCKUP_CONTENT_TYPE = multi_deep_get(item, ['contentType']) # LOCKUP_CONTENT_TYPE_ 'UNSPECIFIED' | 'VIDEO' | 'PLAYLIST' | 'SHORT' | 'CHANNEL' | 'ALBUM' | 'PRODUCT' | 'GAME' | 'CLIP' | 'PODCAST' | 'SOURCE' | 'SHOPPING_COLLECTION' | 'MOVIE'
         # contentId = multi_deep_get(item, ['contentId'])
-        # content_text = multi_deep_get(item,['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 1, 'text', 'content']) # Album
+        # lockup_type = item.get('contentType') # LOCKUP_CONTENT_TYPE_ 'UNSPECIFIED' | 'VIDEO' | 'PLAYLIST' | 'SHORT' | 'CHANNEL' | 'ALBUM' | 'PRODUCT' | 'GAME' | 'CLIP' | 'PODCAST' | 'SOURCE' | 'SHOPPING_COLLECTION' | 'MOVIE'
+        # web_page_type = multi_deep_get(item,
+            # ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 1, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
+            # ['metadata', 'lockupMetadataViewModel', 'metadata', 'contentMetadataViewModel', 'metadataRows', 0, 'metadataParts', 0, 'text', 'commandRuns', 0, 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
+            # ['onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
+            # ['navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
+            # ['rendererContext', 'commandContext', 'onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'webPageType'],
+            # ) #WEB_PAGE_TYPE_PLAYLIST, WEB_PAGE_TYPE_SHORTS
+        # lockup_url_type = multi_deep_get(item,
+            # ['navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'],
+            # ['onTap', 'innertubeCommand', 'commandMetadata', 'webCommandMetadata', 'url'],
+            # ) # /shorts/... -  /...&list=OLAK5uy_... -  /show/..
+        # type_table = { # type, playlist_type (if applicable)
+            # 'LOCKUP_CONTENT_TYPE_PLAYLIST': ('playlist', 'playlist'),
+            # 'LOCKUP_CONTENT_TYPE_ALBUM': ('playlist', 'playlist'),
+            # 'LOCKUP_CONTENT_TYPE_PODCAST': ('playlist', 'podcast'),
+            # 'LOCKUP_CONTENT_TYPE_SHOW': ('playlist', 'show'),
+            # 'LOCKUP_CONTENT_TYPE_VIDEO': ('video', None),
+            # 'LOCKUP_CONTENT_TYPE_CHANNEL': ('channel', None),
+        # }
+        # info['type'], info['playlist_type'] = type_table.get(lockup_type, ('unsupported', None))
+        # if info['type'] == 'unsupported':
+            # if '/shorts/' in lockup_url_type: info['type'], info['playlist_type'] = 'video', None
+            # if '&list=OLAK5uy_' in lockup_url_type: info['type'], info['playlist_type'] = 'playlist', 'playlist'
+            # if '/show/' in lockup_url_type: info['type'], info['playlist_type'] = 'playlist', 'show'
+        # primary_type = info['type']
 
         # related videos for some clients u type lockupViewModel
         _author_id_tmp = extract_str(multi_deep_get(item,
