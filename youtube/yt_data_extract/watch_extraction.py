@@ -884,7 +884,9 @@ def js_escape_replace(match):
 # so we just capture all of those until end of script and tell json decoder
 # to ignore extra stuff after the json object
 PLAYER_RESPONSE_RE = re.compile(r'<script[^>]*?>[^<]*?var ytInitialPlayerResponse = ({.*?)</script>')
-INITIAL_DATA_RE = re.compile(r"<script[^>]*?>var ytInitialData = '(.+?[^\\])';")
+# INITIAL_DATA_RE = re.compile(r"<script[^>]*?>var ytInitialData = '(.+?[^\\])';")
+INITIAL_DATA_RE = re.compile(r"""(?:(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|<script[^>]*?>var ytInitialData|ytInitialData)\s*=)\s*'?(?P<json>(?s:.+?[^\\])|{(?s:.+)})'?\s*(?:;</script>)""")
+INITIAL_DATA_ALT_RE = re.compile(r"""(?:(?:<script\b(?!-)[^>]+(?<!-)\bid=["\']yt-initial-data["\'][^>]*>))\s*(?P<json>{(?s:.+)})\s*(?:</script><script)""")
 BASE_JS_RE = re.compile(r'jsUrl":\s*"([\w\-\./]+?/base.js)"')
 JS_STRING_ESCAPE_RE = re.compile(r'\\([^xu]|x..|u....)')
 def extract_watch_info_from_html(watch_html):
@@ -906,16 +908,13 @@ def extract_watch_info_from_html(watch_html):
         player_response = None
 
     if initial_data_match is not None:
-        initial_data = initial_data_match.group(1)
-        initial_data = JS_STRING_ESCAPE_RE.sub(js_escape_replace, initial_data)
-        initial_data = json.loads(initial_data)
+        try:
+            initial_data = JS_STRING_ESCAPE_RE.sub(js_escape_replace, initial_data_match.group(1))
+            initial_data = json.loads(initial_data)
+        except:
+            initial_data = json.loads(initial_data_match.group(1))
     else:
-        _YT_INITIAL_DATA_RE = r'(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|ytInitialData)\s*='
-        start_pattern = _YT_INITIAL_DATA_RE
-        contains_pattern=r'{(?s:.+)}'
-        end_pattern=';</script>'
-        pattern = re.compile(rf'(?:{start_pattern})\s*(?P<json>{contains_pattern})\s*(?:{end_pattern})')
-        initial_data_match = pattern.search(watch_html)
+        initial_data_match = INITIAL_DATA_ALT_RE.search(watch_html)
         if initial_data_match is not None:
             initial_data = initial_data_match.group(1)
             initial_data = json.loads(initial_data)
