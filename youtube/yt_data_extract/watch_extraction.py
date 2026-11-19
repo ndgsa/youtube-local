@@ -899,11 +899,20 @@ def extract_watch_info_from_html(watch_html):
         initial_data = JS_STRING_ESCAPE_RE.sub(js_escape_replace, initial_data)
         initial_data = json.loads(initial_data)
     else:
-        _YT_INITIAL_DATA_RE = r'(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|ytInitialData)\s*='
-        start_pattern = _YT_INITIAL_DATA_RE
-        contains_pattern=r'{(?s:.+)}'
-        end_pattern=';</script>'
-        pattern = re.compile(rf'(?:{start_pattern})\s*(?P<json>{contains_pattern})\s*(?:{end_pattern})')
+        # different clients return different html code
+        if settings.innertube_client_name in ['visionos_new', 'ios', 'ipados', 'visionos', 'web', 'web_downgraded']:
+            _YT_INITIAL_DATA_RE = r'(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|ytInitialData)\s*='
+            start_pattern = _YT_INITIAL_DATA_RE
+            contains_pattern=r'{(?s:.+)}'
+            end_pattern=';</script>'
+            pattern = re.compile(rf'(?:{start_pattern})\s*(?P<json>{contains_pattern})\s*(?:{end_pattern})')
+        else:
+            _YT_INITIAL_DATA_RE = r'(?:"yt-initial-data"\s*.+nonce=.+">)'
+            start_pattern = _YT_INITIAL_DATA_RE
+            contains_pattern=r'{(?s:.+)}}'
+            end_pattern='</script><script'
+            pattern = re.compile(rf'(?:{start_pattern})\s*(?P<json>{contains_pattern})\s*(?:{end_pattern})')
+        initial_data = None
         initial_data_match = pattern.search(watch_html)
         if initial_data_match is not None:
             initial_data = initial_data_match.group(1)
