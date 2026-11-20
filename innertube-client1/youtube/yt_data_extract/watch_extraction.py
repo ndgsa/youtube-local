@@ -149,6 +149,8 @@ def _extract_likes_dislikes(renderer_content):
         # this count doesn't have all the digits, it's like 53K for instance
         dumb_count = extract_int(extract_str(multi_get(
             toggle_button_renderer, ['defaultText', 'title'])))
+        if not dumb_count and toggle_button_renderer.get('iconName', '').lower() == 'like':
+            dumb_count = extract_int(extract_str(toggle_button_renderer.get('title', '')))
 
         # The accessibility text will be "No likes" or "No dislikes" or
         # something like that, but dumb count will be 0
@@ -446,16 +448,19 @@ def _extract_watch_info_desktop(top_level):
     if not info['description']:
         info['description'] = deep_get(video_info, 'attributedDescription', 'content')
     if not info['like_count']:
-        info['like_count'] = multi_deep_get(video_info,
-            # ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'title'],
-            # ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'toggledButtonViewModel', 'buttonViewModel', 'title'],
-            ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'accessibilityText'],
-            ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'toggledButtonViewModel', 'buttonViewModel', 'accessibilityText'],
-        default=None)
-        if info['like_count'] and 'like' == info['like_count'].lower():
+        # multi_deep_get(video_info, ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'accessibilityText'])
+        # multi_deep_get(video_info, ['videoActions', 'menuRenderer', 'topLevelButtons', 0, 'segmentedLikeDislikeButtonViewModel', 'likeButtonViewModel', 'likeButtonViewModel', 'toggleButtonViewModel', 'toggleButtonViewModel', 'defaultButtonViewModel', 'buttonViewModel', 'title'])
+
+        # multi_deep_get(top_level, ['playerResponse', 'microformat', 'playerMicroformatRenderer', 'likeCount']))
+        # multi_deep_get(top_level, ['response', 'engagementPanels', 4, 'engagementPanelSectionListRenderer', 'content', 'structuredDescriptionContentRenderer', 'items', 1, 'videoDescriptionHeaderRenderer', 'factoid', 0, 'factoidRenderer'])
+
+        like_count = _extract_likes_dislikes({'buttons': [{'slimMetadataButtonRenderer': {'button': multi_deep_get(video_info, ['videoActions', 'menuRenderer', 'topLevelButtons', 0])}}]})
+        liberal_dict_update(info, like_count)
+
+        if isinstance(info['like_count'], str) and info['like_count'].lower() in ['like', 'like this video']:
             info['like_count'] = 0
-        elif info['like_count']:
-            info['like_count'] = int(''.join(i for i in info['like_count'] if i.isdigit() or i in '-./\\')) # int(re.sub(r'\D', '', info['like_count']))
+        # elif isinstance(info['like_count'], str) and len(info['like_count']) > 0:
+            # info['like_count'] = int(''.join(i for i in info['like_count'] if i.isdigit() or i in '-./\\')) # int(re.sub(r'\D', '', info['like_count']))
 
     playlist = deep_get(top_level, 'response', 'contents', 'twoColumnWatchNextResults', 'playlist', 'playlist')
     if playlist is None:
