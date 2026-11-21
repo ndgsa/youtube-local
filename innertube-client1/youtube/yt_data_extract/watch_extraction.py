@@ -838,6 +838,12 @@ def extract_watch_info(polymer_json):
     if info['playlist_metadata']['author_id']:
         info['playlist_metadata']['author_url'] = 'https://www.youtube.com/channel/' + info['playlist_metadata']['author_id']
 
+    if not info['comment_count']:
+        c_c_render = multi_deep_get(top_level,  ['response', 'engagementPanels', 0, 'engagementPanelSectionListRenderer', 'header', 'engagementPanelTitleHeaderRenderer'])
+        if isinstance(c_c_render, dict) and extract_str(c_c_render.get('title', '')) == 'Comments':
+            comment_count = extract_str(c_c_render.get('contextualInfo', ''))
+            if comment_count.isdigit(): info['comment_count'] = comment_count
+
     return info
 
 single_char_codes = {
