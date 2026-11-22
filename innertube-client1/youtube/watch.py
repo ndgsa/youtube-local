@@ -368,7 +368,17 @@ def fetch_watch_page_info(video_id, playlist_id, index):
     if index:
         url += '&index=' + index
 
-    headers = util.generate_api_headers(use_visitor=True)
+    if settings.innertube_client_name in ['visionos_new', 'ios', 'ipados', 'visionos']:
+        headers = util.generate_api_headers(update_headers_with=(('User-Agent', util.INNERTUBE_CLIENTS['ios']['INNERTUBE_CONTEXT']['client']['userAgent']),))
+    elif settings.innertube_client_name in ['web', 'web_downgraded']:
+        headers = util.generate_api_headers(update_headers_with=(('User-Agent', util.INNERTUBE_CLIENTS['mweb_new']['INNERTUBE_CONTEXT']['client']['userAgent']),))
+    elif settings.innertube_client_name in ['tv_samsung']:
+        tv_s_client = util.INNERTUBE_CLIENTS[settings.innertube_client_name]['INNERTUBE_CONTEXT']['client']
+        ua = f"{tv_s_client['deviceMake']}/{tv_s_client['deviceModel']} {tv_s_client['userAgent']}"
+        headers = util.generate_api_headers(ua_platform='innertube', update_headers_with=(('User-Agent', ua),))
+        del headers['Content-Type'] # cause error
+    else:
+        headers = util.generate_api_headers(use_visitor=True)
 
     watch_page = util.fetch_url(url, headers=headers,
                                 debug_name='watch')
