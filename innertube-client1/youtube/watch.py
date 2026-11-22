@@ -357,7 +357,12 @@ def fetch_player_response(client, video_id):
 def fetch_watch_page_info(video_id, playlist_id, index):
     # bpctr=9999999999 will bypass are-you-sure dialogs for controversial
     # videos
-    url = f'https://m.youtube.com/watch?v={video_id}'
+    if settings.innertube_client_name in ['web', 'web_downgraded']:
+        url = f'https://m.youtube.com/watch?v={video_id}&bpctr=9999999999&has_verified=1'
+    # elif settings.innertube_client_name in ['tv_samsung']:
+        # url = f'https://www.youtube.com/watch?v={video_id}&bpctr=9999999999&has_verified=1'
+    else:
+        url = f'https://m.youtube.com/embed/{video_id}?bpctr=9999999999&has_verified=1'
     if playlist_id:
         url += '&list=' + playlist_id
     if index:
