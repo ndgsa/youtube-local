@@ -126,18 +126,18 @@ For security reasons, enabling this is not recommended.''',
             # ('android-test-suite'),    # not working
             # ('android_creator'),       #(require: cookies;)
             # ('android_producer'),      #(require: cookies;)
-            ('android_vr'),              #(require: cookies; po_token)
+            # ('android_vr'),            #(require: cookies; po_token)
             # ('android_vr_pico'),       #(require: cookies; po_token)
             # ('android_xr'),            # not working
             ('android_sdkless'),         #
 
             # ('ios'),                   #(require: po_token;) after 1 minute fails
             # ('ipados'),                #(require: po_token;) after 1 minute fails
-            ('visionos'),                #
+            # ('visionos'),              #
             ('visionos_new'),            #
 
             ('mweb'),                    #
-            ('web'),                     #(require: js; ytcfg-endpoint;)
+            # ('web'),                   #(require: js; ytcfg-endpoint;)
             # ('web_creator'),           # not working (require: js; cookies; po_token;)
             # ('web_safari'),            # not working
             # ('web_embedded'),          # not working
@@ -145,12 +145,11 @@ For security reasons, enabling this is not recommended.''',
             ('web_downgraded'),          #(require: js;)
 
             # ('tv_embedded'),           #(require: js; cookies;)
-            ('tv'),                      #(require: js;)
-            ('tv_simply'),               #(require: js;)
-            ('tv_downgraded'),           #(require: js; cookies;)
-            # ('tv_samsung'),            #(require: js; cookies;)
+            # ('tv'),                    # not working
+            ('tv_simply'),               #(require: js; po_token;)
+            # ('tv_downgraded'),         #(require: js; po_token;)
+            ('tv_samsung'),              #(require: js;)
             # ('tv_sabr'),               # not working
-            # ('tv_dash'),               # not working
         ],
         'category': 'client',
     }),
