@@ -283,6 +283,8 @@ def filter_search_items(search_info_items, query, page, request_url, request_arg
             pages_ids_tmp = []
             [pages_ids_tmp.extend(p1) for p1 in list(i[2].values())]
             for item in search_info_items:
+                if item['id'] in [None, '', 'null', 'none', ' '] or item['author_id'] in [None, '', 'null', 'none', ' ']:
+                    print(f"Bad video metadata: {item}")
                 if (item not in no_dublicates) and (item['id'] not in pages_ids_tmp):
                     no_dublicates.append(item)
                     i[2][page].append(item['id'])
