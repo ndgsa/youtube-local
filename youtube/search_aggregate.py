@@ -33,6 +33,8 @@ def update_approx_view_count_for_db_items(search_info):
             for pairs in local_playlist.video_ids_in_playlist(p_n, 'id, approx_view_count'):
                 for item in search_info['items']:
                     if pairs['id'] == item['id']:
+                        if item['approx_view_count'] in [None, '', 'null', 'none', ' ']:
+                            print(f"no approx_view_count available for: {item}")
                         if normalize_approx_view_count(str(pairs['approx_view_count'])) < normalize_approx_view_count(str(item['approx_view_count'])):
                             if p_n not in updating_list:
                                 updating_list[p_n] = []
