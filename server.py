@@ -365,12 +365,22 @@ class FilteredRequestLog:
         if not self.filter_re.search(s):
             sys.stderr.write(s)
 
+class NoDelayWSGIServer(WSGIServer):
+    '''Disables Nagle's algorithm on client connections.'''
+    def handle(self, sock, address):
+        try:
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except OSError:
+            # The client already disconnected. Let the handler deal with it
+            pass
+        super().handle(sock, address)
+
 if __name__ == '__main__':
     if settings.allow_foreign_addresses:
-        server = WSGIServer(('0.0.0.0', settings.port_number), site_dispatch,
+        server = NoDelayWSGIServer(('0.0.0.0', settings.port_number), site_dispatch,
                             log=FilteredRequestLog())
     else:
-        server = WSGIServer(('127.0.0.1', settings.port_number), site_dispatch,
+        server = NoDelayWSGIServer(('127.0.0.1', settings.port_number), site_dispatch,
                             log=FilteredRequestLog())
     print('Started httpserver on port' , settings.port_number)
     server.serve_forever()
