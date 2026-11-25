@@ -109,14 +109,35 @@
             max-width: 640px;
         }
     {% else %}
-        #video-container{
-            grid-column: 2;
-        }
-        #video-container, video{
-			/* height: calc(640px*var(--video_height)/var(--video_width)) !important; */
-            height: clamp(360px, calc(1px*var(--video_height)), 360px) !important;
-            width: 640px !important;
-        }
+		{% if video_height < 380 %}
+			#video-container{
+				grid-column: 2;
+			}
+			#video-container, video{
+				/* height: calc(640px*var(--video_height)/var(--video_width)) !important; */
+				height: clamp(360px, calc(1px*var(--video_height)), 360px) !important;
+				width: 640px !important;
+			}
+		{% else %}
+			main{
+				--primary-width: clamp(636px, (100vh - 120px)*16/9, 1280px) !important;
+				grid-template-columns: 30px minmax(0, var(--primary-width)) 24px minmax(400px, 1fr) 24px !important;
+			}
+			#video-container{
+				grid-column: 2;
+				grid-row: 1;
+				width: 100%;
+				aspect-ratio: var(--video_width) / var(--video_height);
+				/* tall videos (such as shorts) get black bars instead */
+				max-height: calc(100vh - 120px);
+				margin-bottom: 20px;
+
+			}
+			.video-info > .title {
+				margin-bottom: 16px;
+			}
+		{% endif %}
+
         .plyr {
             height: 100%;
             width: 100%;
