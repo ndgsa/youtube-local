@@ -80,10 +80,11 @@ def process_search_results(playlist_name, search_info_tmp, sort, filters):
     global status_aggregate
 
     try:
+        try: update_approx_view_count_for_db_items(search_info_tmp)
+        except Exception as e: print(e)
 
-        update_approx_view_count_for_db_items(search_info_tmp)
-
-        search_info_tmp['items'] = filter_search_items(search_info_tmp['items'][:], sort, filters)
+        try: search_info_tmp['items'] = filter_search_items(search_info_tmp['items'][:], sort, filters)
+        except Exception as e: print(e)
 
         tmp = []
         for item in search_info_tmp['items']:
@@ -92,13 +93,12 @@ def process_search_results(playlist_name, search_info_tmp, sort, filters):
             except: pass
 
             # Convert item to json
-            tmp.append(json.dumps({key: item[key] for key in [
+            tmp.append(json.dumps({key: item.get(key) for key in [
                 'id', 'title', 'author', 'author_id', 'duration', 'approx_view_count', 'time_published']}))
         search_info_tmp['items'] = tmp[:]
 
         print(f"Add {len(search_info_tmp['items'])} items to db.")
         local_playlist.add_to_playlist(playlist_name, search_info_tmp['items'])
-
     except Exception as e:
         status_aggregate['stop'] = True
         status_aggregate['status'] = 'An error occurred while processing the results. Abort searching!'
