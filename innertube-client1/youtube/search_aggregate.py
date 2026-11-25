@@ -63,6 +63,8 @@ def filter_search_items(search_info_items, sort, filters):
     no_dublicates = []
     seen = set()
     for item in search_info_items:
+        if item['id'] in [None, '', 'null', 'none', ' '] or item['author_id'] in [None, '', 'null', 'none', ' ']:
+            print(f"Bad video metadata: {item}")
         if item['id'] not in seen:
             no_dublicates.append(item)
             seen.add(item['id'])
