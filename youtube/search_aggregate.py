@@ -26,23 +26,23 @@ def normalize_approx_view_count(string):
     return multiplier
 
 def update_approx_view_count_for_db_items(search_info):
-    updating_list = {}
     '''update approx_view_count'''
+    updating_list = {}
     for p_n in local_playlist.get_playlist_names():
         if re.match(r"^sa_\s.+\s\-\s\d+\s(Days|Weeks|Months)$", p_n):
-            for pairs in local_playlist.video_ids_in_playlist(p_n, 'id, approx_view_count'):
-                for item in search_info['items']:
-                    if pairs['id'] == item['id']:
-                        if item['approx_view_count'] in [None, '', 'null', 'none', ' ']:
-                            print(f"no approx_view_count available for: {item}")
-                        if normalize_approx_view_count(str(pairs['approx_view_count'])) < normalize_approx_view_count(str(item['approx_view_count'])):
-                            if p_n not in updating_list:
-                                updating_list[p_n] = []
-                            updating_list[p_n].append({pairs['id']: str(item['approx_view_count'])})
+            pairs_from_db = {pairs['id']: pairs['approx_view_count'] for pairs in local_playlist.video_ids_in_playlist(p_n, 'id, approx_view_count')}
+            ids_from_db = list(pairs_from_db.keys())
+            items_exist_in_db = [item for item in search_info['items'] if item['id'] in ids_from_db]
+            for item in items_exist_in_db:
+                if item['approx_view_count'] in [None, '', 'null', 'none', ' ']:
+                    print(f"no approx_view_count available for: {item}")
+                if normalize_approx_view_count(str(pairs_from_db[item['id']])) < normalize_approx_view_count(str(item['approx_view_count'])):
+                    if p_n not in updating_list:
+                        updating_list[p_n] = []
+                    updating_list[p_n].append({item['id']: str(item['approx_view_count'])})
 
     for k,v in updating_list.items():
         local_playlist.update_video_column(k, 'approx_view_count', v)
-
 
 def filter_search_items(search_info_items, sort, filters):
     '''return filtered search items'''
