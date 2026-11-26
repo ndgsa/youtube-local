@@ -3,6 +3,7 @@ from youtube import yt_app
 from youtube import util, comments, local_playlist, yt_data_extract
 import settings
 from youtube.innertube_caption import get_caption_json_resp, webvtt_from_caption_data
+from youtube.chapters import parse_chapters
 
 from flask import request
 import flask
@@ -890,6 +891,8 @@ def get_watch_page(video_id=None):
             'url': transcript_url
         })
 
+    chapters = parse_chapters(info['description'], info['duration'])
+
     if request.path.startswith('/embed') and settings.embed_page_mode:
         template_name = 'embed.html'
     else:
@@ -921,6 +924,7 @@ def get_watch_page(video_id=None):
         title       = info['title'],
         uploader    = info['author'],
         description = info['description'],
+        chapters    = chapters,
         unlisted    = info['unlisted'],
         limited_state = info['limited_state'],
         age_restricted    = info['age_restricted'],
@@ -940,6 +944,7 @@ def get_watch_page(video_id=None):
         js_data = {
             'video_id': info['id'],
             'video_duration': info['duration'],
+            'chapters': chapters,
             'settings': settings.current_settings_dict,
             'has_manual_captions': any(s.get('on') for s in subtitle_sources),
             **source_info,
