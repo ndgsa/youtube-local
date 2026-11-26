@@ -246,6 +246,7 @@
 		  <script>var storyboard_url = {{ storyboard_url | tojson }}</script>
 		  <script src="/youtube.com/static/js/storyboard-preview.js"></script>
 		{% endif %}
+		{% if settings.chapters_mode %} <script src="/youtube.com/static/js/chapters.js"></script> {% endif %}
         {% if settings.use_video_hotkeys %}
             <script src="/youtube.com/static/js/common.js"></script>
 			<link href="/youtube.com/static/hotkeys.css" rel="stylesheet">

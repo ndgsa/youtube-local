@@ -1,3 +1,36 @@
+// Ctrl+Right goes to the start of the next chapter. Ctrl+Left goes to the
+// start of this chapter, or of the one before it when this one has only
+// just started, so pressing it again and again keeps going back.
+function skipChapter(v, direction) {
+    let chapters = data.chapters;
+    let i = 0;
+    while (i + 1 < chapters.length && chapters[i + 1].start <= v.currentTime)
+        i++;
+    if (direction > 0) {
+        if (i + 1 < chapters.length)
+            v.currentTime = chapters[i + 1].start;
+        return;
+    }
+    // 3 seconds of real time, however fast the video is playing
+    let justStarted = v.currentTime - chapters[i].start < 3*v.playbackRate;
+    if (justStarted && i > 0)
+        i--;
+    v.currentTime = chapters[i].start;
+}
+
+// Like YouTube's , and . keys: pauses and moves by one frame
+function stepFrame(v, direction) {
+    let fps = (typeof videoFps !== 'undefined' && videoFps) || 30;
+    v.pause();
+    v.currentTime = Math.max(0, v.currentTime + direction/fps);
+}
+
+// Like YouTube's 0-9 keys: 1 goes to 10% of the video, 2 to 20%, and so on
+function seekToPercent(v, digit) {
+    let duration = isFinite(v.duration) ? v.duration : data.video_duration;
+    if (!duration) return;
+    v.currentTime = duration * digit / 10;
+}
 
 // Like YouTube's up and down arrows: volume up or down by 5%
 function changeVolume(v, delta) {
@@ -52,7 +85,28 @@ function onKeyDown(e) {
     let v = Q("video");
     if (!e.isTrusted) return;  // plyr CustomEvent
     let c = e.key.toLowerCase();
-    if (e.ctrlKey) return;
+    if (e.ctrlKey) {
+        let isArrow = c == "arrowleft" || c == "arrowright";
+        if (isArrow && !e.shiftKey && !e.altKey
+                && data.chapters && data.chapters.length) {
+            if (data.settings.chapters_mode == 0) return;
+            e.preventDefault();
+            skipChapter(v, c == "arrowright" ? 1 : -1);
+        }
+        return;
+    }
+    else if (c == " ") {
+        // Space already does something on these: presses a button or
+        // link, opens a dropdown, or (on a focused video with the
+        // browser's own controls) plays and pauses by itself
+        let focused = document.activeElement;
+        if (focused.isContentEditable || focused.closest(
+                'button, a, summary, select, video, [role^="menuitem"]'))
+            return;
+        e.preventDefault();     // instead of scrolling the page down
+        if (!e.repeat)
+            v.paused ? v.play() : v.pause();
+    }
     else if (c == "k") {
         v.paused ? v.play() : v.pause();
     }
@@ -72,6 +126,12 @@ function onKeyDown(e) {
         e.preventDefault();     // instead of scrolling the page
         changeVolume(v, c == "arrowup" ? 0.05 : -0.05);
     }
+    else if (c >= "0" && c <= "9" && c.length == 1) {
+        if (data.settings.chapters_mode == 0) return;
+        if (e.altKey || e.metaKey) return;
+        e.preventDefault();
+        seekToPercent(v, Number(c));
+    }
     else if (c == "j") {
         e.preventDefault();
         v.currentTime = v.currentTime - 10;
@@ -79,6 +139,16 @@ function onKeyDown(e) {
     else if (c == "l") {
         e.preventDefault();
         v.currentTime = v.currentTime + 10;
+    }
+    else if (c == ",") {
+        if (data.settings.chapters_mode == 0) return;
+        e.preventDefault();
+        stepFrame(v, -1);
+    }
+    else if (c == ".") {
+        if (data.settings.chapters_mode == 0) return;
+        e.preventDefault();
+        stepFrame(v, 1);
     }
     else if (c == "f") {
         e.preventDefault();

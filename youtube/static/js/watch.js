@@ -1,5 +1,13 @@
 var video = document.querySelector('video');
 
+// Frames per second of the quality that's playing, for stepping one frame
+// at a time in hotkeys.js
+var videoFps = null;
+if (data.using_pair_sources && data.pair_sources[data.pair_idx])
+    videoFps = data.pair_sources[data.pair_idx].fps;
+else if (data.uni_sources && data.uni_sources[data.uni_idx])
+    videoFps = data.uni_sources[data.uni_idx].fps;
+
 // Set up default volume
 if (data.settings.video_player == 0 && data.settings.default_volume !== -1) {
   video.volume = data.settings.default_volume / 100;
@@ -35,6 +43,7 @@ function changeQuality(selection) {
         avMerge = new AVMerge(video, srcInfo, currentVideoTime);
     }
     setVideoDimensions(srcInfo.height, srcInfo.width);
+    videoFps = srcInfo.fps;
     video.currentTime = currentVideoTime;
     if (!videoPaused){
         video.play();

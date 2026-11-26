@@ -252,6 +252,20 @@ For security reasons, enabling this is not recommended.''',
         'category': 'interface',
     }),
 
+    ('chapters_mode', {
+        'type': int,
+        'default': 2,
+        'comment': '''0 - Video chapters disabled
+1 - Video chapters always shown
+2 - Video chapters hidden; shown by clicking a button''',
+        'options': [
+            (0, 'Disabled'),
+            (1, 'Always shown'),
+            (2, 'Shown by clicking button'),
+        ],
+        'category': 'interface',
+    }),
+
     ('enable_comment_avatars', {
         'type': bool,
         'default': False,

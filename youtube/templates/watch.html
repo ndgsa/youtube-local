@@ -304,6 +304,43 @@
             grid-column: 4;
             max-width: 640px;
         }
+            #chapters-details{
+                margin-bottom: 10px;
+            }
+                .chapters-list{
+                    list-style: none;
+                    margin: 0px;
+                    padding: 5px 0px;
+                    background-color: var(--interface-color);
+                    max-height: 300px;
+                    overflow-y: auto;
+                    position: relative; /* chapters.js scrolls it to the current chapter */
+                }
+                    .chapters-list a.chapter{
+                        display: flex;
+                        column-gap: 10px;
+                        padding: 4px 8px 4px 5px;
+                        border-left: 3px solid transparent;
+                        color: var(--text-color);
+                        text-decoration: none;
+                    }
+                    .chapters-list a.chapter:hover{
+                        background-color: rgba(var(--link-color-rgb), 0.1);
+                    }
+                    .chapters-list a.current-chapter{
+                        background-color: rgba(var(--link-color-rgb), 0.18);
+                        border-left-color: rgb(var(--link-color-rgb));
+                    }
+                        .chapter-time{
+                            flex: none;
+                            min-width: 3em;
+                            color: rgb(var(--link-color-rgb));
+                            font-variant-numeric: tabular-nums;
+                        }
+                        .chapter-title{
+                            min-width: 0;
+                            word-wrap: break-word;
+                        }
             #transcript-details{
                 margin-bottom: 10px;
             }
@@ -684,6 +721,16 @@ Reload without invidious (for usage of new identity button).</a>
             <div class="autoplay-toggle-container"><label for="autoplay-toggle">Autoplay: </label><input type="checkbox" id="autoplay-toggle"></div>
         {% endif %}
 
+        {% if settings.chapters_mode != 0 and chapters %}
+            <details id="chapters-details" {{'open' if settings.chapters_mode == 1 else ''}}>
+                <summary>Chapters</summary>
+                <ol class="chapters-list">
+                    {% for chapter in chapters %}
+                        <li><a class="chapter" href="{{ video_url }}&t={{ chapter['start'] }}" data-start="{{ chapter['start'] }}"><span class="chapter-time">{{ chapter['time_text'] }}</span><span class="chapter-title">{{ chapter['title'] }}</span></a></li>
+                    {% endfor %}
+                </ol>
+            </details>
+        {% endif %}
 
         {% if subtitle_sources %}
             <details id="transcript-details">
@@ -741,6 +788,7 @@ Reload without invidious (for usage of new identity button).</a>
 	  <script>var storyboard_url = {{ storyboard_url | tojson }}</script>
       <script src="/youtube.com/static/js/storyboard-preview.js"></script>
     {% endif %}
+	{% if settings.chapters_mode %} <script src="/youtube.com/static/js/chapters.js"></script> {% endif %}
     <script src="/youtube.com/static/js/common.js"></script>
     <script src="/youtube.com/static/js/transcript-table.js"></script>
     {% if settings.use_video_hotkeys %} <link href="/youtube.com/static/hotkeys.css" rel="stylesheet"> <script src="/youtube.com/static/js/hotkeys.js"></script> {% endif %}
