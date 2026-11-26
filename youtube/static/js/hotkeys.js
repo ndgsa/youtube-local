@@ -1,3 +1,50 @@
+
+// Like YouTube's up and down arrows: volume up or down by 5%
+function changeVolume(v, delta) {
+    // rounded so repeated presses land on 5, 10, 15...
+    let volume = Math.round((v.volume + delta) * 20) / 20;
+    v.volume = Math.min(1, Math.max(0, volume));
+    if (delta > 0 && v.muted)
+        v.muted = false;
+    //showVolume(v); // hide the volume level indicator, as it obstructs the view
+}
+
+// Speaker with 0, 1 or 2 sound waves, or crossed out when silent
+const volumeIcons = {
+    muted: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 6 6M22 9l-6 6"/>',
+    low: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/>',
+    high: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/>',
+};
+let volumeDisplay = null;
+let volumeDisplayTimer = null;
+
+// Shows the volume over the video for a second, like YouTube does
+function showVolume(v) {
+    if (!volumeDisplay) {
+        volumeDisplay = document.createElement('div');
+        volumeDisplay.className = 'volume-display';
+        volumeDisplay.setAttribute('role', 'status');
+        volumeDisplay.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span>';
+    }
+    // inside plyr's box so it stays visible in plyr's fullscreen
+    let box = v.closest('.plyr') || v.parentElement;
+    if (volumeDisplay.parentElement !== box) {
+        if (getComputedStyle(box).position === 'static')
+            box.style.position = 'relative';
+        box.appendChild(volumeDisplay);
+    }
+
+    let percent = v.muted ? 0 : Math.round(v.volume * 100);
+    let icon = percent == 0 ? 'muted' : (percent < 50 ? 'low' : 'high');
+    volumeDisplay.querySelector('svg').innerHTML = volumeIcons[icon];
+    volumeDisplay.querySelector('span').textContent = percent + '%';
+    volumeDisplay.classList.add('shown');
+    clearTimeout(volumeDisplayTimer);
+    volumeDisplayTimer = setTimeout(function() {
+        volumeDisplay.classList.remove('shown');
+    }, 1000);
+}
+
 function onKeyDown(e) {
     if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return false;
 
@@ -16,6 +63,14 @@ function onKeyDown(e) {
     else if (c == "arrowright") {
         e.preventDefault();
         v.currentTime = v.currentTime + 5;
+    }
+    else if (c == "arrowup" || c == "arrowdown") {
+        // arrows already pick an option in a focused dropdown
+        if (e.shiftKey || e.altKey || e.metaKey
+                || document.activeElement.tagName == 'SELECT')
+            return;
+        e.preventDefault();     // instead of scrolling the page
+        changeVolume(v, c == "arrowup" ? 0.05 : -0.05);
     }
     else if (c == "j") {
         e.preventDefault();
