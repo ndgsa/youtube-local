@@ -62,6 +62,9 @@ import urllib3.contrib.socks
 
 URL_ORIGIN = "/https://www.youtube.com"
 
+# re-use connectios
+MAX_CONNECTIONS_PER_HOST = 3
+
 
 class PoolManager:
     def __init__(self):
@@ -91,7 +94,7 @@ class PoolManager:
                     'auth': url_match.group('auth'), 'host': url_match.group('host'),
                     'port': url_match.group('port'),}
                 if 'socks' in self.proxy_url['protocol']:
-                    connection_pool = urllib3.contrib.socks.SOCKSProxyManager(self.proxy_url['url'], cert_reqs = 'CERT_REQUIRED')
+                    connection_pool = urllib3.contrib.socks.SOCKSProxyManager(self.proxy_url['url'], cert_reqs = 'CERT_REQUIRED', maxsize = MAX_CONNECTIONS_PER_HOST)
                 else:
                     connection_pool = urllib3.ProxyManager(self.proxy_url['url'], cert_reqs = 'CERT_REQUIRED')
                 # proxy_test_timeout = 10
@@ -99,10 +102,10 @@ class PoolManager:
             except Exception as e:
                 print(e)
                 self.proxy_url = {}
-                connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED')
+                connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED', maxsize = MAX_CONNECTIONS_PER_HOST)
         else:
             self.proxy_url = {}
-            connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED')
+            connection_pool = urllib3.PoolManager(cert_reqs = 'CERT_REQUIRED', maxsize = MAX_CONNECTIONS_PER_HOST)
         return connection_pool
 
     def refresh_connection_pool(self):
@@ -161,7 +164,8 @@ class TorManager:
         self.old_tor_connection_pool = None
         self.tor_connection_pool = urllib3.contrib.socks.SOCKSProxyManager(
             'socks5h://127.0.0.1:' + str(settings.tor_port) + '/',
-            cert_reqs = 'CERT_REQUIRED')
+            cert_reqs = 'CERT_REQUIRED',
+            maxsize = MAX_CONNECTIONS_PER_HOST)
         self.tor_pool_refresh_time = time.monotonic()
         settings.add_setting_changed_hook(
             'tor_port',
@@ -181,7 +185,8 @@ class TorManager:
 
         self.tor_connection_pool = urllib3.contrib.socks.SOCKSProxyManager(
             'socks5h://127.0.0.1:' + str(settings.tor_port) + '/',
-            cert_reqs = 'CERT_REQUIRED')
+            cert_reqs = 'CERT_REQUIRED',
+            maxsize = MAX_CONNECTIONS_PER_HOST)
         self.tor_pool_refresh_time = time.monotonic()
 
     def get_tor_connection_pool(self):
@@ -570,12 +575,14 @@ class RateLimitedQueue(gevent.queue.Queue):
         self.lock.acquire()     # blocks if another greenlet currently has the lock
         if self.count_since_last_wait >= self.subsequent_bursts and self.surpassed_initial:
             gevent.sleep(self.waiting_period)
-            self.count_since_last_wait = 0
+            # self.count_since_last_wait = 0
+            self.count_since_last_wait -= self.subsequent_bursts
 
         elif self.count_since_last_wait >= self.initial_burst and not self.surpassed_initial:
             self.surpassed_initial = True
             gevent.sleep(self.waiting_period)
-            self.count_since_last_wait = 0
+            # self.count_since_last_wait = 0
+            self.count_since_last_wait -= self.initial_burst
 
         self.count_since_last_wait += 1
 
@@ -595,6 +602,10 @@ class RateLimitedQueue(gevent.queue.Queue):
         self.lock.release()
 
         return item
+
+    def count_extra(self, amount):
+        '''Counts amount more towards the rate limit.'''
+        self.count_since_last_wait += amount
 
 
 
