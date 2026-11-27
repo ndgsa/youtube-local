@@ -133,6 +133,7 @@ For security reasons, enabling this is not recommended.''',
 
             # ('ios'),                   #(require: po_token;) after 1 minute fails
             # ('ipados'),                #(require: po_token;) after 1 minute fails
+            ('ios_producer'),            #
             # ('visionos'),              #
             ('visionos_new'),            #
 
@@ -142,7 +143,7 @@ For security reasons, enabling this is not recommended.''',
             # ('web_safari'),            # not working
             # ('web_embedded'),          # not working
             # ('web_remix'),             # not working
-            ('web_downgraded'),          #(require: js;)
+            # ('web_downgraded'),        #(require: js; po_token;)
 
             # ('tv_embedded'),           #(require: js; cookies;)
             # ('tv'),                    # not working
