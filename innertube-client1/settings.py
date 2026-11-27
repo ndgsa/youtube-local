@@ -108,6 +108,15 @@ For security reasons, enabling this is not recommended.''',
         'category': 'network',
     }),
 
+    ('yt_cookies_path', {
+        'type': str,
+        'default': '',
+        'label': 'Profile or cookies.txt path',
+        'comment': '''Profile or cookie.txt path stores cookies.''',
+        'category': 'network',
+        'hidden': True,
+    }),
+
     ('use_innertube_for_captions', {
         'type': bool,
         'default': True,
