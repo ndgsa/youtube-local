@@ -4,6 +4,7 @@ from youtube import util, comments, local_playlist, yt_data_extract
 import settings
 from youtube.innertube_caption import get_caption_json_resp, webvtt_from_caption_data
 from youtube.chapters import parse_chapters
+import youtube.cookies as cookies_module
 
 from flask import request
 import flask
@@ -346,6 +347,64 @@ def _add_to_error(info, key, additional_message):
     else:
         info[key] = additional_message
 
+def fetch_player_response_with_cookies(client_name, video_id, sts):
+    origin = 'https://www.youtube.com'
+    client, innertube = util.get_innertube_client(client_name=client_name)
+    cookies = cookies_module.get_cookies()
+    special_cookies = []
+    last_st = {}
+    for name, value in cookies.items():
+        if name in ["__Secure-YNID", "__Secure-ROLLOUT_TOKEN", "VISITOR_INFO1_LIVE", "VISITOR_PRIVACY_METADATA", "PREF"]:
+            special_cookies.append(name + '=' + value)
+    headers = (
+        ('Content-Type', 'application/json'),
+        ('User-Agent', innertube['INNERTUBE_CONTEXT']['client']['userAgent']),
+        ('X-YouTube-Client-Name', str(innertube['INNERTUBE_CONTEXT_CLIENT_NAME'])),
+        ('X-YouTube-Client-Version', innertube['INNERTUBE_CONTEXT']['client']['clientVersion']),
+        ('Origin', origin),
+        ('X-Origin', origin),
+        ('X-Goog-AuthUser', '0'),
+        ('Authorization', cookies_module.auth_header(cookies)),
+        # ('X-Goog-Visitor-Id', util.get_visitor_data()),
+        # ('Cookie', '; '.join(name + '=' + value for name, value in cookies.items())),
+        ('Cookie', '; '.join(special_cookies)),
+        # ('X-Goog-PageId', '100003....'),
+    )
+    data = {
+        'context': {'client': innertube['INNERTUBE_CONTEXT']['client']},
+        'videoId': video_id,
+        'contentCheckOk': True,
+        'racyCheckOk': True,
+    }
+    if sts:
+        data['playbackContext'] = {'contentPlaybackContext': {
+            'html5Preference': 'HTML5_PREF_WANTS',
+            'signatureTimestamp': sts,
+        }}
+    return util.fetch_url(
+        origin + '/youtubei/v1/player?prettyPrint=false',
+        headers=headers, data=json.dumps(data),
+        debug_name='youtubei_' + 'player' + '_' + client + '_signed_in',
+        report_text='Fetched ' + client + ' youtubei ' + 'signed-in player',
+    ).decode('utf-8')
+
+class SignInError(Exception): pass
+
+def check_stream(client_name, url):
+    '''One small request for the first byte, so a page whose video wouldn't
+    play shows why instead'''
+    client, innertube = util.get_innertube_client(client_name=client_name)
+    try:
+        response, cleanup = util.fetch_url_response(
+            url, (('Range', 'bytes=0-0'), ('User-Agent', innertube['INNERTUBE_CONTEXT']['client']['userAgent'])))
+    except Exception as e:
+        raise SignInError('Couldn\'t reach the video stream: ' + str(e))
+    status = response.status
+    cleanup(response)
+    if status not in (200, 206):
+        raise SignInError('YouTube refused the decoded video stream (error %d)'
+                          % status)
+
 def fetch_player_response(client, video_id):
     api_data = {
         'videoId': video_id,
@@ -401,17 +460,29 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
     info['__client_name'] = client
     yt_data_extract.update_with_new_urls(info, player_response)
 
-    # Age restricted video, retry
+    is_bot_video = False
+    # Age restricted video or confirm this isn't a bot, retry
     if not settings.allow_age_restricted_content:
         if info.get('age_restricted'):
             print('Age restricted content is not allowed.')
     else:
-        if info['age_restricted'] or info['player_urls_missing']:
+        bot_checked = bool(info['playability_error'] and 'not a bot' in info['playability_error'])
+        if (info['age_restricted'] or info['player_urls_missing']) and not bot_checked:
             if info['age_restricted']:
                 print('Age restricted video, retrying')
             else:
                 print('Player urls missing, retrying')
-            player_response = fetch_player_response('tv_simply', video_id)
+            if cookies_module.is_set_up():
+                # yt-dlp's tv_samsung client, which it uses for signed-in requests
+                headers = util.generate_api_headers(client_name='tv_samsung')
+                player_data = util.get_player_data(
+                    client='tv_samsung',
+                    video_id=video_id,
+                    headers=tuple(headers.items()))
+                player_response = fetch_player_response_with_cookies('tv_samsung', video_id, player_data['signature_timestamp'])
+                is_bot_video = True
+            else:
+                player_response = fetch_player_response('tv_simply', video_id)
             yt_data_extract.update_with_new_urls(info, player_response)
 
     # n_sig/signature decryption
@@ -419,6 +490,16 @@ def extract_info(video_id, use_invidious, playlist_id=None, index=None):
     if decryption_error:
         decryption_error = 'Error decrypting n/s signatures: ' + decryption_error
         info['playability_error'] = decryption_error
+
+    # signin videos
+    if not info['formats'] and info['playability_status'] and info['playability_error']:
+        pass
+    elif is_bot_video:
+        try:
+            check_stream('tv_samsung', info['formats'][0]['url'])
+        except SignInError:
+            info['formats'] = []
+            raise
 
     # append po_token
     po_token_append_error = append_po_token(info)
