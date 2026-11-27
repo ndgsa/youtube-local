@@ -1175,6 +1175,21 @@ INNERTUBE_CLIENTS = {
         'INNERTUBE_CONTEXT_CLIENT_NAME': 5,
         'REQUIRE_JS_PLAYER': False
     },
+    'ios_producer': {
+        'INNERTUBE_CONTEXT': {
+            'client': {
+                'clientName': 'IOS_PRODUCER',
+                'clientVersion': '0.145.123',
+                'deviceMake': 'Apple',
+                'deviceModel': 'iPhone16,2',
+                'userAgent': 'com.google.ios.youtubeproducer/0.145.123 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
+                'osName': 'iPhone',
+                'osVersion': '18.3.2.22D82',
+            },
+        },
+        'INNERTUBE_CONTEXT_CLIENT_NAME': 92,
+        'REQUIRE_JS_PLAYER': False,
+    },
     'visionos': {
         'INNERTUBE_CONTEXT': {
             'client': {
